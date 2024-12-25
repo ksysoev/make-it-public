@@ -1,0 +1,34 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+      - name: Display Go version
+        run: go version
+      - name: Code Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.61.0
+      - name: Build
+        run: go build -v ./...
+      - name: Test
+        run: go test -coverprofile=coverage.out -covermode=atomic -v -race ./...
+      - name: Prepare coverage reports
+        run: |
+          cat coverage.out | grep -v "make-it-public/cmd" | grep -v "_mock.go" > coverage.final.out
+          mv coverage.final.out coverage.out
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

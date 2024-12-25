@@ -1,0 +1,7 @@
+with-expecter: true
+mock-build-tags: "!compile"
+inpackage: true
+filename: "{{.InterfaceName | snakecase }}_mock.go"
+dir: "{{.InterfaceDir}}"
+mockname: "Mock{{.InterfaceName}}"
+packages:

@@ -2,10 +2,10 @@ package server
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slog"
 )
 
 type flags struct {

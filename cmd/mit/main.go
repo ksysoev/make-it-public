@@ -1,7 +1,26 @@
 package main
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/ksysoev/make-it-public/pkg/cmd/client"
+)
 
 func main() {
-	fmt.Println("Placeholder for Make It Public Client")
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+
+	cmd := client.InitCommand()
+
+	err := cmd.ExecuteContext(ctx)
+	if err != nil {
+		fmt.Println(err)
+		cancel()
+		os.Exit(1)
+	}
+
+	cancel()
 }

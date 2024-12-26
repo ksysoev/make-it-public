@@ -9,17 +9,19 @@ import (
 )
 
 type ClientServer struct {
-	remote string
+	serverAddr string
+	destAddr   string
 }
 
-func NewClientServer(remote string) *ClientServer {
+func NewClientServer(serverAddr string, destAddr string) *ClientServer {
 	return &ClientServer{
-		remote: remote,
+		serverAddr: serverAddr,
+		destAddr:   destAddr,
 	}
 }
 
 func (s *ClientServer) Run(ctx context.Context) error {
-	listener, err := revdial.Listen(ctx, s.remote)
+	listener, err := revdial.Listen(ctx, s.serverAddr)
 	if err != nil {
 		return err
 	}

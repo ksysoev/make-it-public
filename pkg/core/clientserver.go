@@ -2,7 +2,10 @@ package core
 
 import (
 	"context"
-	"net/http"
+	"io"
+	"log/slog"
+	"net"
+	"sync"
 	"time"
 
 	"github.com/ksysoev/revdial"
@@ -11,6 +14,7 @@ import (
 type ClientServer struct {
 	serverAddr string
 	destAddr   string
+	wg         sync.WaitGroup
 }
 
 func NewClientServer(serverAddr, destAddr string) *ClientServer {
@@ -26,23 +30,70 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		return err
 	}
 
-	serve := http.Server{
-		Handler:           s,
-		ReadHeaderTimeout: 5 * time.Second,
-		WriteTimeout:      5 * time.Second,
-	}
-
 	go func() {
 		<-ctx.Done()
 
-		_ = serve.Close()
+		_ = listener.Close()
 	}()
 
-	return serve.Serve(listener)
+	defer s.wg.Wait()
+
+	err = s.listenAndServe(ctx, listener)
+	if err != nil && err != revdial.ErrListenerClosed {
+		return err
+	}
+
+	return nil
 }
 
-func (s *ClientServer) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
+func (s *ClientServer) listenAndServe(ctx context.Context, listener net.Listener) error {
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			return err
+		}
 
-	_, _ = w.Write([]byte("Hello, World!"))
+		s.wg.Add(1)
+
+		go func() {
+			defer s.wg.Done()
+
+			s.handleConn(ctx, conn)
+		}()
+	}
+}
+
+func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
+	defer conn.Close()
+
+	d := net.Dialer{
+		Timeout: 5 * time.Second,
+	}
+
+	destConn, err := d.DialContext(ctx, "tcp", s.destAddr)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to dial", "err", err)
+		return
+	}
+
+	defer destConn.Close()
+
+	done := make(chan struct{}, 2)
+
+	go func() {
+		_, _ = io.Copy(destConn, conn)
+
+		done <- struct{}{}
+	}()
+
+	go func() {
+		_, _ = io.Copy(conn, destConn)
+
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 }

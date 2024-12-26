@@ -3,14 +3,11 @@ package core
 import (
 	"context"
 	"net"
-	"sync"
 
 	"github.com/ksysoev/revdial"
 )
 
 type RevServer struct {
-	listen string
-	mu     sync.Mutex
 	dialer *revdial.Dialer
 }
 
@@ -24,7 +21,7 @@ func (s *RevServer) Start(ctx context.Context) error {
 	return s.dialer.Start(ctx)
 }
 
-func (s *RevServer) Stop(ctx context.Context) error {
+func (s *RevServer) Stop() error {
 	return s.dialer.Stop()
 }
 

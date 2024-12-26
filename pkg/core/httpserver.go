@@ -4,11 +4,12 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"time"
 )
 
 type HTTPServer struct {
-	listen     string
 	revDialler *RevServer
+	listen     string
 }
 
 func NewHTTPServer(listen string, revDialler *RevServer) *HTTPServer {
@@ -20,12 +21,15 @@ func NewHTTPServer(listen string, revDialler *RevServer) *HTTPServer {
 
 func (s *HTTPServer) Run(ctx context.Context) error {
 	server := &http.Server{
-		Addr:    s.listen,
-		Handler: s,
+		Addr:              s.listen,
+		Handler:           s,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      5 * time.Second,
 	}
 
 	go func() {
 		<-ctx.Done()
+
 		_ = server.Close()
 	}()
 
@@ -40,6 +44,8 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.revDialler.Dial(r.Context(), "")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
 	}
 
 	hj, ok := w.(http.Hijacker)
@@ -53,6 +59,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to hijack connection: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	defer func() { _ = clientConn.Close() }()
 
 	// Proxy the client request to the reverse-dialed server connection.
@@ -62,6 +69,4 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Proxy the server's response back to the client.
 	_, _ = io.Copy(clientConn, conn)
-
-	return
 }

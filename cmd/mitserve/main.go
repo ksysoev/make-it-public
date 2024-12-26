@@ -2,18 +2,26 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/ksysoev/make-it-public/pkg/cmd"
+	"github.com/ksysoev/make-it-public/pkg/cmd/server"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
 
-	err := cmd.RunServerCommand(ctx)
+	cmd := server.InitCommand()
+
+	err := cmd.ExecuteContext(ctx)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		cancel()
+
+		os.Exit(1)
 	}
+
+	cancel()
 }

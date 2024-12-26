@@ -27,6 +27,11 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		Handler: s,
 	}
 
+	go func() {
+		<-ctx.Done()
+		_ = serve.Close()
+	}()
+
 	return serve.Serve(listener)
 }
 

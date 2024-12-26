@@ -13,5 +13,5 @@ func RunServerCommand(ctx context.Context) error {
 	}
 
 	httpServ := core.NewHTTPServer(":8080", revServ)
-	return httpServ.Run()
+	return httpServ.Run(ctx)
 }

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"io"
 	"net/http"
 )
@@ -17,13 +18,22 @@ func NewHTTPServer(listen string, revDialler *RevServer) *HTTPServer {
 	}
 }
 
-func (s *HTTPServer) Run() error {
+func (s *HTTPServer) Run(ctx context.Context) error {
 	server := &http.Server{
 		Addr:    s.listen,
 		Handler: s,
 	}
 
-	return server.ListenAndServe()
+	go func() {
+		<-ctx.Done()
+		_ = server.Close()
+	}()
+
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+		return err
+	}
+
+	return nil
 }
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {

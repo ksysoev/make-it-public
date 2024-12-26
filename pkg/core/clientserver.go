@@ -13,7 +13,7 @@ type ClientServer struct {
 	destAddr   string
 }
 
-func NewClientServer(serverAddr string, destAddr string) *ClientServer {
+func NewClientServer(serverAddr, destAddr string) *ClientServer {
 	return &ClientServer{
 		serverAddr: serverAddr,
 		destAddr:   destAddr,

@@ -40,5 +40,6 @@ func RunServerCommand(ctx context.Context, args *flags) error {
 	httpServ := core.NewHTTPServer(args.httpListen, revServ)
 
 	slog.InfoContext(ctx, "server started", "http", args.httpListen, "rev", args.revListen)
+
 	return httpServ.Run(ctx)
 }

@@ -34,5 +34,6 @@ func RunClientCommand(ctx context.Context, args *flags) error {
 	client := core.NewClientServer(args.server, args.expose)
 
 	slog.InfoContext(ctx, "client started", "server", args.server)
+
 	return client.Run(ctx)
 }

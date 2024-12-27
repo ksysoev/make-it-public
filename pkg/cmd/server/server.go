@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/ksysoev/make-it-public/pkg/core"
@@ -9,8 +10,7 @@ import (
 )
 
 type flags struct {
-	httpListen string
-	revListen  string
+	configPath string
 }
 
 func InitCommand() cobra.Command {
@@ -24,22 +24,26 @@ func InitCommand() cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&args.httpListen, "http-listen", ":8080", "HTTP server listen address")
-	cmd.Flags().StringVar(&args.revListen, "rev-listen", ":8081", "Reverse server listen address")
+	cmd.Flags().StringVar(&args.configPath, "config", "runtime/config.yaml", "config path")
 
 	return cmd
 }
 
 func RunServerCommand(ctx context.Context, args *flags) error {
-	revServ := core.NewRevServer(args.revListen)
+	cfg, err := loadConfig(args)
+	if err != nil {
+		return fmt.Errorf("failed to loag config: %w", err)
+	}
+
+	revServ := core.NewRevServer(cfg.RevProxy.Listen)
 
 	if err := revServ.Start(ctx); err != nil {
 		return err
 	}
 
-	httpServ := core.NewHTTPServer(args.httpListen, revServ)
+	httpServ := core.NewHTTPServer(cfg.HTTP.Listen, revServ)
 
-	slog.InfoContext(ctx, "server started", "http", args.httpListen, "rev", args.revListen)
+	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen)
 
 	return httpServ.Run(ctx)
 }

@@ -21,6 +21,9 @@ type revProxyConfig struct {
 	Listen string `mapstructure:"listen"`
 }
 
+// loadConfig loads the application configuration from the specified file path and environment variables.
+// It uses the provided flags structure to determine the configuration path.
+// The function returns a pointer to the appConfig structure and an error if something goes wrong.
 func loadConfig(arg *flags) (*appConfig, error) {
 	v := viper.New()
 

@@ -13,6 +13,7 @@ type flags struct {
 	configPath string
 }
 
+// InitCommand initializes and returns a cobra.Command for running the server with configurable flags.
 func InitCommand() cobra.Command {
 	args := flags{}
 
@@ -29,6 +30,8 @@ func InitCommand() cobra.Command {
 	return cmd
 }
 
+// RunServerCommand initializes and starts the server using the provided context and configuration flags.
+// It loads the application configuration, initializes reverse and HTTP servers, and starts them concurrently.
 func RunServerCommand(ctx context.Context, args *flags) error {
 	cfg, err := loadConfig(args)
 	if err != nil {

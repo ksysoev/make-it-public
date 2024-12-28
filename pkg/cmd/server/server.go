@@ -6,7 +6,9 @@ import (
 	"log/slog"
 
 	"github.com/ksysoev/make-it-public/pkg/core"
+	"github.com/ksysoev/make-it-public/pkg/revproxy"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 type flags struct {
@@ -38,15 +40,15 @@ func RunServerCommand(ctx context.Context, args *flags) error {
 		return fmt.Errorf("failed to loag config: %w", err)
 	}
 
-	revServ := core.NewRevServer(cfg.RevProxy.Listen)
-
-	if err := revServ.Start(ctx); err != nil {
-		return err
-	}
-
+	revServ := revproxy.New(cfg.RevProxy.Listen, cfg.RevProxy.Users)
 	httpServ := core.NewHTTPServer(cfg.HTTP.Listen, revServ)
 
 	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen)
 
-	return httpServ.Run(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error { return revServ.Run(ctx) })
+	eg.Go(func() error { return httpServ.Run(ctx) })
+
+	return eg.Wait()
 }

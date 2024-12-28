@@ -5,14 +5,16 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/ksysoev/make-it-public/pkg/revproxy"
 )
 
 type HTTPServer struct {
-	revDialler *RevServer
+	revDialler *revproxy.RevServer
 	listen     string
 }
 
-func NewHTTPServer(listen string, revDialler *RevServer) *HTTPServer {
+func NewHTTPServer(listen string, revDialler *revproxy.RevServer) *HTTPServer {
 	return &HTTPServer{
 		listen:     listen,
 		revDialler: revDialler,

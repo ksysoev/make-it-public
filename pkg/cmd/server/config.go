@@ -18,7 +18,8 @@ type httpConfig struct {
 }
 
 type revProxyConfig struct {
-	Listen string `mapstructure:"listen"`
+	Listen string            `mapstructure:"listen"`
+	Users  map[string]string `mapstructure:"users"`
 }
 
 // loadConfig loads the application configuration from the specified file path and environment variables.

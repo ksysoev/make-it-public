@@ -35,12 +35,12 @@ func InitCommand() cobra.Command {
 }
 
 func RunClientCommand(ctx context.Context, args *flags) error {
-	token, err := token.Decode(args.token)
+	tkn, err := token.Decode(args.token)
 	if err != nil {
 		return fmt.Errorf("invalid token: %w", err)
 	}
 
-	client := core.NewClientServer(args.server, args.expose)
+	client := core.NewClientServer(args.server, args.expose, tkn)
 
 	slog.InfoContext(ctx, "client started", "server", args.server)
 

@@ -14,17 +14,17 @@ import (
 )
 
 type ClientServer struct {
+	token      *token.Token
 	serverAddr string
 	destAddr   string
-	token      token.Token
 	wg         sync.WaitGroup
 }
 
-func NewClientServer(serverAddr, destAddr string, token token.Token) *ClientServer {
+func NewClientServer(serverAddr, destAddr string, tkn *token.Token) *ClientServer {
 	return &ClientServer{
 		serverAddr: serverAddr,
 		destAddr:   destAddr,
-		token:      token,
+		token:      tkn,
 	}
 }
 

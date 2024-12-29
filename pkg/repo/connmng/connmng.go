@@ -2,6 +2,7 @@ package connmng
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -35,7 +36,7 @@ func New() *ConnManager {
 	}
 }
 
-func (cm *ConnManager) AddConnection(user string, conn ServerConn) {
+func (cm *ConnManager) AddConnection(user string, conn *proto.Server) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -66,12 +67,12 @@ func (cm *ConnManager) RequestConnection(ctx context.Context, userID string) (ch
 
 	userConn, ok := cm.users[userID]
 	if !ok {
-		return nil, fmt.Errorf("No connections for user %s", userID)
+		return nil, fmt.Errorf("no connections for user %s", userID)
 	}
 
 	cliConn := userConn.GetConn()
 	if cliConn == nil {
-		return nil, fmt.Errorf("No connections for user %s", userID)
+		return nil, fmt.Errorf("no connections for user %s", userID)
 	}
 
 	id := uuid.New()
@@ -141,7 +142,7 @@ func (cm *ConnManager) Close() error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("failed to close connections: %w", errs)
+		return fmt.Errorf("failed to close connections: %w", errors.Join(errs...))
 	}
 
 	return nil

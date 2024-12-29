@@ -45,7 +45,7 @@ func RunServerCommand(ctx context.Context, args *flags) error {
 	connManager := connmng.New()
 	connService := connsvc.New(connManager)
 
-	revServ := revproxy.New(cfg.RevProxy.Listen, cfg.RevProxy.Users)
+	revServ := revproxy.New(cfg.RevProxy.Listen, connService)
 	httpServ := edge.New(cfg.HTTP.Listen, connService)
 
 	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen)

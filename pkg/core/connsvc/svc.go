@@ -11,10 +11,6 @@ import (
 	"github.com/ksysoev/revdial/proto"
 )
 
-type reqWriter interface {
-	Write(conn net.Conn) error
-}
-
 type ConnManager interface {
 	RequestConnection(ctx context.Context, userID string) (chan net.Conn, error)
 	AddConnection(user string, conn *proto.Server)

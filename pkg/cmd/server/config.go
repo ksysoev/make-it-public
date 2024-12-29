@@ -9,8 +9,8 @@ import (
 )
 
 type appConfig struct {
-	HTTP     httpConfig     `mapstructure:"http"`
 	RevProxy revProxyConfig `mapstructure:"reverse_proxy"`
+	HTTP     httpConfig     `mapstructure:"http"`
 }
 
 type httpConfig struct {
@@ -18,8 +18,8 @@ type httpConfig struct {
 }
 
 type revProxyConfig struct {
-	Listen string            `mapstructure:"listen"`
 	Users  map[string]string `mapstructure:"users"`
+	Listen string            `mapstructure:"listen"`
 }
 
 // loadConfig loads the application configuration from the specified file path and environment variables.

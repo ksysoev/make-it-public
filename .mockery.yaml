@@ -1,7 +1,11 @@
 with-expecter: true
 mock-build-tags: "!compile"
 inpackage: true
+issue-845-fix: true
 filename: "{{.InterfaceName | snakecase }}_mock.go"
 dir: "{{.InterfaceDir}}"
 mockname: "Mock{{.InterfaceName}}"
 packages:
+  github.com/ksysoev/make-it-public/pkg/repo/connmng:
+    interfaces:
+      ServerConn:

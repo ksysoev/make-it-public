@@ -2,5 +2,7 @@ http:
   listen: ":8080"
 reverse_proxy:
   listen: ":8081"
+auth:
+  users:
+    user1: test
 
-  

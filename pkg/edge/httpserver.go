@@ -1,21 +1,25 @@
-package core
+package edge
 
 import (
 	"context"
-	"io"
+	"net"
 	"net/http"
 	"time"
 )
 
-type HTTPServer struct {
-	revDialler *RevServer
-	listen     string
+type ConnService interface {
+	HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error) error
 }
 
-func NewHTTPServer(listen string, revDialler *RevServer) *HTTPServer {
+type HTTPServer struct {
+	connService ConnService
+	listen      string
+}
+
+func New(listen string, connService ConnService) *HTTPServer {
 	return &HTTPServer{
-		listen:     listen,
-		revDialler: revDialler,
+		listen:      listen,
+		connService: connService,
 	}
 }
 
@@ -41,10 +45,10 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 }
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.revDialler.Dial(r.Context(), "")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-
+	// for now we just get the user id from the header, but if future we will take it from subdomain
+	userID := r.Header.Get("X-User-ID")
+	if userID == "" {
+		http.Error(w, "missing user id", http.StatusBadRequest)
 		return
 	}
 
@@ -62,11 +66,13 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() { _ = clientConn.Close() }()
 
-	// Proxy the client request to the reverse-dialed server connection.
-	go func() {
-		_ = r.Write(conn) // Write the HTTP request to the reverse-dialed server.
-	}()
+	err = s.connService.HandleHTTPConnection(r.Context(), userID, clientConn, func(conn net.Conn) error {
+		return r.Write(conn)
+	})
 
-	// Proxy the server's response back to the client.
-	_, _ = io.Copy(clientConn, conn)
+	if err != nil {
+		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)
+
+		return
+	}
 }

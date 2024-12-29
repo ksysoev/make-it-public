@@ -2,30 +2,39 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/ksysoev/revdial"
 )
 
 type ClientServer struct {
+	token      *token.Token
 	serverAddr string
 	destAddr   string
 	wg         sync.WaitGroup
 }
 
-func NewClientServer(serverAddr, destAddr string) *ClientServer {
+func NewClientServer(serverAddr, destAddr string, tkn *token.Token) *ClientServer {
 	return &ClientServer{
 		serverAddr: serverAddr,
 		destAddr:   destAddr,
+		token:      tkn,
 	}
 }
 
 func (s *ClientServer) Run(ctx context.Context) error {
-	listener, err := revdial.Listen(ctx, s.serverAddr)
+	authOpt, err := revdial.WithUserPass(s.token.ID, s.token.Secret)
+	if err != nil {
+		return fmt.Errorf("failed to create auth option: %w", err)
+	}
+
+	listener, err := revdial.Listen(ctx, s.serverAddr, authOpt)
 	if err != nil {
 		return err
 	}

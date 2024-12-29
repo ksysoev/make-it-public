@@ -12,19 +12,21 @@ import (
 
 type RevServer struct {
 	listen string
+	users  map[string]string
 }
 
 func New(listen string, users map[string]string) *RevServer {
 	return &RevServer{
 		listen: listen,
+		users:  users,
 	}
 }
 
-func (s *RevServer) Run(ctx context.Context) error {
+func (r *RevServer) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	l, err := net.Listen("tcp", s.listen)
+	l, err := net.Listen("tcp", r.listen)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
@@ -48,13 +50,22 @@ func (s *RevServer) Run(ctx context.Context) error {
 			defer wg.Done()
 			defer func() { _ = conn.Close() }()
 
-			handleConn(ctx, conn)
+			r.handleConn(ctx, conn)
 		}()
 	}
 }
 
-func handleConn(ctx context.Context, conn net.Conn) {
-	s := proto.NewServer(conn, d.serverOpts...)
+func (r *RevServer) handleConn(ctx context.Context, conn net.Conn) {
+	var connUser string
+
+	s := proto.NewServer(conn, proto.WithUserPassAuth(func(user, pass string) bool {
+		if p, ok := r.users[user]; ok {
+			connUser = user
+			return p == pass
+		}
+
+		return false
+	}))
 
 	if err := s.Process(); err != nil {
 		slog.Debug("failed to process connection", slog.Any("error", err))
@@ -84,10 +95,10 @@ func handleConn(ctx context.Context, conn net.Conn) {
 	}
 }
 
-func (s *RevServer) Stop() error {
+func (r *RevServer) Stop() error {
 	return nil
 }
 
-func (s *RevServer) Dial(ctx context.Context, _ string) (net.Conn, error) {
+func (r *RevServer) Dial(ctx context.Context, _ string) (net.Conn, error) {
 	return nil, fmt.Errorf("not implemented")
 }

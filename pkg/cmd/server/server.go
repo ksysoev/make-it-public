@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/ksysoev/make-it-public/pkg/core"
+	"github.com/ksysoev/make-it-public/pkg/edge"
 	"github.com/ksysoev/make-it-public/pkg/revproxy"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -41,7 +41,7 @@ func RunServerCommand(ctx context.Context, args *flags) error {
 	}
 
 	revServ := revproxy.New(cfg.RevProxy.Listen, cfg.RevProxy.Users)
-	httpServ := core.NewHTTPServer(cfg.HTTP.Listen, revServ)
+	httpServ := edge.NewHTTPServer(cfg.HTTP.Listen, revServ)
 
 	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen)
 

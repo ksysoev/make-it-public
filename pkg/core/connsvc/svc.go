@@ -61,7 +61,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 	return nil
 }
 
-func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, req reqWriter) error {
+func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error) error {
 	ch, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to request connection: %w", err)
@@ -81,7 +81,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		}()
 
 		go func() {
-			_ = req.Write(conn)
+			_ = write(revConn)
 		}()
 
 		_, _ = io.Copy(conn, revConn)

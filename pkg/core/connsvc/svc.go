@@ -11,6 +11,10 @@ import (
 	"github.com/ksysoev/revdial/proto"
 )
 
+type AuthRepo interface {
+	Verify(user, pass string) bool
+}
+
 type ConnManager interface {
 	RequestConnection(ctx context.Context, userID string) (chan net.Conn, error)
 	AddConnection(user string, conn *proto.Server)
@@ -18,13 +22,14 @@ type ConnManager interface {
 }
 
 type Service struct {
-	connmng  ConnManager
-	authRepo map[string]string
+	connmng ConnManager
+	auth    AuthRepo
 }
 
-func New(connmng ConnManager) *Service {
+func New(connmng ConnManager, auth AuthRepo) *Service {
 	return &Service{
 		connmng: connmng,
+		auth:    auth,
 	}
 }
 
@@ -32,16 +37,16 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 	var connUser string
 
 	servConn := proto.NewServer(conn, proto.WithUserPassAuth(func(user, pass string) bool {
-		if p, ok := s.authRepo[user]; ok {
+		if s.auth.Verify(user, pass) {
 			connUser = user
-			return p == pass
+			return true
 		}
 
 		return false
 	}))
 
 	if err := servConn.Process(); err != nil {
-		slog.Debug("failed to process connection", slog.Any("error", err))
+		slog.Info("failed to process connection", slog.Any("error", err))
 		return nil
 	}
 
@@ -53,6 +58,8 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 	default:
 		slog.ErrorContext(ctx, "unexpected state while handling incomming connection", slog.Any("state", servConn.State()))
 	}
+
+	<-ctx.Done()
 
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/ksysoev/make-it-public/pkg/core/connsvc"
 	"github.com/ksysoev/make-it-public/pkg/edge"
+	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/ksysoev/make-it-public/pkg/repo/connmng"
 	"github.com/ksysoev/make-it-public/pkg/revproxy"
 	"github.com/spf13/cobra"
@@ -42,8 +43,9 @@ func RunServerCommand(ctx context.Context, args *flags) error {
 		return fmt.Errorf("failed to loag config: %w", err)
 	}
 
+	authRepo := auth.New(&cfg.Auth)
 	connManager := connmng.New()
-	connService := connsvc.New(connManager)
+	connService := connsvc.New(connManager, authRepo)
 
 	revServ := revproxy.New(cfg.RevProxy.Listen, connService)
 	httpServ := edge.New(cfg.HTTP.Listen, connService)

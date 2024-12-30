@@ -2,6 +2,7 @@ package connsvc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -90,7 +91,15 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		}
 
 		// Create error group for managing both copy operations
-		g, gctx := errgroup.WithContext(ctx)
+		g, ctx := errgroup.WithContext(ctx)
+
+		g.Go(func() error {
+			<-ctx.Done()
+			err1 := conn.Close()
+			err2 := revConn.Close()
+
+			return errors.Join(err1, err2)
+		})
 
 		// Copy from reverse connection to client connection
 		g.Go(func() error {
@@ -110,20 +119,6 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 			return nil
 		})
 
-		// Wait for both copy operations to complete or context to be cancelled
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-gctx.Done():
-			return gctx.Err()
-		case err := <-func() chan error {
-			ch := make(chan error, 1)
-			go func() {
-				ch <- g.Wait()
-			}()
-			return ch
-		}():
-			return err
-		}
+		return g.Wait()
 	}
 }

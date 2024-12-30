@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/revdial/proto"
+	"golang.org/x/sync/errgroup"
 )
 
 type AuthRepo interface {
@@ -83,12 +84,46 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 			_ = revConn.Close()
 		}()
 
-		go func() {
-			_ = write(revConn)
-		}()
+		// Write initial request data
+		if err := write(revConn); err != nil {
+			return fmt.Errorf("failed to write initial request: %w", err)
+		}
 
-		_, _ = io.Copy(conn, revConn)
+		// Create error group for managing both copy operations
+		g, gctx := errgroup.WithContext(ctx)
+
+		// Copy from reverse connection to client connection
+		g.Go(func() error {
+			_, err := io.Copy(conn, revConn)
+			if err != nil && err != io.EOF {
+				return fmt.Errorf("error copying from reverse connection: %w", err)
+			}
+			return nil
+		})
+
+		// Copy from client connection to reverse connection
+		g.Go(func() error {
+			_, err := io.Copy(revConn, conn)
+			if err != nil && err != io.EOF {
+				return fmt.Errorf("error copying to reverse connection: %w", err)
+			}
+			return nil
+		})
+
+		// Wait for both copy operations to complete or context to be cancelled
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-gctx.Done():
+			return gctx.Err()
+		case err := <-func() chan error {
+			ch := make(chan error, 1)
+			go func() {
+				ch <- g.Wait()
+			}()
+			return ch
+		}():
+			return err
+		}
 	}
-
-	return nil
 }

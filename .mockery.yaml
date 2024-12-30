@@ -9,3 +9,7 @@ packages:
   github.com/ksysoev/make-it-public/pkg/repo/connmng:
     interfaces:
       ServerConn:
+  github.com/ksysoev/make-it-public/pkg/core/connsvc:
+    interfaces:
+      AuthRepo:
+      ConnManager:

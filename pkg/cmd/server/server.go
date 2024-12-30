@@ -35,8 +35,9 @@ func InitCommand() cobra.Command {
 	return cmd
 }
 
-// RunServerCommand initializes and starts the server using the provided context and configuration flags.
-// It loads the application configuration, initializes reverse and HTTP servers, and starts them concurrently.
+// RunServerCommand initializes and starts both reverse proxy and HTTP servers for handling client connections.
+// It takes ctx of type context.Context for managing the server lifecycle and args of type *flags to load configuration.
+// It returns an error if the configuration fails to load, servers cannot start, or any runtime error occurs.
 func RunServerCommand(ctx context.Context, args *flags) error {
 	cfg, err := loadConfig(args)
 	if err != nil {

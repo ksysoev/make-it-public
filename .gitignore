@@ -26,3 +26,5 @@ go.work.sum
 
 # IDE files
 .idea/*
+
+*.DS_Store

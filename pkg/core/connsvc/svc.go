@@ -95,6 +95,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 		g.Go(func() error {
 			<-ctx.Done()
+
 			err1 := conn.Close()
 			err2 := revConn.Close()
 
@@ -103,19 +104,19 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 		// Copy from reverse connection to client connection
 		g.Go(func() error {
-			_, err := io.Copy(conn, revConn)
-			if err != nil && err != io.EOF {
+			if _, err := io.Copy(conn, revConn); err != nil && err != io.EOF {
 				return fmt.Errorf("error copying from reverse connection: %w", err)
 			}
+
 			return nil
 		})
 
 		// Copy from client connection to reverse connection
 		g.Go(func() error {
-			_, err := io.Copy(revConn, conn)
-			if err != nil && err != io.EOF {
+			if _, err := io.Copy(revConn, conn); err != nil && err != io.EOF {
 				return fmt.Errorf("error copying to reverse connection: %w", err)
 			}
+
 			return nil
 		})
 

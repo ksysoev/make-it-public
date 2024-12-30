@@ -25,8 +25,10 @@ func (m *mockConn) Read(b []byte) (n int, err error) {
 	if len(m.readData) == 0 {
 		return 0, io.EOF
 	}
+
 	n = copy(b, m.readData)
 	m.readData = m.readData[n:]
+
 	return n, nil
 }
 
@@ -42,9 +44,9 @@ func (m *mockConn) Close() error {
 
 func (m *mockConn) LocalAddr() net.Addr                { return &net.TCPAddr{} }
 func (m *mockConn) RemoteAddr() net.Addr               { return &net.TCPAddr{} }
-func (m *mockConn) SetDeadline(t time.Time) error      { return nil }
-func (m *mockConn) SetReadDeadline(t time.Time) error  { return nil }
-func (m *mockConn) SetWriteDeadline(t time.Time) error { return nil }
+func (m *mockConn) SetDeadline(_ time.Time) error      { return nil }
+func (m *mockConn) SetReadDeadline(_ time.Time) error  { return nil }
+func (m *mockConn) SetWriteDeadline(_ time.Time) error { return nil }
 
 func TestHandleHTTPConnection_ConnectionRequestFailure(t *testing.T) {
 	connManager := NewMockConnManager(t)
@@ -78,7 +80,7 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	writeFunc := func(conn net.Conn) error {
+	writeFunc := func(_ net.Conn) error {
 		return errors.New("write error")
 	}
 

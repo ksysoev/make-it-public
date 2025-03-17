@@ -22,7 +22,7 @@ jobs:
       - name: Display Go version
         run: go version
       - name: Code Lint
-        uses: golangci/golangci-lint-action@2226d7cb06a077cd73e56eedd38eecad18e5d837
+        uses: golangci/golangci-lint-action@4696ba8babb6127d732c3c6dde519db15edab9ea
         with:
           version: v1.61.0
       - name: Build

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/ksysoev/make-it-public/pkg/edge"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/spf13/viper"
 )
@@ -12,11 +13,7 @@ import (
 type appConfig struct {
 	Auth     auth.Config    `mapstructure:"auth"`
 	RevProxy revProxyConfig `mapstructure:"reverse_proxy"`
-	HTTP     httpConfig     `mapstructure:"http"`
-}
-
-type httpConfig struct {
-	Listen string `mapstructure:"listen"`
+	HTTP     edge.Config    `mapstructure:"http"`
 }
 
 type revProxyConfig struct {

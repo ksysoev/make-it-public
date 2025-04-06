@@ -13,19 +13,24 @@ type ConnService interface {
 
 type HTTPServer struct {
 	connService ConnService
-	listen      string
+	config      Config
 }
 
-func New(listen string, connService ConnService) *HTTPServer {
+type Config struct {
+	Listen string `mapstructure:"listen"`
+	Domain string `mapstructure:"domain"`
+}
+
+func New(cfg Config, connService ConnService) *HTTPServer {
 	return &HTTPServer{
-		listen:      listen,
+		config:      cfg,
 		connService: connService,
 	}
 }
 
 func (s *HTTPServer) Run(ctx context.Context) error {
 	server := &http.Server{
-		Addr:              s.listen,
+		Addr:              s.config.Listen,
 		Handler:           s,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,

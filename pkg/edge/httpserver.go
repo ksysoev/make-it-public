@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -51,9 +52,24 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// for now we just get the user id from the header, but if future we will take it from subdomain
-	userID := r.Header.Get("X-User-ID")
+
+	if !strings.HasSuffix(r.Host, s.config.Domain) {
+		http.Error(w, "request is not sent to the defined domain", http.StatusBadRequest)
+		return
+	}
+
+	userID := ""
+	host := r.Host
+	if len(host) > 0 {
+		parts := strings.Split(host, ".")
+		if len(parts) > 2 {
+			// Extract subdomain (assuming subdomain.domain.tld format)
+			userID = parts[0]
+		}
+	}
+
 	if userID == "" {
-		http.Error(w, "missing user id", http.StatusBadRequest)
+		http.Error(w, "invalid or missing subdomain", http.StatusBadRequest)
 		return
 	}
 

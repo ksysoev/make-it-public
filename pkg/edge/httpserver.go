@@ -51,22 +51,12 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 }
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// for now we just get the user id from the header, but if future we will take it from subdomain
-
 	if !strings.HasSuffix(r.Host, s.config.Domain) {
 		http.Error(w, "request is not sent to the defined domain", http.StatusBadRequest)
 		return
 	}
 
-	userID := ""
-	host := r.Host
-	if len(host) > 0 {
-		parts := strings.Split(host, ".")
-		if len(parts) > 2 {
-			// Extract subdomain (assuming subdomain.domain.tld format)
-			userID = parts[0]
-		}
-	}
+	userID := s.getUserIDFromHeader(r)
 
 	if userID == "" {
 		http.Error(w, "invalid or missing subdomain", http.StatusBadRequest)
@@ -96,4 +86,21 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+}
+
+// getUserIDFromHeader extracts the subdomain from the host in the HTTP request.
+// It assumes the host follows the subdomain.domain.tld format.
+// Returns the subdomain as a string or an empty string if no subdomain exists.
+func (s *HTTPServer) getUserIDFromHeader(r *http.Request) string {
+	host := r.Host
+
+	if host != "" {
+		parts := strings.Split(host, ".")
+		if len(parts) > 2 {
+			// Extract subdomain (assuming subdomain.domain.tld format)
+			return parts[0]
+		}
+	}
+
+	return ""
 }

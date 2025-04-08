@@ -5,4 +5,5 @@ reverse_proxy:
 auth:
   users:
     user1: test
+    user2: test
 

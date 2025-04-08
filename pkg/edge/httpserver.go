@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -13,19 +14,24 @@ type ConnService interface {
 
 type HTTPServer struct {
 	connService ConnService
-	listen      string
+	config      Config
 }
 
-func New(listen string, connService ConnService) *HTTPServer {
+type Config struct {
+	Listen string `mapstructure:"listen"`
+	Domain string `mapstructure:"domain"`
+}
+
+func New(cfg Config, connService ConnService) *HTTPServer {
 	return &HTTPServer{
-		listen:      listen,
+		config:      cfg,
 		connService: connService,
 	}
 }
 
 func (s *HTTPServer) Run(ctx context.Context) error {
 	server := &http.Server{
-		Addr:              s.listen,
+		Addr:              s.config.Listen,
 		Handler:           s,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,
@@ -45,10 +51,15 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 }
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// for now we just get the user id from the header, but if future we will take it from subdomain
-	userID := r.Header.Get("X-User-ID")
+	if !strings.HasSuffix(r.Host, s.config.Domain) {
+		http.Error(w, "request is not sent to the defined domain", http.StatusBadRequest)
+		return
+	}
+
+	userID := s.getUserIDFromHeader(r)
+
 	if userID == "" {
-		http.Error(w, "missing user id", http.StatusBadRequest)
+		http.Error(w, "invalid or missing subdomain", http.StatusBadRequest)
 		return
 	}
 
@@ -75,4 +86,21 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+}
+
+// getUserIDFromHeader extracts the subdomain from the host in the HTTP request.
+// It assumes the host follows the subdomain.domain.tld format.
+// Returns the subdomain as a string or an empty string if no subdomain exists.
+func (s *HTTPServer) getUserIDFromHeader(r *http.Request) string {
+	host := r.Host
+
+	if host != "" {
+		parts := strings.Split(host, ".")
+		if len(parts) > 2 {
+			// Extract subdomain (assuming subdomain.domain.tld format)
+			return parts[0]
+		}
+	}
+
+	return ""
 }

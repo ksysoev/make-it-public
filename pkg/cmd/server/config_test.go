@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ksysoev/make-it-public/pkg/edge"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +31,7 @@ reverse_proxy:
 			expectError: false,
 			configData:  validConfig,
 			expectConfig: &appConfig{
-				HTTP:     httpConfig{Listen: ":8080"},
+				HTTP:     edge.Config{Listen: ":8080"},
 				RevProxy: revProxyConfig{Listen: ":8081"},
 			},
 		},
@@ -53,7 +54,7 @@ reverse_proxy:
 			expectError: false,
 			configData:  validConfig,
 			expectConfig: &appConfig{
-				HTTP:     httpConfig{Listen: ":8082"},
+				HTTP:     edge.Config{Listen: ":8082"},
 				RevProxy: revProxyConfig{Listen: ":8081"},
 			},
 		},

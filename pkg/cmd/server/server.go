@@ -50,7 +50,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 
 	cfg, err := loadConfig(args)
 	if err != nil {
-		return fmt.Errorf("failed to loag config: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	authRepo := auth.New(&cfg.Auth)

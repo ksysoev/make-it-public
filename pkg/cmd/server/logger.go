@@ -9,13 +9,13 @@ import (
 // It does not take any parameters.
 // It returns an error if the logger initialization fails, although in this implementation, it always returns nil.
 func initLogger(arg *args) error {
-	var logLever slog.Level
-	if err := logLever.UnmarshalText([]byte(arg.logLevel)); err != nil {
+	var logLevel slog.Level
+	if err := logLevel.UnmarshalText([]byte(arg.logLevel)); err != nil {
 		return err
 	}
 
 	options := &slog.HandlerOptions{
-		Level: logLever,
+		Level: logLevel,
 	}
 
 	var logHandler slog.Handler

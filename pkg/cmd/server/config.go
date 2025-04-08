@@ -21,9 +21,9 @@ type revProxyConfig struct {
 }
 
 // loadConfig loads the application configuration from the specified file path and environment variables.
-// It uses the provided flags structure to determine the configuration path.
+// It uses the provided args structure to determine the configuration path.
 // The function returns a pointer to the appConfig structure and an error if something goes wrong.
-func loadConfig(arg *flags) (*appConfig, error) {
+func loadConfig(arg *args) (*appConfig, error) {
 	v := viper.New()
 
 	v.SetConfigFile(arg.configPath)

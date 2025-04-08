@@ -82,11 +82,11 @@ reverse_proxy:
 				}
 			}
 
-			args := &flags{
+			arg := &args{
 				configPath: configPath,
 			}
 
-			cfg, err := loadConfig(args)
+			cfg, err := loadConfig(arg)
 
 			if tt.expectError {
 				assert.Error(t, err)

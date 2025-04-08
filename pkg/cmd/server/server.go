@@ -14,13 +14,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type flags struct {
+type args struct {
 	configPath string
+	logLevel   string
+	version    string
+	textFormat bool
 }
 
-// InitCommand initializes and returns a cobra.Command for running the server with configurable flags.
+// InitCommand initializes and returns a cobra.Command for running the server with configurable args.
 func InitCommand() cobra.Command {
-	args := flags{}
+	args := args{}
 
 	cmd := cobra.Command{
 		Use:   "server",
@@ -31,17 +34,23 @@ func InitCommand() cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&args.configPath, "config", "runtime/config.yaml", "config path")
+	cmd.Flags().StringVar(&args.logLevel, "log-level", "info", "log level (debug, info, warn, error)")
+	cmd.Flags().BoolVar(&args.textFormat, "log-text", false, "log in text format, otherwise JSON")
 
 	return cmd
 }
 
 // RunServerCommand initializes and starts both reverse proxy and HTTP servers for handling client connections.
-// It takes ctx of type context.Context for managing the server lifecycle and args of type *flags to load configuration.
+// It takes ctx of type context.Context for managing the server lifecycle and args of type *args to load configuration.
 // It returns an error if the configuration fails to load, servers cannot start, or any runtime error occurs.
-func RunServerCommand(ctx context.Context, args *flags) error {
+func RunServerCommand(ctx context.Context, args *args) error {
+	if err := initLogger(args); err != nil {
+		return fmt.Errorf("failed to init logger: %w", err)
+	}
+
 	cfg, err := loadConfig(args)
 	if err != nil {
-		return fmt.Errorf("failed to loag config: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	authRepo := auth.New(&cfg.Auth)

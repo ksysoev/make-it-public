@@ -17,8 +17,8 @@ import (
 type args struct {
 	configPath string
 	logLevel   string
-	textFormat bool
 	version    string
+	textFormat bool
 }
 
 // InitCommand initializes and returns a cobra.Command for running the server with configurable args.

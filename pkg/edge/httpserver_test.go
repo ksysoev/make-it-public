@@ -40,11 +40,11 @@ func TestGetUserIDFromHeader(t *testing.T) {
 
 func TestServeHTTP(t *testing.T) {
 	tests := []struct {
+		mockSetup      func(*MockConnService)
 		name           string
 		host           string
-		mockSetup      func(*MockConnService)
-		expectedStatus int
 		expectedBody   string
+		expectedStatus int
 	}{
 		{
 			name:           "invalid domain",
@@ -65,10 +65,11 @@ func TestServeHTTP(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			mockConnService := new(MockConnService)
+			mockConnService := NewMockConnService(t)
 			if tt.mockSetup != nil {
 				tt.mockSetup(mockConnService)
 			}
+
 			server := &HTTPServer{
 				connService: mockConnService,
 				config: Config{
@@ -88,6 +89,7 @@ func TestServeHTTP(t *testing.T) {
 			// Assert
 			assert.Equal(t, tt.expectedStatus, rec.Code)
 			assert.Equal(t, tt.expectedBody, rec.Body.String())
+
 			if tt.mockSetup != nil {
 				mockConnService.AssertExpectations(t)
 			}

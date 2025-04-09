@@ -49,7 +49,7 @@ func initLogger(arg *args) error {
 	ctxHandler := &ContextHandler{
 		Handler: logHandler,
 		ver:     arg.version,
-		app:     "help-my-pet",
+		app:     "make-it-public",
 	}
 
 	logger := slog.New(ctxHandler)

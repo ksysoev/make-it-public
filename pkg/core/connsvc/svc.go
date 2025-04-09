@@ -50,8 +50,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 	}))
 
 	if err := servConn.Process(); err != nil {
-		slog.ErrorContext(ctx, "failed to process connection", slog.Any("error", err))
-		return nil
+		return fmt.Errorf("failed to process connection: %w", err)
 	}
 
 	switch servConn.State() {

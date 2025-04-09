@@ -54,8 +54,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 }
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	reqID := uuid.New().String()
-	ctx := context.WithValue(r.Context(), "req_id", reqID)
+	ctx := context.WithValue(r.Context(), "req_id", uuid.New().String())
 
 	if !strings.HasSuffix(r.Host, s.config.Domain) {
 		http.Error(w, "request is not sent to the defined domain", http.StatusBadRequest)

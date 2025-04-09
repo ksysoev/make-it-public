@@ -3,8 +3,11 @@ package revproxy
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 type ConnService interface {
@@ -35,7 +38,9 @@ func (r *RevServer) Run(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 
-		_ = l.Close()
+		if err := l.Close(); err != nil {
+			slog.ErrorContext(ctx, "failed to close listener", slog.Any("error", err))
+		}
 	}()
 
 	wg := sync.WaitGroup{}
@@ -52,7 +57,15 @@ func (r *RevServer) Run(ctx context.Context) error {
 			defer wg.Done()
 			defer func() { _ = conn.Close() }()
 
-			_ = r.connService.HandleReverseConn(ctx, conn)
+			//nolint:staticcheck,revive // don't want to couple with cmd package for now
+			ctx := context.WithValue(ctx, "req_id", uuid.New().String())
+			ctx, cancel := context.WithCancel(ctx)
+
+			defer cancel()
+
+			if err := r.connService.HandleReverseConn(ctx, conn); err != nil {
+				slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
+			}
 		}()
 	}
 }

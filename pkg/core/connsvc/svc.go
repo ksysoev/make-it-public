@@ -38,6 +38,8 @@ func New(connmng ConnManager, auth AuthRepo) *Service {
 func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 	var connUser string
 
+	slog.DebugContext(ctx, "new connection", slog.Any("remote", conn.RemoteAddr()))
+
 	servConn := proto.NewServer(conn, proto.WithUserPassAuth(func(user, pass string) bool {
 		if s.auth.Verify(user, pass) {
 			connUser = user
@@ -48,25 +50,30 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 	}))
 
 	if err := servConn.Process(); err != nil {
-		slog.Info("failed to process connection", slog.Any("error", err))
-		return nil
+		return fmt.Errorf("failed to process connection: %w", err)
 	}
 
 	switch servConn.State() {
 	case proto.StateRegistered:
 		s.connmng.AddConnection(connUser, servConn)
+		slog.DebugContext(ctx, "control connection established", slog.Any("remote", conn.RemoteAddr()))
 	case proto.StateBound:
 		s.connmng.ResolveRequest(servConn.ID(), conn)
+		slog.DebugContext(ctx, "bound connection established", slog.Any("remote", conn.RemoteAddr()), slog.Any("id", servConn.ID()))
 	default:
 		slog.ErrorContext(ctx, "unexpected state while handling incomming connection", slog.Any("state", servConn.State()))
 	}
 
 	<-ctx.Done()
 
+	slog.DebugContext(ctx, "closing connection", slog.Any("remote", conn.RemoteAddr()))
+
 	return nil
 }
 
 func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error) error {
+	slog.DebugContext(ctx, "new HTTP connection", slog.Any("remote", conn.RemoteAddr()))
+
 	ch, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to request connection: %w", err)
@@ -120,6 +127,10 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 			return nil
 		})
 
-		return g.Wait()
+		err := g.Wait()
+
+		slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", conn.RemoteAddr()))
+
+		return err
 	}
 }

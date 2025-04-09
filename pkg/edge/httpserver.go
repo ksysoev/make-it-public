@@ -2,10 +2,13 @@ package edge
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type ConnService interface {
@@ -51,37 +54,46 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 }
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	//nolint:staticcheck,revive // don't want to couple with cmd package for now
+	ctx := context.WithValue(r.Context(), "req_id", uuid.New().String())
+
 	if !strings.HasSuffix(r.Host, s.config.Domain) {
 		http.Error(w, "request is not sent to the defined domain", http.StatusBadRequest)
+
 		return
 	}
 
 	userID := s.getUserIDFromHeader(r)
-
 	if userID == "" {
 		http.Error(w, "invalid or missing subdomain", http.StatusBadRequest)
+
 		return
 	}
 
 	hj, ok := w.(http.Hijacker)
 	if !ok {
+		slog.ErrorContext(ctx, "webserver doesn't support hijacking", slog.String("host", r.Host))
 		http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
+
 		return
 	}
 
 	clientConn, _, err := hj.Hijack()
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to hijack connection", slog.Any("error", err))
 		http.Error(w, "Failed to hijack connection: "+err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
 	defer func() { _ = clientConn.Close() }()
 
-	err = s.connService.HandleHTTPConnection(r.Context(), userID, clientConn, func(conn net.Conn) error {
+	err = s.connService.HandleHTTPConnection(ctx, userID, clientConn, func(conn net.Conn) error {
 		return r.Write(conn)
 	})
 
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
 		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)
 
 		return

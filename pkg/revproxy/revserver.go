@@ -57,6 +57,7 @@ func (r *RevServer) Run(ctx context.Context) error {
 			defer wg.Done()
 			defer func() { _ = conn.Close() }()
 
+			//nolint:staticcheck,revive // don't want to couple with cmd package for now
 			ctx := context.WithValue(ctx, "req_id", uuid.New().String())
 			ctx, cancel := context.WithCancel(ctx)
 

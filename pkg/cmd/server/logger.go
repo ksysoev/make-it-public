@@ -17,12 +17,15 @@ type ContextHandler struct {
 // Handle processes a log record by enriching it with context and application-specific attributes.
 // It adds attributes such as "req_id" from the context, "app", and "ver" before delegating to the embedded handler.
 // Returns error if the embedded handler fails.
+
+//nolint:gocritic // ignore this linting rule
 func (h ContextHandler) Handle(ctx context.Context, r slog.Record) error {
 	if requestID, ok := ctx.Value("req_id").(string); ok {
 		r.AddAttrs(slog.String("req_id", requestID))
 	}
 
 	r.AddAttrs(slog.String("app", h.app), slog.String("ver", h.ver))
+
 	return h.Handler.Handle(ctx, r)
 }
 

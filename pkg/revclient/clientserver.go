@@ -1,7 +1,8 @@
-package core
+package revclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/ksysoev/revdial"
+	"golang.org/x/sync/errgroup"
 )
 
 type ClientServer struct {
@@ -73,7 +75,7 @@ func (s *ClientServer) listenAndServe(ctx context.Context, listener net.Listener
 }
 
 func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	d := net.Dialer{
 		Timeout: 5 * time.Second,
@@ -85,24 +87,45 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	defer destConn.Close()
+	ctx, cancel := context.WithCancel(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
 
-	done := make(chan struct{}, 2)
+	eg.Go(func() error {
+		<-ctx.Done()
 
-	go func() {
-		_, _ = io.Copy(destConn, conn)
+		err1 := conn.Close()
+		err2 := destConn.Close()
 
-		done <- struct{}{}
-	}()
+		return errors.Join(err1, err2)
+	})
 
-	go func() {
-		_, _ = io.Copy(conn, destConn)
+	eg.Go(func() error {
+		defer cancel()
 
-		done <- struct{}{}
-	}()
+		return pipeConn(conn, destConn)
+	})
 
-	select {
-	case <-done:
-	case <-ctx.Done():
+	eg.Go(func() error {
+		defer cancel()
+
+		return pipeConn(destConn, conn)
+	})
+
+	_ = eg.Wait()
+}
+
+// pipeConn copies data between src and dst connections bidirectionally until EOF or an error occurs.
+// It returns nil if the connection is closed gracefully with EOF or net.ErrClosed.
+// Returns error if any other issue occurs during data transfer.
+func pipeConn(src, dst net.Conn) error {
+	_, err := io.Copy(src, dst)
+
+	switch {
+	case errors.Is(err, io.EOF), errors.Is(err, net.ErrClosed):
+		return nil
+	case err != nil:
+		return fmt.Errorf("error copying from reverse connection: %w", err)
 	}
+
+	return nil
 }

@@ -39,6 +39,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 	var connUser string
 
 	slog.DebugContext(ctx, "new connection", slog.Any("remote", conn.RemoteAddr()))
+	defer slog.DebugContext(ctx, "closing connection", slog.Any("remote", conn.RemoteAddr()))
 
 	servConn := proto.NewServer(conn, proto.WithUserPassAuth(func(user, pass string) bool {
 		if s.auth.Verify(user, pass) {
@@ -66,13 +67,12 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 
 	<-ctx.Done()
 
-	slog.DebugContext(ctx, "closing connection", slog.Any("remote", conn.RemoteAddr()))
-
 	return nil
 }
 
 func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error) error {
 	slog.DebugContext(ctx, "new HTTP connection", slog.Any("remote", conn.RemoteAddr()))
+	defer slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", conn.RemoteAddr()))
 
 	ch, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
@@ -98,6 +98,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		}
 
 		// Create error group for managing both copy operations
+		ctx, cancel := context.WithCancel(ctx)
 		g, ctx := errgroup.WithContext(ctx)
 
 		g.Go(func() error {
@@ -109,28 +110,38 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 			return errors.Join(err1, err2)
 		})
 
-		// Copy from reverse connection to client connection
+		// Copy from reverse connection to revclient connection
 		g.Go(func() error {
-			if _, err := io.Copy(conn, revConn); err != nil && err != io.EOF {
-				return fmt.Errorf("error copying from reverse connection: %w", err)
-			}
+			defer cancel()
 
-			return nil
+			return pipeConn(conn, revConn)
 		})
 
-		// Copy from client connection to reverse connection
+		// Copy from revclient connection to reverse connection
 		g.Go(func() error {
-			if _, err := io.Copy(revConn, conn); err != nil && err != io.EOF {
-				return fmt.Errorf("error copying to reverse connection: %w", err)
-			}
+			defer cancel()
 
-			return nil
+			return pipeConn(revConn, conn)
 		})
 
 		err := g.Wait()
 
-		slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", conn.RemoteAddr()))
-
 		return err
 	}
+}
+
+// pipeConn copies data between src and dst connections bidirectionally until EOF or an error occurs.
+// It returns nil if the connection is closed gracefully with EOF or net.ErrClosed.
+// Returns error if any other issue occurs during data transfer.
+func pipeConn(src, dst net.Conn) error {
+	_, err := io.Copy(src, dst)
+
+	switch {
+	case errors.Is(err, io.EOF), errors.Is(err, net.ErrClosed):
+		return nil
+	case err != nil:
+		return fmt.Errorf("error copying from reverse connection: %w", err)
+	}
+
+	return nil
 }

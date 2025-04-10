@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
+	"github.com/ksysoev/make-it-public/pkg/revclient"
 	"github.com/spf13/cobra"
 )
 
@@ -20,8 +20,8 @@ func InitCommand() cobra.Command {
 	args := flags{}
 
 	cmd := cobra.Command{
-		Use:   "client",
-		Short: "Run client",
+		Use:   "revclient",
+		Short: "Run revclient",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return RunClientCommand(cmd.Context(), &args)
 		},
@@ -40,9 +40,9 @@ func RunClientCommand(ctx context.Context, args *flags) error {
 		return fmt.Errorf("invalid token: %w", err)
 	}
 
-	client := core.NewClientServer(args.server, args.expose, tkn)
+	revcli := revclient.NewClientServer(args.server, args.expose, tkn)
 
-	slog.InfoContext(ctx, "client started", "server", args.server)
+	slog.InfoContext(ctx, "revclient started", "server", args.server)
 
-	return client.Run(ctx)
+	return revcli.Run(ctx)
 }

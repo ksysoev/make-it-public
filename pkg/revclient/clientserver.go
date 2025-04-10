@@ -1,4 +1,4 @@
-package core
+package revclient
 
 import (
 	"context"
@@ -73,7 +73,10 @@ func (s *ClientServer) listenAndServe(ctx context.Context, listener net.Listener
 }
 
 func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
+
+	slog.InfoContext(ctx, "new connection", slog.Any("remote", conn.RemoteAddr()))
+	defer slog.InfoContext(ctx, "connection closed", slog.Any("remote", conn.RemoteAddr()))
 
 	d := net.Dialer{
 		Timeout: 5 * time.Second,
@@ -85,7 +88,7 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	defer destConn.Close()
+	defer func() { _ = destConn.Close() }()
 
 	done := make(chan struct{}, 2)
 

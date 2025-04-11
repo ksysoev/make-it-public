@@ -96,8 +96,15 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case errors.Is(core.ErrFailedToConnect, err):
-		slog.DebugContext(ctx, "failed to handle connection", slog.Any("error", err))
-		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusBadGateway)
+		resp := &http.Response{
+			Status:     "502 Bad Gateway",
+			StatusCode: http.StatusBadGateway,
+			Proto:      r.Proto,
+			ProtoMajor: r.ProtoMajor,
+			ProtoMinor: r.ProtoMinor,
+		}
+
+		_ = resp.Write(clientConn)
 	case err != nil:
 		slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
 		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)

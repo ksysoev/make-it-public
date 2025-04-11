@@ -77,7 +77,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 	ch, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
-		return errors.Join(core.ErrFailedToConnect, err)
+		return core.ErrFailedToConnect
 	}
 
 	select {

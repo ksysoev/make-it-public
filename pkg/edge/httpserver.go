@@ -2,6 +2,7 @@ package edge
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/core"
 )
 
 type ConnService interface {
@@ -92,11 +94,13 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return r.Write(conn)
 	})
 
-	if err != nil {
+	switch {
+	case errors.Is(core.ErrFailedToConnect, err):
+		slog.DebugContext(ctx, "failed to handle connection", slog.Any("error", err))
+		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusBadGateway)
+	case err != nil:
 		slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
 		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)
-
-		return
 	}
 }
 

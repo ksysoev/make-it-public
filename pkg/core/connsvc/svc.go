@@ -9,11 +9,10 @@ import (
 	"net"
 
 	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/revdial/proto"
 	"golang.org/x/sync/errgroup"
 )
-
-var ErrFailedToConnect = errors.New("failed to connect")
 
 type AuthRepo interface {
 	Verify(user, pass string) bool
@@ -78,15 +77,15 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 	ch, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
-		return errors.Join(ErrFailedToConnect, err)
+		return errors.Join(core.ErrFailedToConnect, err)
 	}
 
 	select {
 	case <-ctx.Done():
-		return errors.Join(ErrFailedToConnect, ctx.Err())
+		return errors.Join(core.ErrFailedToConnect, ctx.Err())
 	case revConn, ok := <-ch:
 		if !ok {
-			return errors.Join(fmt.Errorf("connection request failed"), ErrFailedToConnect)
+			return errors.Join(fmt.Errorf("connection request failed"), core.ErrFailedToConnect)
 		}
 
 		defer func() {

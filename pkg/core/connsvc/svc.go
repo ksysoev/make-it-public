@@ -13,6 +13,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var ErrFailedToConnect = errors.New("failed to connect")
+
 type AuthRepo interface {
 	Verify(user, pass string) bool
 }
@@ -76,15 +78,15 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 	ch, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to request connection: %w", err)
+		return errors.Join(ErrFailedToConnect, err)
 	}
 
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return errors.Join(ErrFailedToConnect, ctx.Err())
 	case revConn, ok := <-ch:
 		if !ok {
-			return fmt.Errorf("connection request failed")
+			return errors.Join(fmt.Errorf("connection request failed"), ErrFailedToConnect)
 		}
 
 		defer func() {

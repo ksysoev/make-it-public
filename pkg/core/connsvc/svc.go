@@ -9,6 +9,7 @@ import (
 	"net"
 
 	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/revdial/proto"
 	"golang.org/x/sync/errgroup"
 )
@@ -76,15 +77,15 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 	ch, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to request connection: %w", err)
+		return core.ErrFailedToConnect
 	}
 
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return errors.Join(core.ErrFailedToConnect, ctx.Err())
 	case revConn, ok := <-ch:
 		if !ok {
-			return fmt.Errorf("connection request failed")
+			return errors.Join(fmt.Errorf("connection request failed"), core.ErrFailedToConnect)
 		}
 
 		defer func() {

@@ -81,12 +81,11 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 	defer cancel()
 
 	writeFunc := func(_ net.Conn) error {
-		return errors.New("write error")
+		return assert.AnError
 	}
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, writeFunc)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to write initial request: write error")
+	assert.ErrorIs(t, err, core.ErrFailedToConnect)
 }
 
 func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
@@ -103,5 +102,5 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	defer cancel()
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
-	require.ErrorIs(t, err, core.ErrFailedToConnect)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 }

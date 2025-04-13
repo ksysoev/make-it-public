@@ -78,20 +78,22 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 	ch, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
-		return core.ErrFailedToConnect
+		return fmt.Errorf("failed to request connection: %w", core.ErrFailedToConnect)
 	}
 
 	select {
 	case <-ctx.Done():
-		return core.ErrFailedToConnect
+		return ctx.Err()
 	case revConn, ok := <-ch:
 		if !ok {
-			return core.ErrFailedToConnect
+			return fmt.Errorf("connection request failed: %w", core.ErrFailedToConnect)
 		}
 
 		// Write initial request data
 		if err := write(revConn); err != nil {
-			return fmt.Errorf("failed to write initial request: %w", err)
+			slog.DebugContext(ctx, "failed to write initial request", slog.Any("error", err))
+
+			return fmt.Errorf("failed to write initial request: %w", core.ErrFailedToConnect)
 		}
 
 		// Create error group for managing both copy operations
@@ -106,7 +108,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 			return revConn.Close()
 		})
 
-		if err := eg.Wait(); !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
+		if err := eg.Wait(); !errors.Is(err, io.EOF) {
 			return err
 		}
 

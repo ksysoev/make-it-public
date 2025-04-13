@@ -95,12 +95,10 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		}
 
 		// Create error group for managing both copy operations
-		ctx, cancel := context.WithCancel(ctx)
-		g, ctx := errgroup.WithContext(ctx)
-
+		eg, ctx := errgroup.WithContext(ctx)
 		cliConn := core.NewContextConnNopCloser(ctx, conn)
 
-		g.Go(func() error {
+		eg.Go(func() error {
 			<-ctx.Done()
 
 			_ = cliConn.Close()
@@ -108,40 +106,35 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 			return revConn.Close()
 		})
 
-		g.Go(func() error {
-			defer cancel()
+		eg.Go(pipeConn(cliConn, revConn))
+		eg.Go(pipeConn(revConn, cliConn))
 
-			return pipeConn(cliConn, revConn)
-		})
+		if err := eg.Wait(); !errors.Is(err, io.EOF) {
+			return err
+		}
 
-		g.Go(func() error {
-			defer cancel()
-
-			return pipeConn(revConn, cliConn)
-		})
-
-		err := g.Wait()
-
-		return err
+		return nil
 	}
 }
 
 // pipeConn copies data between src and dst connections bidirectionally until EOF or an error occurs.
 // It returns nil if the connection is closed gracefully with EOF or net.ErrClosed.
 // Returns error if any other issue occurs during data transfer.
-func pipeConn(src io.Reader, dst io.Writer) error {
-	n, err := io.Copy(dst, src)
+func pipeConn(src io.Reader, dst io.Writer) func() error {
+	return func() error {
+		n, err := io.Copy(dst, src)
 
-	switch {
-	case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
-		if n == 0 {
-			return core.ErrFailedToConnect
+		switch {
+		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
+			if n == 0 {
+				return core.ErrFailedToConnect
+			}
+
+			return io.EOF
+		case err != nil:
+			return fmt.Errorf("error copying from reverse connection: %w", err)
 		}
 
-		return nil
-	case err != nil:
-		return fmt.Errorf("error copying from reverse connection: %w", err)
+		return io.EOF
 	}
-
-	return nil
 }

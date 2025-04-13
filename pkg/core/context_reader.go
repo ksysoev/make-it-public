@@ -32,31 +32,40 @@ func NewContextConnNopCloser(ctx context.Context, conn net.Conn) *ContextConnNop
 // Read reads up to len(p) bytes into p, respecting the context's deadline and cancellation.
 // It returns the number of bytes read and an error if reading fails or the context is canceled.
 func (c *ContextConnNopCloser) Read(p []byte) (int, error) {
-	if c.ctx.Err() != nil {
-		return 0, c.ctx.Err()
+	n := 0
+
+	for c.ctx.Err() == nil {
+		deadline := time.Now().Add(interval)
+
+		ctxDeadline, ok := c.ctx.Deadline()
+
+		if ok && ctxDeadline.Before(deadline) {
+			deadline = ctxDeadline
+		}
+
+		if err := c.Conn.SetReadDeadline(deadline); err != nil {
+			return 0, err
+		}
+
+		cn, err := c.Conn.Read(p[n:])
+		n += cn
+
+		switch {
+		case err == nil:
+			return n, nil
+		case errors.Is(err, os.ErrDeadlineExceeded):
+			if n == len(p) {
+				return n, nil
+			}
+
+			continue
+		default:
+			return n, err
+		}
+
 	}
 
-	deadline := time.Now().Add(interval)
-
-	ctxDeadline, ok := c.ctx.Deadline()
-
-	if ok && ctxDeadline.Before(deadline) {
-		deadline = ctxDeadline
-	}
-
-	if err := c.Conn.SetReadDeadline(deadline); err != nil {
-		return 0, err
-	}
-
-	n, err := c.Conn.Read(p)
-	switch {
-	case err == nil:
-		return n, nil
-	case errors.Is(err, os.ErrDeadlineExceeded):
-		return n, nil
-	default:
-		return n, err
-	}
+	return n, c.ctx.Err()
 }
 
 // Close cancels the context associated with the connection and releases its resources.

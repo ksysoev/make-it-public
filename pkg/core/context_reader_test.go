@@ -131,13 +131,13 @@ func TestContinuesReadingAfterDeadlineExceeded(t *testing.T) {
 
 	mockConn := new(MockConn)
 	mockConn.On("SetReadDeadline", mock.Anything).Return(nil)
-	mockConn.On("Read", mock.Anything).Return(0, os.ErrDeadlineExceeded).Once()
+	mockConn.On("Read", mock.Anything).Return(10, os.ErrDeadlineExceeded).Once()
 
 	conn := NewContextConnNopCloser(ctx, mockConn)
 
 	data := make([]byte, 10)
 	n, err := conn.Read(data)
-	assert.Equal(t, 0, n)
+	assert.Equal(t, 10, n)
 	assert.NoError(t, err)
 }
 

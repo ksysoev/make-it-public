@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -61,8 +62,7 @@ func TestHandleHTTPConnection_ConnectionRequestFailure(t *testing.T) {
 	defer cancel()
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to request connection: connection failed")
+	require.ErrorIs(t, err, core.ErrFailedToConnect)
 }
 
 func TestHandleHTTPConnection_WriteError(t *testing.T) {
@@ -103,6 +103,5 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	defer cancel()
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "context deadline exceeded")
+	require.ErrorIs(t, err, core.ErrFailedToConnect)
 }

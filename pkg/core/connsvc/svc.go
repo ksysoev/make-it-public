@@ -7,8 +7,10 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"syscall"
 
 	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/revdial/proto"
 	"golang.org/x/sync/errgroup"
 )
@@ -76,7 +78,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 	ch, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to request connection: %w", err)
+		return fmt.Errorf("failed to request connection: %w", core.ErrFailedToConnect)
 	}
 
 	select {
@@ -84,64 +86,54 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		return ctx.Err()
 	case revConn, ok := <-ch:
 		if !ok {
-			return fmt.Errorf("connection request failed")
+			return fmt.Errorf("connection request failed: %w", core.ErrFailedToConnect)
 		}
-
-		defer func() {
-			_ = conn.Close()
-			_ = revConn.Close()
-		}()
 
 		// Write initial request data
 		if err := write(revConn); err != nil {
-			return fmt.Errorf("failed to write initial request: %w", err)
+			slog.DebugContext(ctx, "failed to write initial request", slog.Any("error", err))
+
+			return fmt.Errorf("failed to write initial request: %w", core.ErrFailedToConnect)
 		}
 
 		// Create error group for managing both copy operations
-		ctx, cancel := context.WithCancel(ctx)
-		g, ctx := errgroup.WithContext(ctx)
+		eg, ctx := errgroup.WithContext(ctx)
+		cliConn := core.NewContextConnNopCloser(ctx, conn)
 
-		g.Go(func() error {
+		eg.Go(pipeConn(cliConn, revConn))
+		eg.Go(pipeConn(revConn, cliConn))
+		eg.Go(func() error {
 			<-ctx.Done()
 
-			err1 := conn.Close()
-			err2 := revConn.Close()
-
-			return errors.Join(err1, err2)
+			return revConn.Close()
 		})
 
-		// Copy from reverse connection to revclient connection
-		g.Go(func() error {
-			defer cancel()
+		if err := eg.Wait(); !errors.Is(err, io.EOF) {
+			return err
+		}
 
-			return pipeConn(conn, revConn)
-		})
-
-		// Copy from revclient connection to reverse connection
-		g.Go(func() error {
-			defer cancel()
-
-			return pipeConn(revConn, conn)
-		})
-
-		err := g.Wait()
-
-		return err
+		return nil
 	}
 }
 
-// pipeConn copies data between src and dst connections bidirectionally until EOF or an error occurs.
-// It returns nil if the connection is closed gracefully with EOF or net.ErrClosed.
-// Returns error if any other issue occurs during data transfer.
-func pipeConn(src, dst net.Conn) error {
-	_, err := io.Copy(src, dst)
+// pipeConn manages bidirectional copying of data between a source reader and a destination writer.
+// It reads from src and writes to dst, handling specific network-related errors gracefully.
+// Returns a function that performs the copy operation, returning io.EOF on successful completion or a detailed error on failure.
+func pipeConn(src io.Reader, dst io.Writer) func() error {
+	return func() error {
+		n, err := io.Copy(dst, src)
 
-	switch {
-	case errors.Is(err, io.EOF), errors.Is(err, net.ErrClosed):
-		return nil
-	case err != nil:
-		return fmt.Errorf("error copying from reverse connection: %w", err)
+		switch {
+		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
+			if n == 0 {
+				return core.ErrFailedToConnect
+			}
+
+			return io.EOF
+		case err != nil:
+			return fmt.Errorf("error copying from reverse connection: %w", err)
+		}
+
+		return io.EOF
 	}
-
-	return nil
 }

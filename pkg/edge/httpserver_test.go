@@ -30,7 +30,7 @@ func TestGetUserIDFromHeader(t *testing.T) {
 			server := &HTTPServer{}
 
 			// Act
-			result := server.getUserIDFromHeader(req)
+			result := server.getUserIDFromRequest(req)
 
 			// Assert
 			assert.Equal(t, tt.expected, result)

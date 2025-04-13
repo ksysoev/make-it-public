@@ -2,6 +2,7 @@ package edge
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/core"
 )
 
 type ConnService interface {
@@ -63,7 +65,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := s.getUserIDFromHeader(r)
+	userID := s.getUserIDFromRequest(r)
 	if userID == "" {
 		http.Error(w, "invalid or missing subdomain", http.StatusBadRequest)
 
@@ -92,18 +94,30 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return r.Write(conn)
 	})
 
-	if err != nil {
+	switch {
+	case errors.Is(err, core.ErrFailedToConnect):
+		resp := &http.Response{
+			Status:     "502 Bad Gateway",
+			StatusCode: http.StatusBadGateway,
+			Proto:      r.Proto,
+			ProtoMajor: r.ProtoMajor,
+			ProtoMinor: r.ProtoMinor,
+		}
+
+		_ = resp.Write(clientConn)
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		slog.DebugContext(ctx, "connection timed out", slog.String("host", r.Host))
+		return
+	case err != nil:
 		slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
 		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)
-
-		return
 	}
 }
 
-// getUserIDFromHeader extracts the subdomain from the host in the HTTP request.
+// getUserIDFromRequest extracts the subdomain from the host in the HTTP request.
 // It assumes the host follows the subdomain.domain.tld format.
 // Returns the subdomain as a string or an empty string if no subdomain exists.
-func (s *HTTPServer) getUserIDFromHeader(r *http.Request) string {
+func (s *HTTPServer) getUserIDFromRequest(r *http.Request) string {
 	host := r.Host
 
 	if host != "" {

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core"
@@ -82,16 +83,11 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 	select {
 	case <-ctx.Done():
-		return errors.Join(core.ErrFailedToConnect, ctx.Err())
+		return core.ErrFailedToConnect
 	case revConn, ok := <-ch:
 		if !ok {
-			return errors.Join(fmt.Errorf("connection request failed"), core.ErrFailedToConnect)
+			return core.ErrFailedToConnect
 		}
-
-		defer func() {
-			_ = conn.Close()
-			_ = revConn.Close()
-		}()
 
 		// Write initial request data
 		if err := write(revConn); err != nil {
@@ -102,27 +98,26 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		ctx, cancel := context.WithCancel(ctx)
 		g, ctx := errgroup.WithContext(ctx)
 
+		cliConn := core.NewContextConnNopCloser(ctx, conn)
+
 		g.Go(func() error {
 			<-ctx.Done()
 
-			err1 := conn.Close()
-			err2 := revConn.Close()
+			_ = cliConn.Close()
 
-			return errors.Join(err1, err2)
+			return revConn.Close()
 		})
 
-		// Copy from reverse connection to revclient connection
 		g.Go(func() error {
 			defer cancel()
 
-			return pipeConn(conn, revConn)
+			return pipeConn(cliConn, revConn)
 		})
 
-		// Copy from revclient connection to reverse connection
 		g.Go(func() error {
 			defer cancel()
 
-			return pipeConn(revConn, conn)
+			return pipeConn(revConn, cliConn)
 		})
 
 		err := g.Wait()
@@ -134,11 +129,15 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 // pipeConn copies data between src and dst connections bidirectionally until EOF or an error occurs.
 // It returns nil if the connection is closed gracefully with EOF or net.ErrClosed.
 // Returns error if any other issue occurs during data transfer.
-func pipeConn(src, dst net.Conn) error {
-	_, err := io.Copy(src, dst)
+func pipeConn(src io.Reader, dst io.Writer) error {
+	n, err := io.Copy(dst, src)
 
 	switch {
-	case errors.Is(err, io.EOF), errors.Is(err, net.ErrClosed):
+	case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
+		if n == 0 {
+			return core.ErrFailedToConnect
+		}
+
 		return nil
 	case err != nil:
 		return fmt.Errorf("error copying from reverse connection: %w", err)

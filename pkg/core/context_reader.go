@@ -16,6 +16,10 @@ type ContextConnNopCloser struct {
 	cancel context.CancelFunc
 }
 
+// NewContextConnNopCloser wraps a net.Conn with a context-aware layer and a no-op Close implementation.
+// It creates a new ContextConnNopCloser that ensures read methods respect the provided context's cancellation.
+// Accepts ctx the context to manage cancellation and conn the underlying network connection.
+// Returns a ContextConnNopCloser that integrates context cancellation with the provided connection's lifecycle.
 func NewContextConnNopCloser(ctx context.Context, conn net.Conn) *ContextConnNopCloser {
 	ctx, cancel := context.WithCancel(ctx)
 	return &ContextConnNopCloser{
@@ -25,6 +29,8 @@ func NewContextConnNopCloser(ctx context.Context, conn net.Conn) *ContextConnNop
 	}
 }
 
+// Read reads up to len(p) bytes into p, respecting the context's deadline and cancellation.
+// It returns the number of bytes read and an error if reading fails or the context is canceled.
 func (c *ContextConnNopCloser) Read(p []byte) (int, error) {
 	if c.ctx.Err() != nil {
 		return 0, c.ctx.Err()
@@ -53,6 +59,9 @@ func (c *ContextConnNopCloser) Read(p []byte) (int, error) {
 	}
 }
 
+// Close cancels the context associated with the connection and releases its resources.
+// It ensures cleanup of the context's state and prevents further operations that rely on the context.
+// Returns an error only if any issues occur during the cancellation process, though typically nil.
 func (c *ContextConnNopCloser) Close() error {
 	c.cancel()
 

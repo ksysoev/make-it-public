@@ -10,18 +10,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 type MockConn struct {
+	net.Conn
 	mock.Mock
 }
 
 func (m *MockConn) Read(b []byte) (int, error) {
-	args := m.Called(b)
-	return args.Int(0), args.Error(1)
-}
-
-func (m *MockConn) Write(b []byte) (int, error) {
 	args := m.Called(b)
 	return args.Int(0), args.Error(1)
 }
@@ -31,27 +28,7 @@ func (m *MockConn) Close() error {
 	return args.Error(0)
 }
 
-func (m *MockConn) LocalAddr() net.Addr {
-	args := m.Called()
-	return args.Get(0).(net.Addr)
-}
-
-func (m *MockConn) RemoteAddr() net.Addr {
-	args := m.Called()
-	return args.Get(0).(net.Addr)
-}
-
-func (m *MockConn) SetDeadline(t time.Time) error {
-	args := m.Called(t)
-	return args.Error(0)
-}
-
 func (m *MockConn) SetReadDeadline(t time.Time) error {
-	args := m.Called(t)
-	return args.Error(0)
-}
-
-func (m *MockConn) SetWriteDeadline(t time.Time) error {
 	args := m.Called(t)
 	return args.Error(0)
 }
@@ -65,6 +42,7 @@ func TestRespectsContextCancellation(t *testing.T) {
 	mockConn.On("Read", mock.Anything).Return(0, errors.New("read error"))
 
 	conn := NewContextConnNopCloser(ctx, mockConn)
+
 	cancel()
 
 	_, err := conn.Read(make([]byte, 10))
@@ -82,7 +60,9 @@ func TestRespectsContextDeadline(t *testing.T) {
 	conn := NewContextConnNopCloser(ctx, mockConn)
 
 	time.Sleep(60 * time.Millisecond)
+
 	_, err := conn.Read(make([]byte, 10))
+
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
@@ -144,6 +124,7 @@ func TestContinuesReadingAfterDeadlineExceeded(t *testing.T) {
 func TestUsesContextDeadlineWhenAvailable(t *testing.T) {
 	deadline := time.Now().Add(5 * time.Millisecond)
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+
 	defer cancel()
 
 	mockConn := new(MockConn)
@@ -163,7 +144,9 @@ func TestUsesDefaultDeadlineWhenNoContextDeadline(t *testing.T) {
 
 	mockConn := new(MockConn)
 	mockConn.On("SetReadDeadline", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		deadline := args.Get(0).(time.Time)
+		deadline, ok := args.Get(0).(time.Time)
+		require.True(t, ok)
+
 		expectedMinDeadline := time.Now().Add(interval - time.Millisecond)
 		assert.True(t, deadline.After(expectedMinDeadline))
 	})
@@ -180,6 +163,7 @@ func TestReturnsTrueErrorFromRead(t *testing.T) {
 
 	mockConn := new(MockConn)
 	mockConn.On("SetReadDeadline", mock.Anything).Return(nil)
+
 	expectedErr := errors.New("connection reset")
 	mockConn.On("Read", mock.Anything).Return(0, expectedErr)
 

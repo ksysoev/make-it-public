@@ -22,6 +22,7 @@ type ContextConnNopCloser struct {
 // Returns a ContextConnNopCloser that integrates context cancellation with the provided connection's lifecycle.
 func NewContextConnNopCloser(ctx context.Context, conn net.Conn) *ContextConnNopCloser {
 	ctx, cancel := context.WithCancel(ctx)
+
 	return &ContextConnNopCloser{
 		Conn:   conn,
 		ctx:    ctx,
@@ -43,7 +44,7 @@ func (c *ContextConnNopCloser) Read(p []byte) (int, error) {
 			deadline = ctxDeadline
 		}
 
-		if err := c.Conn.SetReadDeadline(deadline); err != nil {
+		if err := c.SetReadDeadline(deadline); err != nil {
 			return 0, err
 		}
 
@@ -62,7 +63,6 @@ func (c *ContextConnNopCloser) Read(p []byte) (int, error) {
 		default:
 			return n, err
 		}
-
 	}
 
 	return n, c.ctx.Err()

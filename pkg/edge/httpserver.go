@@ -95,7 +95,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	})
 
 	switch {
-	case errors.Is(core.ErrFailedToConnect, err), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+	case errors.Is(err, core.ErrFailedToConnect):
 		resp := &http.Response{
 			Status:     "502 Bad Gateway",
 			StatusCode: http.StatusBadGateway,

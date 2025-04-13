@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ksysoev/make-it-public/pkg/core/token"
@@ -87,45 +88,33 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
 	eg, ctx := errgroup.WithContext(ctx)
 
+	eg.Go(pipeConn(conn, destConn))
+	eg.Go(pipeConn(destConn, conn))
 	eg.Go(func() error {
 		<-ctx.Done()
 
-		err1 := conn.Close()
-		err2 := destConn.Close()
-
-		return errors.Join(err1, err2)
-	})
-
-	eg.Go(func() error {
-		defer cancel()
-
-		return pipeConn(conn, destConn)
-	})
-
-	eg.Go(func() error {
-		defer cancel()
-
-		return pipeConn(destConn, conn)
+		return errors.Join(conn.Close(), destConn.Close())
 	})
 
 	_ = eg.Wait()
 }
 
-// pipeConn copies data between src and dst connections bidirectionally until EOF or an error occurs.
-// It returns nil if the connection is closed gracefully with EOF or net.ErrClosed.
-// Returns error if any other issue occurs during data transfer.
-func pipeConn(src, dst net.Conn) error {
-	_, err := io.Copy(src, dst)
+// pipeConn transfers data between two network connections until an error or EOF occurs.
+// It propagates specific network-related errors (like connection closures or resets) as io.EOF.
+// Returns an error if an unexpected I/O error occurs during data transfer.
+func pipeConn(src, dst net.Conn) func() error {
+	return func() error {
+		_, err := io.Copy(src, dst)
 
-	switch {
-	case errors.Is(err, io.EOF), errors.Is(err, net.ErrClosed):
-		return nil
-	case err != nil:
-		return fmt.Errorf("error copying from reverse connection: %w", err)
+		switch {
+		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
+			return io.EOF
+		case err != nil:
+			return fmt.Errorf("error copying from reverse connection: %w", err)
+		}
+
+		return io.EOF
 	}
-
-	return nil
 }

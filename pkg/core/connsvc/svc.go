@@ -98,16 +98,15 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		eg, ctx := errgroup.WithContext(ctx)
 		cliConn := core.NewContextConnNopCloser(ctx, conn)
 
+		eg.Go(pipeConn(cliConn, revConn))
+		eg.Go(pipeConn(revConn, cliConn))
 		eg.Go(func() error {
 			<-ctx.Done()
 
 			return revConn.Close()
 		})
 
-		eg.Go(pipeConn(cliConn, revConn))
-		eg.Go(pipeConn(revConn, cliConn))
-
-		if err := eg.Wait(); !errors.Is(err, io.EOF) {
+		if err := eg.Wait(); !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
 			return err
 		}
 
@@ -115,9 +114,9 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 	}
 }
 
-// pipeConn copies data between src and dst connections bidirectionally until EOF or an error occurs.
-// It returns nil if the connection is closed gracefully with EOF or net.ErrClosed.
-// Returns error if any other issue occurs during data transfer.
+// pipeConn manages bidirectional copying of data between a source reader and a destination writer.
+// It reads from src and writes to dst, handling specific network-related errors gracefully.
+// Returns a function that performs the copy operation, returning io.EOF on successful completion or a detailed error on failure.
 func pipeConn(src io.Reader, dst io.Writer) func() error {
 	return func() error {
 		n, err := io.Copy(dst, src)

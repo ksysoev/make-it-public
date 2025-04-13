@@ -101,8 +101,6 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		eg.Go(func() error {
 			<-ctx.Done()
 
-			_ = cliConn.Close()
-
 			return revConn.Close()
 		})
 

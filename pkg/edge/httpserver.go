@@ -111,8 +111,6 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
 		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)
-	default:
-		slog.DebugContext(ctx, "connection handled successfully", slog.String("host", r.Host))
 	}
 }
 

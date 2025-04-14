@@ -45,6 +45,8 @@ func (r *RevServer) Run(ctx context.Context) error {
 
 	wg := sync.WaitGroup{}
 
+	defer wg.Wait()
+
 	for {
 		conn, err := l.Accept()
 		if err != nil {

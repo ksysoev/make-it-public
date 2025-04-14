@@ -24,17 +24,17 @@ type ServerConn interface {
 }
 
 type ConnManager struct {
-	users    map[string]*UserConnections
+	conns    map[string]*UserConnections
 	requests map[uuid.UUID]*connRequest
 	mu       sync.RWMutex
 }
 
 // New creates and returns a new instance of ConnManager.
 // It does not take any parameters.
-// It returns a pointer to a ConnManager with initialized internal maps for users and requests.
+// It returns a pointer to a ConnManager with initialized internal maps for conns and requests.
 func New() *ConnManager {
 	return &ConnManager{
-		users:    make(map[string]*UserConnections),
+		conns:    make(map[string]*UserConnections),
 		requests: make(map[uuid.UUID]*connRequest),
 	}
 }
@@ -42,14 +42,14 @@ func New() *ConnManager {
 // AddConnection adds a server connection to the user's connection pool.
 // It takes a user parameter of type string and a conn parameter of type *proto.Server.
 // It does not return any value and ensures thread-safe access.
-func (cm *ConnManager) AddConnection(user string, conn *proto.Server) {
+func (cm *ConnManager) AddConnection(keyID string, conn *proto.Server) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	userConn, ok := cm.users[user]
+	userConn, ok := cm.conns[keyID]
 	if !ok {
 		userConn = NewUserConnections()
-		cm.users[user] = userConn
+		cm.conns[keyID] = userConn
 	}
 
 	userConn.AddConnection(conn)
@@ -58,11 +58,11 @@ func (cm *ConnManager) AddConnection(user string, conn *proto.Server) {
 // RemoveConnection removes a connection associated with a specific user by its unique ID.
 // It takes user of type string and id of type uuid.UUID.
 // It does not return any value but safely does nothing if the user or connection ID does not exist.
-func (cm *ConnManager) RemoveConnection(user string, id uuid.UUID) {
+func (cm *ConnManager) RemoveConnection(keyID string, id uuid.UUID) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	userConn, ok := cm.users[user]
+	userConn, ok := cm.conns[keyID]
 	if !ok {
 		return
 	}
@@ -74,18 +74,18 @@ func (cm *ConnManager) RemoveConnection(user string, id uuid.UUID) {
 // It takes ctx of type context.Context and userID of type string.
 // It returns a channel of type net.Conn to receive the connection or an error if the operation fails.
 // It returns an error if no connections are available for the user, the user does not exist, or a command fails to send.
-func (cm *ConnManager) RequestConnection(ctx context.Context, userID string) (chan net.Conn, error) {
+func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (chan net.Conn, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
-	userConn, ok := cm.users[userID]
+	userConn, ok := cm.conns[keyID]
 	if !ok {
-		return nil, fmt.Errorf("no connections for user %s", userID)
+		return nil, fmt.Errorf("no connections for user %s", keyID)
 	}
 
 	cliConn := userConn.GetConn()
 	if cliConn == nil {
-		return nil, fmt.Errorf("no connections for user %s", userID)
+		return nil, fmt.Errorf("no connections for user %s", keyID)
 	}
 
 	id := uuid.New()
@@ -157,7 +157,7 @@ func (cm *ConnManager) Close() error {
 		delete(cm.requests, id)
 	}
 
-	for _, userConn := range cm.users {
+	for _, userConn := range cm.conns {
 		err := userConn.Close()
 		if err != nil {
 			errs = append(errs, err)

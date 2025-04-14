@@ -2,49 +2,67 @@ package core
 
 import (
 	"context"
-	"sync"
+	"net"
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/revdial/proto"
 )
 
-type ServerConn interface {
+type serverConn interface {
 	ID() uuid.UUID
 	Close() error
 	SendConnectCommand(id uuid.UUID) error
 	State() proto.State
 }
 
-type RevConn struct {
-	ServerConn
+type ServConn struct {
+	serverConn
 	ctx    context.Context
 	cancel context.CancelFunc
-	wg     sync.WaitGroup
 }
 
-func NewRevConn(ctx context.Context, conn ServerConn) (*RevConn, error) {
+func NewServerConn(ctx context.Context, conn serverConn) *ServConn {
 	ctx, cancel := context.WithCancel(ctx)
 
-	go func() {
-		<-ctx.Done()
-
-		_ = conn.Close()
-	}()
-
-	return &RevConn{
-		ServerConn: conn,
+	return &ServConn{
+		serverConn: conn,
 		ctx:        ctx,
 		cancel:     cancel,
-	}, nil
+	}
 }
 
-func (r *RevConn) Context() context.Context {
+func (r *ServConn) Context() context.Context {
 	return r.ctx
 }
 
-func (r *RevConn) Close() error {
-	r.cancel()
-	r.wg.Wait()
+func (r *ServConn) Close() error {
+	defer r.cancel()
 
-	return nil
+	return r.serverConn.Close()
+}
+
+type ClientConn struct {
+	net.Conn
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
+func NewClientConn(ctx context.Context, conn net.Conn) *ClientConn {
+	ctx, cancel := context.WithCancel(ctx)
+
+	return &ClientConn{
+		Conn:   conn,
+		ctx:    ctx,
+		cancel: cancel,
+	}
+}
+
+func (c *ClientConn) Context() context.Context {
+	return c.ctx
+}
+
+func (c *ClientConn) Close() error {
+	defer c.cancel()
+
+	return c.Conn.Close()
 }

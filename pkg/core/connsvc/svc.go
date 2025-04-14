@@ -58,18 +58,29 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 
 	switch servConn.State() {
 	case proto.StateRegistered:
+		srvConn := core.NewServerConn(ctx, servConn)
+
 		s.connmng.AddConnection(connUser, servConn)
 		slog.DebugContext(ctx, "control connection established", slog.Any("remote", conn.RemoteAddr()))
+
+		// TODO: currently we don't have possibility to identify closed connection
+		// when we add ping command to the protocol, we should add here for loop with sending ping command for checking state of the connection
+
+		<-srvConn.Context().Done()
+
+		return nil
 	case proto.StateBound:
-		s.connmng.ResolveRequest(servConn.ID(), conn)
+		cliConn := core.NewClientConn(ctx, conn)
+
+		s.connmng.ResolveRequest(servConn.ID(), cliConn)
 		slog.DebugContext(ctx, "bound connection established", slog.Any("remote", conn.RemoteAddr()), slog.Any("id", servConn.ID()))
+
+		<-cliConn.Context().Done()
+
+		return nil
 	default:
-		slog.ErrorContext(ctx, "unexpected state while handling incomming connection", slog.Any("state", servConn.State()))
+		return fmt.Errorf("unexpected state while handling incomming connection: %d", servConn.State())
 	}
-
-	<-ctx.Done()
-
-	return nil
 }
 
 func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error) error {

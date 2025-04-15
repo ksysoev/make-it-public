@@ -21,8 +21,8 @@ type AuthRepo interface {
 
 type ConnManager interface {
 	RequestConnection(ctx context.Context, userID string) (*core.ConnReq, error)
-	AddConnection(user string, conn *proto.Server)
-	ResolveRequest(id uuid.UUID, conn net.Conn)
+	AddConnection(user string, conn *core.ServConn)
+	ResolveRequest(id uuid.UUID, conn *core.ClientConn)
 	CancelRequest(id uuid.UUID)
 }
 
@@ -61,7 +61,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 	case proto.StateRegistered:
 		srvConn := core.NewServerConn(ctx, servConn)
 
-		s.connmng.AddConnection(connUser, servConn)
+		s.connmng.AddConnection(connUser, srvConn)
 		slog.DebugContext(ctx, "control connection established", slog.Any("remote", conn.RemoteAddr()))
 
 		// TODO: currently we don't have possibility to identify closed connection

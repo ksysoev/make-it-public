@@ -1,0 +1,44 @@
+package core
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/google/uuid"
+)
+
+type ConnReq struct {
+	id  uuid.UUID
+	ch  chan *ClientConn
+	ctx context.Context
+}
+
+func NewConnReq(ctx context.Context) *ConnReq {
+	return &ConnReq{
+		id:  uuid.New(),
+		ch:  make(chan *ClientConn),
+		ctx: ctx,
+	}
+}
+
+func (r *ConnReq) ID() uuid.UUID {
+	return r.id
+}
+
+func (r *ConnReq) Context() context.Context {
+	return r.ctx
+}
+
+func (r *ConnReq) Conn(ctx context.Context) (*ClientConn, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-r.ctx.Done():
+		return nil, fmt.Errorf("parent context is canceled")
+	case conn, ok := <-r.ch:
+		if !ok {
+			return nil, fmt.Errorf("request is canceled")
+		}
+		return conn, nil
+	}
+}

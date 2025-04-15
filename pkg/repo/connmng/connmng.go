@@ -11,9 +11,8 @@ import (
 )
 
 type connRequest struct {
-	ctx    context.Context
-	parent *core.ServConn
-	ch     chan *core.ClientConn
+	ctx context.Context
+	ch  chan *core.ClientConn
 }
 
 type ConnManager struct {
@@ -63,16 +62,15 @@ func (cm *ConnManager) RemoveConnection(keyID string, id uuid.UUID) {
 // It takes ctx of type context.Context and userID of type string.
 // It returns a channel of type net.Conn to receive the connection or an error if the operation fails.
 // It returns an error if no connections are available for the user, the user does not exist, or a command fails to send.
-func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (chan *core.ClientConn, error) {
+func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (chan *core.ClientConn, context.Context, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
 	conn, ok := cm.conns[keyID]
 	if !ok {
-		return nil, fmt.Errorf("no connections for user %s", keyID)
+		return nil, nil, fmt.Errorf("no connections for user %s", keyID)
 	}
 
-	id := uuid.New()
 	req := &connRequest{
 		ctx: ctx,
 		ch:  make(chan *core.ClientConn, 1),
@@ -80,12 +78,12 @@ func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (cha
 
 	id, err := conn.RequestConnection()
 	if err != nil {
-		return nil, fmt.Errorf("failed to send connect command: %w", err)
+		return nil, nil, fmt.Errorf("failed to send connect command: %w", err)
 	}
 
 	cm.requests[id] = req
 
-	return req.ch, nil
+	return req.ch, conn.Context(), nil
 }
 
 // ResolveRequest resolves a pending connection request by sending the provided connection to the request's channel.
@@ -100,8 +98,6 @@ func (cm *ConnManager) ResolveRequest(id uuid.UUID, conn *core.ClientConn) {
 	if !ok {
 		return
 	}
-
-	// TODO: We need to wire up client and server connections here some how
 
 	select {
 	case req.ch <- conn:

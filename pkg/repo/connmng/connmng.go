@@ -62,28 +62,28 @@ func (cm *ConnManager) RemoveConnection(keyID string, id uuid.UUID) {
 // It takes ctx of type context.Context and userID of type string.
 // It returns a channel of type net.Conn to receive the connection or an error if the operation fails.
 // It returns an error if no connections are available for the user, the user does not exist, or a command fails to send.
-func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (chan *core.ClientConn, context.Context, error) {
+func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (*core.ConnReq, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
 	conn, ok := cm.conns[keyID]
 	if !ok {
-		return nil, nil, fmt.Errorf("no connections for user %s", keyID)
+		return nil, fmt.Errorf("no connections for user %s", keyID)
 	}
 
-	req := &connRequest{
+	r := &connRequest{
 		ctx: ctx,
 		ch:  make(chan *core.ClientConn, 1),
 	}
 
-	id, err := conn.RequestConnection()
+	req, err := conn.RequestConnection()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to send connect command: %w", err)
+		return nil, fmt.Errorf("failed to send connect command: %w", err)
 	}
 
-	cm.requests[id] = req
+	cm.requests[req.ID()] = r
 
-	return req.ch, conn.Context(), nil
+	return req, nil
 }
 
 // ResolveRequest resolves a pending connection request by sending the provided connection to the request's channel.

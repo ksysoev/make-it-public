@@ -20,7 +20,7 @@ type AuthRepo interface {
 }
 
 type ConnManager interface {
-	RequestConnection(ctx context.Context, userID string) (chan net.Conn, context.Context, error)
+	RequestConnection(ctx context.Context, userID string) (*core.ConnReq, error)
 	AddConnection(user string, conn *proto.Server)
 	ResolveRequest(id uuid.UUID, conn net.Conn)
 	CancelRequest(id uuid.UUID)
@@ -88,44 +88,44 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 	slog.DebugContext(ctx, "new HTTP connection", slog.Any("remote", conn.RemoteAddr()))
 	defer slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", conn.RemoteAddr()))
 
-	ch, parrentCtx, err := s.connmng.RequestConnection(ctx, userID)
+	req, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to request connection: %w", core.ErrFailedToConnect)
 	}
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case revConn, ok := <-ch:
-		if !ok {
-			return fmt.Errorf("connection request failed: %w", core.ErrFailedToConnect)
-		}
-
-		// Write initial request data
-		if err := write(revConn); err != nil {
-			slog.DebugContext(ctx, "failed to write initial request", slog.Any("error", err))
-
-			return fmt.Errorf("failed to write initial request: %w", core.ErrFailedToConnect)
-		}
-
-		// Create error group for managing both copy operations
-		eg, ctx := errgroup.WithContext(ctx)
-		cliConn := core.NewContextConnNopCloser(ctx, conn)
-
-		eg.Go(pipeConn(cliConn, revConn))
-		eg.Go(pipeConn(revConn, cliConn))
-		eg.Go(func() error {
-			<-ctx.Done()
-
-			return revConn.Close()
-		})
-
-		if err := eg.Wait(); !errors.Is(err, io.EOF) {
-			return err
-		}
-
-		return nil
+	revConn, err := req.WaitConn(ctx)
+	if err != nil {
+		return fmt.Errorf("connection request failed: %w", core.ErrFailedToConnect)
 	}
+
+	// Write initial request data
+	if err := write(revConn); err != nil {
+		slog.DebugContext(ctx, "failed to write initial request", slog.Any("error", err))
+
+		return fmt.Errorf("failed to write initial request: %w", core.ErrFailedToConnect)
+	}
+
+	// Create error group for managing both copy operations
+	eg, ctx := errgroup.WithContext(ctx)
+	cliConn := core.NewContextConnNopCloser(ctx, conn)
+
+	eg.Go(pipeConn(cliConn, revConn))
+	eg.Go(pipeConn(revConn, cliConn))
+	eg.Go(func() error {
+
+		select {
+		case <-ctx.Done():
+		case <-req.ParentContext().Done(): // Pare
+		}
+
+		return revConn.Close()
+	})
+
+	if err := eg.Wait(); !errors.Is(err, io.EOF) {
+		return err
+	}
+
+	return nil
 }
 
 // pipeConn manages bidirectional copying of data between a source reader and a destination writer.

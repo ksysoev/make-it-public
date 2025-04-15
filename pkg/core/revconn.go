@@ -42,17 +42,17 @@ func (r *ServConn) Close() error {
 	return r.serverConn.Close()
 }
 
-func (r *ServConn) RequestConnection() (uuid.UUID, error) {
+func (r *ServConn) RequestConnection() (*ConnReq, error) {
 	if r.State() != proto.StateRegistered {
-		return uuid.Nil, fmt.Errorf("server is not connected")
+		return nil, fmt.Errorf("server is not connected")
 	}
 
-	id := uuid.New()
-	if err := r.SendConnectCommand(id); err != nil {
-		return uuid.Nil, fmt.Errorf("failed to send connect command: %w", err)
+	req := NewConnReq(r.Context())
+	if err := r.SendConnectCommand(req.ID()); err != nil {
+		return nil, fmt.Errorf("failed to send connect command: %w", err)
 	}
 
-	return id, nil
+	return req, nil
 }
 
 type ClientConn struct {

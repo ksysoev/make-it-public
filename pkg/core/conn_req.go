@@ -25,11 +25,11 @@ func (r *ConnReq) ID() uuid.UUID {
 	return r.id
 }
 
-func (r *ConnReq) Context() context.Context {
+func (r *ConnReq) ParentContext() context.Context {
 	return r.ctx
 }
 
-func (r *ConnReq) Conn(ctx context.Context) (*ClientConn, error) {
+func (r *ConnReq) WaitConn(ctx context.Context) (*ClientConn, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()

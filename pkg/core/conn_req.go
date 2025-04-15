@@ -42,3 +42,17 @@ func (r *ConnReq) WaitConn(ctx context.Context) (*ClientConn, error) {
 		return conn, nil
 	}
 }
+
+func (r *ConnReq) SendConn(ctx context.Context, conn *ClientConn) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-r.ctx.Done():
+		return
+	case r.ch <- conn:
+	}
+}
+
+func (r *ConnReq) Cancel() {
+	close(r.ch)
+}

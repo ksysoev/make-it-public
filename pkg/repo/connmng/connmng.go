@@ -12,7 +12,7 @@ import (
 
 type connRequest struct {
 	ctx context.Context
-	ch  chan *core.ClientConn
+	req *core.ConnReq
 }
 
 type ConnManager struct {
@@ -71,14 +71,14 @@ func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (*co
 		return nil, fmt.Errorf("no connections for user %s", keyID)
 	}
 
-	r := &connRequest{
-		ctx: ctx,
-		ch:  make(chan *core.ClientConn, 1),
-	}
-
 	req, err := conn.RequestConnection()
 	if err != nil {
 		return nil, fmt.Errorf("failed to send connect command: %w", err)
+	}
+
+	r := &connRequest{
+		ctx: ctx,
+		req: req,
 	}
 
 	cm.requests[req.ID()] = r
@@ -91,7 +91,7 @@ func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (*co
 // If the request is not found or its context is canceled, the connection is closed and no further actions are taken.
 func (cm *ConnManager) ResolveRequest(id uuid.UUID, conn *core.ClientConn) {
 	cm.mu.Lock()
-	req, ok := cm.requests[id]
+	r, ok := cm.requests[id]
 	delete(cm.requests, id)
 	cm.mu.Unlock()
 
@@ -99,11 +99,7 @@ func (cm *ConnManager) ResolveRequest(id uuid.UUID, conn *core.ClientConn) {
 		return
 	}
 
-	select {
-	case req.ch <- conn:
-	case <-req.ctx.Done():
-		_ = conn.Close()
-	}
+	r.req.SendConn(r.ctx, conn)
 }
 
 // CancelRequest cancels a pending connection request by its unique ID.
@@ -114,12 +110,12 @@ func (cm *ConnManager) CancelRequest(id uuid.UUID) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	req, ok := cm.requests[id]
+	r, ok := cm.requests[id]
 	if !ok {
 		return
 	}
 
-	close(req.ch)
+	r.req.Cancel()
 	delete(cm.requests, id)
 }
 
@@ -132,8 +128,8 @@ func (cm *ConnManager) Close() error {
 
 	errs := make([]error, 0, len(cm.requests))
 
-	for id, req := range cm.requests {
-		close(req.ch)
+	for id, r := range cm.requests {
+		r.req.Cancel()
 		delete(cm.requests, id)
 	}
 

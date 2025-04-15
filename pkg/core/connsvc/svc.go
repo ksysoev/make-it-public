@@ -95,8 +95,11 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 	revConn, err := req.WaitConn(ctx)
 	if err != nil {
+		s.connmng.CancelRequest(req.ID())
 		return fmt.Errorf("connection request failed: %w", core.ErrFailedToConnect)
 	}
+
+	slog.DebugContext(ctx, "connection recived", slog.Any("remote", conn.RemoteAddr()))
 
 	// Write initial request data
 	if err := write(revConn); err != nil {

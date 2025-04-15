@@ -4,27 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/ksysoev/revdial/proto"
+	"github.com/ksysoev/make-it-public/pkg/core"
 )
 
 type connRequest struct {
-	ctx context.Context
-	ch  chan net.Conn
-}
-
-type ServerConn interface {
-	ID() uuid.UUID
-	Close() error
-	SendConnectCommand(id uuid.UUID) error
-	State() proto.State
+	ctx    context.Context
+	parent *core.ServConn
+	ch     chan *core.ClientConn
 }
 
 type ConnManager struct {
-	conns    map[string]*UserConnections
+	conns    map[string]*core.ServConn
 	requests map[uuid.UUID]*connRequest
 	mu       sync.RWMutex
 }
@@ -34,7 +27,7 @@ type ConnManager struct {
 // It returns a pointer to a ConnManager with initialized internal maps for conns and requests.
 func New() *ConnManager {
 	return &ConnManager{
-		conns:    make(map[string]*UserConnections),
+		conns:    make(map[string]*core.ServConn),
 		requests: make(map[uuid.UUID]*connRequest),
 	}
 }
@@ -42,17 +35,15 @@ func New() *ConnManager {
 // AddConnection adds a server connection to the user's connection pool.
 // It takes a user parameter of type string and a conn parameter of type *proto.Server.
 // It does not return any value and ensures thread-safe access.
-func (cm *ConnManager) AddConnection(keyID string, conn *proto.Server) {
+func (cm *ConnManager) AddConnection(keyID string, conn *core.ServConn) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	userConn, ok := cm.conns[keyID]
-	if !ok {
-		userConn = NewUserConnections()
-		cm.conns[keyID] = userConn
+	if oldConn, ok := cm.conns[keyID]; ok {
+		_ = oldConn.Close()
 	}
 
-	userConn.AddConnection(conn)
+	cm.conns[keyID] = conn
 }
 
 // RemoveConnection removes a connection associated with a specific user by its unique ID.
@@ -62,45 +53,37 @@ func (cm *ConnManager) RemoveConnection(keyID string, id uuid.UUID) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	userConn, ok := cm.conns[keyID]
-	if !ok {
-		return
+	if conn, ok := cm.conns[keyID]; ok && conn.ID() == id {
+		_ = conn.Close()
+		delete(cm.conns, keyID)
 	}
-
-	userConn.RemoveConnection(id)
 }
 
 // RequestConnection attempts to establish a new connection for the specified user.
 // It takes ctx of type context.Context and userID of type string.
 // It returns a channel of type net.Conn to receive the connection or an error if the operation fails.
 // It returns an error if no connections are available for the user, the user does not exist, or a command fails to send.
-func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (chan net.Conn, error) {
+func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (chan *core.ClientConn, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
-	userConn, ok := cm.conns[keyID]
+	conn, ok := cm.conns[keyID]
 	if !ok {
-		return nil, fmt.Errorf("no connections for user %s", keyID)
-	}
-
-	cliConn := userConn.GetConn()
-	if cliConn == nil {
 		return nil, fmt.Errorf("no connections for user %s", keyID)
 	}
 
 	id := uuid.New()
 	req := &connRequest{
 		ctx: ctx,
-		ch:  make(chan net.Conn, 1),
+		ch:  make(chan *core.ClientConn, 1),
+	}
+
+	id, err := conn.RequestConnection()
+	if err != nil {
+		return nil, fmt.Errorf("failed to send connect command: %w", err)
 	}
 
 	cm.requests[id] = req
-
-	if err := cliConn.SendConnectCommand(id); err != nil {
-		delete(cm.requests, id)
-
-		return nil, fmt.Errorf("failed to send connect command: %w", err)
-	}
 
 	return req.ch, nil
 }
@@ -108,22 +91,23 @@ func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (cha
 // ResolveRequest resolves a pending connection request by sending the provided connection to the request's channel.
 // It takes an id parameter of type uuid.UUID and a conn parameter of type net.Conn.
 // If the request is not found or its context is canceled, the connection is closed and no further actions are taken.
-func (cm *ConnManager) ResolveRequest(id uuid.UUID, conn net.Conn) {
+func (cm *ConnManager) ResolveRequest(id uuid.UUID, conn *core.ClientConn) {
 	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
 	req, ok := cm.requests[id]
+	delete(cm.requests, id)
+	cm.mu.Unlock()
+
 	if !ok {
 		return
 	}
+
+	// TODO: We need to wire up client and server connections here some how
 
 	select {
 	case req.ch <- conn:
 	case <-req.ctx.Done():
 		_ = conn.Close()
 	}
-
-	delete(cm.requests, id)
 }
 
 // CancelRequest cancels a pending connection request by its unique ID.

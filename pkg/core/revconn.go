@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/google/uuid"
@@ -39,6 +40,19 @@ func (r *ServConn) Close() error {
 	defer r.cancel()
 
 	return r.serverConn.Close()
+}
+
+func (r *ServConn) RequestConnection() (uuid.UUID, error) {
+	if r.State() != proto.StateRegistered {
+		return uuid.Nil, fmt.Errorf("server is not connected")
+	}
+
+	id := uuid.New()
+	if err := r.SendConnectCommand(id); err != nil {
+		return uuid.Nil, fmt.Errorf("failed to send connect command: %w", err)
+	}
+
+	return id, nil
 }
 
 type ClientConn struct {

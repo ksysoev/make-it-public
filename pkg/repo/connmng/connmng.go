@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/google/uuid"
@@ -90,7 +91,7 @@ func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (*co
 // ResolveRequest resolves a pending connection request by sending the provided connection to the request's channel.
 // It takes an id parameter of type uuid.UUID and a conn parameter of type net.Conn.
 // If the request is not found or its context is canceled, the connection is closed and no further actions are taken.
-func (cm *ConnManager) ResolveRequest(id uuid.UUID, conn *core.ClientConn) {
+func (cm *ConnManager) ResolveRequest(id uuid.UUID, conn net.Conn) {
 	cm.mu.Lock()
 	r, ok := cm.requests[id]
 	delete(cm.requests, id)

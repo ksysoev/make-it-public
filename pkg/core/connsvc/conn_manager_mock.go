@@ -10,6 +10,8 @@ import (
 	core "github.com/ksysoev/make-it-public/pkg/core"
 	mock "github.com/stretchr/testify/mock"
 
+	net "net"
+
 	uuid "github.com/google/uuid"
 )
 
@@ -153,7 +155,7 @@ func (_c *MockConnManager_RequestConnection_Call) RunAndReturn(run func(context.
 }
 
 // ResolveRequest provides a mock function with given fields: id, conn
-func (_m *MockConnManager) ResolveRequest(id uuid.UUID, conn *core.ClientConn) {
+func (_m *MockConnManager) ResolveRequest(id uuid.UUID, conn net.Conn) {
 	_m.Called(id, conn)
 }
 
@@ -164,14 +166,14 @@ type MockConnManager_ResolveRequest_Call struct {
 
 // ResolveRequest is a helper method to define mock.On call
 //   - id uuid.UUID
-//   - conn *core.ClientConn
+//   - conn net.Conn
 func (_e *MockConnManager_Expecter) ResolveRequest(id interface{}, conn interface{}) *MockConnManager_ResolveRequest_Call {
 	return &MockConnManager_ResolveRequest_Call{Call: _e.mock.On("ResolveRequest", id, conn)}
 }
 
-func (_c *MockConnManager_ResolveRequest_Call) Run(run func(id uuid.UUID, conn *core.ClientConn)) *MockConnManager_ResolveRequest_Call {
+func (_c *MockConnManager_ResolveRequest_Call) Run(run func(id uuid.UUID, conn net.Conn)) *MockConnManager_ResolveRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(uuid.UUID), args[1].(*core.ClientConn))
+		run(args[0].(uuid.UUID), args[1].(net.Conn))
 	})
 	return _c
 }
@@ -181,7 +183,7 @@ func (_c *MockConnManager_ResolveRequest_Call) Return() *MockConnManager_Resolve
 	return _c
 }
 
-func (_c *MockConnManager_ResolveRequest_Call) RunAndReturn(run func(uuid.UUID, *core.ClientConn)) *MockConnManager_ResolveRequest_Call {
+func (_c *MockConnManager_ResolveRequest_Call) RunAndReturn(run func(uuid.UUID, net.Conn)) *MockConnManager_ResolveRequest_Call {
 	_c.Run(run)
 	return _c
 }

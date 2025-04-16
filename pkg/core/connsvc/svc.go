@@ -22,7 +22,7 @@ type AuthRepo interface {
 type ConnManager interface {
 	RequestConnection(ctx context.Context, userID string) (*core.ConnReq, error)
 	AddConnection(user string, conn *core.ServConn)
-	ResolveRequest(id uuid.UUID, conn *core.ClientConn)
+	ResolveRequest(id uuid.UUID, conn net.Conn)
 	CancelRequest(id uuid.UUID)
 }
 
@@ -71,12 +71,12 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 
 		return nil
 	case proto.StateBound:
-		cliConn := core.NewClientConn(ctx, conn)
+		notifier := core.NewCloseNotifier(conn)
 
-		s.connmng.ResolveRequest(servConn.ID(), cliConn)
+		s.connmng.ResolveRequest(servConn.ID(), notifier)
 		slog.DebugContext(ctx, "bound connection established", slog.Any("remote", conn.RemoteAddr()), slog.Any("id", servConn.ID()))
 
-		<-cliConn.Context().Done()
+		notifier.WaitClose(ctx)
 
 		return nil
 	default:

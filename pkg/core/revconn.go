@@ -79,40 +79,35 @@ func (r *ServConn) RequestConnection() (*ConnReq, error) {
 	return req, nil
 }
 
-// ClientConn extends net.Conn to include context cancellation support.
-// It embeds net.Conn for standard connection operations and adds a context and cancellation mechanism.
-// The context can be used to manage the connection lifecycle, including cancellation in long-running operations.
-type ClientConn struct {
+// CloseNotifier is a type that wraps a network connection and provides a mechanism to signal when the connection is closed.
+type CloseNotifier struct {
 	net.Conn
-	ctx    context.Context
-	cancel context.CancelFunc
+	done chan struct{}
 }
 
-// NewClientConn creates a new ClientConn instance with context cancellation support.
-// It initializes the ClientConn with the provided context and a net.Conn object.
-// Returns a pointer to ClientConn managing the connection lifecycle, including context cancellation.
-func NewClientConn(ctx context.Context, conn net.Conn) *ClientConn {
-	ctx, cancel := context.WithCancel(ctx)
-
-	return &ClientConn{
-		Conn:   conn,
-		ctx:    ctx,
-		cancel: cancel,
+// NewCloseNotifier creates and returns a CloseNotifier wrapping the given network connection.
+// It initializes a channel to signal when the connection is closed.
+func NewCloseNotifier(conn net.Conn) *CloseNotifier {
+	return &CloseNotifier{
+		Conn: conn,
+		done: make(chan struct{}),
 	}
 }
 
-// Context retrieves the context associated with the ClientConn instance.
-// It provides lifecycle management capabilities, including support for cancellation and timeout.
-// Returns the context.Context instance tied to the connection.
-func (c *ClientConn) Context() context.Context {
-	return c.ctx
+// WaitClose blocks until the CloseNotifier is closed or the provided context is canceled.
+// It listens for the closure signal or context cancellation, whichever occurs first.
+func (c *CloseNotifier) WaitClose(ctx context.Context) {
+	select {
+	case <-c.done:
+	case <-ctx.Done():
+	}
 }
 
-// Close terminates the connection and cancels the associated context.
-// It ensures that resources tied to the connection are released properly.
-// Returns an error only if closing the underlying connection fails.
-func (c *ClientConn) Close() error {
-	defer c.cancel()
+// Close terminates the underlying connection and signals closure via the done channel.
+// It ensures the done channel is closed after invoking the connection's Close method.
+// Returns an error if closing the connection fails.
+func (c *CloseNotifier) Close() error {
+	defer close(c.done)
 
 	return c.Conn.Close()
 }

@@ -1,3 +1,5 @@
+disable-version-string: true
+resolve-type-alias: false
 with-expecter: true
 mock-build-tags: "!compile"
 inpackage: true
@@ -6,9 +8,6 @@ filename: "{{.InterfaceName | snakecase }}_mock.go"
 dir: "{{.InterfaceDir}}"
 mockname: "Mock{{.InterfaceName}}"
 packages:
-  github.com/ksysoev/make-it-public/pkg/repo/connmng:
-    interfaces:
-      ServerConn:
   github.com/ksysoev/make-it-public/pkg/edge:
     interfaces:
       ConnService:

@@ -3,20 +3,21 @@ package core
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/google/uuid"
 )
 
 type ConnReq struct {
-	id  uuid.UUID
-	ch  chan *ClientConn
 	ctx context.Context
+	ch  chan net.Conn
+	id  uuid.UUID
 }
 
 func NewConnReq(ctx context.Context) *ConnReq {
 	return &ConnReq{
 		id:  uuid.New(),
-		ch:  make(chan *ClientConn),
+		ch:  make(chan net.Conn),
 		ctx: ctx,
 	}
 }
@@ -29,7 +30,7 @@ func (r *ConnReq) ParentContext() context.Context {
 	return r.ctx
 }
 
-func (r *ConnReq) WaitConn(ctx context.Context) (*ClientConn, error) {
+func (r *ConnReq) WaitConn(ctx context.Context) (net.Conn, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -39,11 +40,12 @@ func (r *ConnReq) WaitConn(ctx context.Context) (*ClientConn, error) {
 		if !ok {
 			return nil, fmt.Errorf("request is canceled")
 		}
+
 		return conn, nil
 	}
 }
 
-func (r *ConnReq) SendConn(ctx context.Context, conn *ClientConn) {
+func (r *ConnReq) SendConn(ctx context.Context, conn net.Conn) {
 	select {
 	case <-ctx.Done():
 		return

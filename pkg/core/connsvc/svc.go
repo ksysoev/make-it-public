@@ -99,7 +99,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		return fmt.Errorf("connection request failed: %w", core.ErrFailedToConnect)
 	}
 
-	slog.DebugContext(ctx, "connection recived", slog.Any("remote", conn.RemoteAddr()))
+	slog.DebugContext(ctx, "connection received", slog.Any("remote", conn.RemoteAddr()))
 
 	// Write initial request data
 	if err := write(revConn); err != nil {
@@ -115,7 +115,6 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 	eg.Go(pipeConn(cliConn, revConn))
 	eg.Go(pipeConn(revConn, cliConn))
 	eg.Go(func() error {
-
 		select {
 		case <-ctx.Done():
 		case <-req.ParentContext().Done(): // Pare

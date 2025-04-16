@@ -54,6 +54,7 @@ func (cm *ConnManager) RemoveConnection(keyID string, id uuid.UUID) {
 
 	if conn, ok := cm.conns[keyID]; ok && conn.ID() == id {
 		_ = conn.Close()
+
 		delete(cm.conns, keyID)
 	}
 }

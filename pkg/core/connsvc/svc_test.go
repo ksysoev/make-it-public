@@ -69,16 +69,20 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
 
-	connChan := make(chan net.Conn, 1)
 	revConn := &mockConn{readData: []byte("response data")}
-	connChan <- revConn
-	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(connChan, nil)
+
+	mockReq := core.NewConnReq(t.Context())
+	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
 
 	service := New(connManager, authRepo)
 	clientConn := &mockConn{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
+
+	go func() {
+		mockReq.SendConn(ctx, revConn)
+	}()
 
 	writeFunc := func(_ net.Conn) error {
 		return assert.AnError
@@ -92,8 +96,9 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
 
-	connChan := make(chan net.Conn, 1)
-	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(connChan, nil)
+	mockReq := core.NewConnReq(t.Context())
+	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
+	connManager.EXPECT().CancelRequest(mockReq.ID()).Return()
 
 	service := New(connManager, authRepo)
 	clientConn := &mockConn{}
@@ -102,5 +107,5 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	defer cancel()
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
-	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, core.ErrFailedToConnect)
 }

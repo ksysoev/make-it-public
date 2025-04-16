@@ -19,22 +19,36 @@ type mockServerConn struct {
 
 func (m *mockServerConn) ID() uuid.UUID {
 	args := m.Called()
-	return args.Get(0).(uuid.UUID)
+	id, ok := args.Get(0).(uuid.UUID)
+
+	if !ok {
+		panic("expected uuid.UUID")
+	}
+
+	return id
 }
 
 func (m *mockServerConn) Close() error {
 	args := m.Called()
+
 	return args.Error(0)
 }
 
 func (m *mockServerConn) SendConnectCommand(id uuid.UUID) error {
 	args := m.Called(id)
+
 	return args.Error(0)
 }
 
 func (m *mockServerConn) State() proto.State {
 	args := m.Called()
-	return args.Get(0).(proto.State)
+	s, ok := args.Get(0).(proto.State)
+
+	if !ok {
+		panic("expected proto.State")
+	}
+
+	return s
 }
 
 func TestServConn_ID(t *testing.T) {
@@ -80,20 +94,21 @@ func TestServConn_Close(t *testing.T) {
 
 func TestServConn_RequestConnection(t *testing.T) {
 	tests := []struct {
-		name             string
-		mockState        proto.State
 		mockSendResponse error
 		expectedError    error
+		name             string
+		mockState        proto.State
 	}{
-		{"ServerNotRegistered", proto.StateConnected, nil, errors.New("server is not connected")},
-		{"SendConnectCommandFails", proto.StateRegistered, errors.New("send error"), errors.New("failed to send connect command: send error")},
-		{"Success", proto.StateRegistered, nil, nil},
+		{name: "ServerNotRegistered", mockState: proto.StateConnected, mockSendResponse: nil, expectedError: errors.New("server is not connected")},
+		{name: "SendConnectCommandFails", mockState: proto.StateRegistered, mockSendResponse: errors.New("send error"), expectedError: errors.New("failed to send connect command: send error")},
+		{name: "Success", mockState: proto.StateRegistered, mockSendResponse: nil, expectedError: nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockConn := new(mockServerConn)
 			mockConn.On("State").Return(tt.mockState)
+
 			if tt.mockState == proto.StateRegistered {
 				mockConn.On("SendConnectCommand", mock.Anything).Return(tt.mockSendResponse)
 			}
@@ -128,12 +143,14 @@ func TestCloseNotifier_WaitClose(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockConn := &net.IPConn{}
 			ctx, cancel := context.WithTimeout(context.Background(), tt.ctxTimeout)
+
 			defer cancel()
 
 			cn := NewCloseNotifier(mockConn)
 
 			go func() {
 				time.Sleep(tt.closeDelay)
+
 				_ = cn.Close()
 			}()
 

@@ -13,11 +13,11 @@ import (
 
 type connRequest struct {
 	ctx context.Context
-	req *core.ConnReq
+	req core.ConnReq
 }
 
 type ConnManager struct {
-	conns    map[string]*core.ServConn
+	conns    map[string]core.ServConn
 	requests map[uuid.UUID]*connRequest
 	mu       sync.RWMutex
 }
@@ -27,7 +27,7 @@ type ConnManager struct {
 // It returns a pointer to a ConnManager with initialized internal maps for conns and requests.
 func New() *ConnManager {
 	return &ConnManager{
-		conns:    make(map[string]*core.ServConn),
+		conns:    make(map[string]core.ServConn),
 		requests: make(map[uuid.UUID]*connRequest),
 	}
 }
@@ -35,7 +35,7 @@ func New() *ConnManager {
 // AddConnection adds a server connection to the user's connection pool.
 // It takes a user parameter of type string and a conn parameter of type *proto.Server.
 // It does not return any value and ensures thread-safe access.
-func (cm *ConnManager) AddConnection(keyID string, conn *core.ServConn) {
+func (cm *ConnManager) AddConnection(keyID string, conn core.ServConn) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -64,7 +64,7 @@ func (cm *ConnManager) RemoveConnection(keyID string, id uuid.UUID) {
 // It takes ctx of type context.Context and userID of type string.
 // It returns a channel of type net.Conn to receive the connection or an error if the operation fails.
 // It returns an error if no connections are available for the user, the user does not exist, or a command fails to send.
-func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (*core.ConnReq, error) {
+func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (core.ConnReq, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 

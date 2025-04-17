@@ -15,3 +15,7 @@ packages:
     interfaces:
       AuthRepo:
       ConnManager:
+  github.com/ksysoev/make-it-public/pkg/core:
+    interfaces:
+      ServConn:
+      ConnReq:

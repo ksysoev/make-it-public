@@ -20,8 +20,8 @@ type AuthRepo interface {
 }
 
 type ConnManager interface {
-	RequestConnection(ctx context.Context, userID string) (*core.ConnReq, error)
-	AddConnection(user string, conn *core.ServConn)
+	RequestConnection(ctx context.Context, userID string) (core.ConnReq, error)
+	AddConnection(user string, conn core.ServConn)
 	ResolveRequest(id uuid.UUID, conn net.Conn)
 	CancelRequest(id uuid.UUID)
 }

@@ -13,7 +13,7 @@ type ServConn interface {
 	ID() uuid.UUID
 	Context() context.Context
 	Close() error
-	RequestConnection() (*connReq, error)
+	RequestConnection() (ConnReq, error)
 }
 
 // serverConn defines the interface for managing a server connection, including control commands and state retrieval.
@@ -73,7 +73,7 @@ func (r *servConn) Close() error {
 // RequestConnection initiates a new connection request by issuing a connect command to the server.
 // It ensures the server is in a registered state before proceeding.
 // Returns a pointer to connReq containing the connection request details and an error if the server is not connected or if the command fails to send.
-func (r *servConn) RequestConnection() (*connReq, error) {
+func (r *servConn) RequestConnection() (ConnReq, error) {
 	if r.conn.State() != proto.StateRegistered {
 		return nil, fmt.Errorf("server is not connected")
 	}

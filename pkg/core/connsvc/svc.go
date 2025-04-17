@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core"
+	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/ksysoev/revdial/proto"
 	"golang.org/x/sync/errgroup"
 )
@@ -59,7 +60,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 
 	switch servConn.State() {
 	case proto.StateRegistered:
-		srvConn := core.NewServerConn(ctx, servConn)
+		srvConn := conn.NewServerConn(ctx, servConn)
 
 		s.connmng.AddConnection(connUser, srvConn)
 		slog.DebugContext(ctx, "control connection established", slog.Any("remote", conn.RemoteAddr()))
@@ -71,7 +72,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 
 		return nil
 	case proto.StateBound:
-		notifier := core.NewCloseNotifier(conn)
+		notifier := conn.NewCloseNotifier(conn)
 
 		s.connmng.ResolveRequest(servConn.ID(), notifier)
 		slog.DebugContext(ctx, "bound connection established", slog.Any("remote", conn.RemoteAddr()), slog.Any("id", servConn.ID()))

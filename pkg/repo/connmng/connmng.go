@@ -24,7 +24,7 @@ type ConnManager struct {
 
 // New creates and returns a new instance of ConnManager.
 // It does not take any parameters.
-// It returns a pointer to a ConnManager with initialized internal maps for conns and requests.
+// It returns a pointer to a ConnManager with initialized internal maps for conn and requests.
 func New() *ConnManager {
 	return &ConnManager{
 		conns:    make(map[string]core.ServConn),

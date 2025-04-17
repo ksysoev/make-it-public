@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ksysoev/make-it-public/pkg/core"
+	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -71,7 +72,7 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 
 	revConn := &mockConn{readData: []byte("response data")}
 
-	mockReq := core.NewConnReq(t.Context())
+	mockReq := conn.NewRequest(t.Context())
 	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
 
 	service := New(connManager, authRepo)
@@ -96,7 +97,7 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
 
-	mockReq := core.NewConnReq(t.Context())
+	mockReq := conn.NewRequest(t.Context())
 	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
 	connManager.EXPECT().CancelRequest(mockReq.ID()).Return()
 

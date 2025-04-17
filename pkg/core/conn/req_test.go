@@ -1,4 +1,4 @@
-package core
+package conn
 
 import (
 	"context"
@@ -16,7 +16,7 @@ func TestConnReq_ID(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	connReq := NewConnReq(ctx)
+	connReq := NewRequest(ctx)
 
 	assert.NotZero(t, connReq.ID())
 	assert.IsType(t, uuid.UUID{}, connReq.ID())
@@ -25,7 +25,7 @@ func TestConnReq_ID(t *testing.T) {
 func TestConnReq_ParentContext(t *testing.T) {
 	t.Parallel()
 
-	connReq := NewConnReq(t.Context())
+	connReq := NewRequest(t.Context())
 
 	assert.Equal(t, t.Context(), connReq.ParentContext())
 }
@@ -51,7 +51,7 @@ func TestConnReq_WaitConn(t *testing.T) {
 			parentCtx, parentCancel := context.WithCancel(ctx)
 			defer parentCancel()
 
-			connReq := NewConnReq(parentCtx)
+			connReq := NewRequest(parentCtx)
 
 			if tt.parentDone {
 				parentCancel()
@@ -105,7 +105,7 @@ func TestConnReq_SendConn(t *testing.T) {
 			parentCtx, parentCancel := context.WithCancel(ctx)
 			defer parentCancel()
 
-			connReq := NewConnReq(parentCtx)
+			connReq := NewRequest(parentCtx)
 
 			if tt.parentDone {
 				parentCancel()
@@ -150,7 +150,7 @@ func TestConnReq_Cancel(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	connReq := NewConnReq(ctx)
+	connReq := NewRequest(ctx)
 
 	go func() {
 		connReq.Cancel()
@@ -169,7 +169,7 @@ func TestNewConnReq(t *testing.T) {
 
 	ctx := context.Background()
 
-	connReq := NewConnReq(ctx)
+	connReq := NewRequest(ctx)
 
 	require.NotNil(t, connReq)
 	assert.Equal(t, ctx, connReq.ctx)

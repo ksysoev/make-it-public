@@ -1,20 +1,13 @@
-package core
+package conn
 
 import (
 	"context"
 	"fmt"
-	"net"
 
 	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/revdial/proto"
 )
-
-type ServConn interface {
-	ID() uuid.UUID
-	Context() context.Context
-	Close() error
-	RequestConnection() (ConnReq, error)
-}
 
 // serverConn defines the interface for managing a server connection, including control commands and state retrieval.
 // ID returns the unique identifier of the server connection.
@@ -72,49 +65,16 @@ func (r *servConn) Close() error {
 
 // RequestConnection initiates a new connection request by issuing a connect command to the server.
 // It ensures the server is in a registered state before proceeding.
-// Returns a pointer to connReq containing the connection request details and an error if the server is not connected or if the command fails to send.
-func (r *servConn) RequestConnection() (ConnReq, error) {
+// Returns a pointer to Request containing the connection request details and an error if the server is not connected or if the command fails to send.
+func (r *servConn) RequestConnection() (core.ConnReq, error) {
 	if r.conn.State() != proto.StateRegistered {
 		return nil, fmt.Errorf("server is not connected")
 	}
 
-	req := NewConnReq(r.Context())
+	req := NewRequest(r.Context())
 	if err := r.conn.SendConnectCommand(req.ID()); err != nil {
 		return nil, fmt.Errorf("failed to send connect command: %w", err)
 	}
 
 	return req, nil
-}
-
-// CloseNotifier is a type that wraps a network connection and provides a mechanism to signal when the connection is closed.
-type CloseNotifier struct {
-	net.Conn
-	done chan struct{}
-}
-
-// NewCloseNotifier creates and returns a CloseNotifier wrapping the given network connection.
-// It initializes a channel to signal when the connection is closed.
-func NewCloseNotifier(conn net.Conn) *CloseNotifier {
-	return &CloseNotifier{
-		Conn: conn,
-		done: make(chan struct{}),
-	}
-}
-
-// WaitClose blocks until the CloseNotifier is closed or the provided context is canceled.
-// It listens for the closure signal or context cancellation, whichever occurs first.
-func (c *CloseNotifier) WaitClose(ctx context.Context) {
-	select {
-	case <-c.done:
-	case <-ctx.Done():
-	}
-}
-
-// Close terminates the underlying connection and signals closure via the done channel.
-// It ensures the done channel is closed after invoking the connection's Close method.
-// Returns an error if closing the connection fails.
-func (c *CloseNotifier) Close() error {
-	defer close(c.done)
-
-	return c.Conn.Close()
 }

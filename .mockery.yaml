@@ -11,11 +11,11 @@ packages:
   github.com/ksysoev/make-it-public/pkg/edge:
     interfaces:
       ConnService:
-  github.com/ksysoev/make-it-public/pkg/core/connsvc:
+  github.com/ksysoev/make-it-public/pkg/core:
     interfaces:
       AuthRepo:
       ConnManager:
+      ServConn:
   github.com/ksysoev/make-it-public/pkg/core/conn:
     interfaces:
-      ServConn:
       Request:

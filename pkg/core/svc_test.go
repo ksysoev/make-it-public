@@ -1,4 +1,4 @@
-package connsvc
+package core
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -64,7 +63,7 @@ func TestHandleHTTPConnection_ConnectionRequestFailure(t *testing.T) {
 	defer cancel()
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
-	require.ErrorIs(t, err, core.ErrFailedToConnect)
+	require.ErrorIs(t, err, ErrFailedToConnect)
 }
 
 func TestHandleHTTPConnection_WriteError(t *testing.T) {
@@ -88,7 +87,7 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 	}
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, writeFunc)
-	assert.ErrorIs(t, err, core.ErrFailedToConnect)
+	assert.ErrorIs(t, err, ErrFailedToConnect)
 }
 
 func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
@@ -110,5 +109,5 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	defer cancel()
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
-	require.ErrorIs(t, err, core.ErrFailedToConnect)
+	require.ErrorIs(t, err, ErrFailedToConnect)
 }

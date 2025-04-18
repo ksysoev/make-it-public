@@ -1,4 +1,4 @@
-package connsvc
+package core
 
 import (
 	"context"
@@ -10,11 +10,17 @@ import (
 	"syscall"
 
 	"github.com/google/uuid"
-	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/ksysoev/revdial/proto"
 	"golang.org/x/sync/errgroup"
 )
+
+type ServConn interface {
+	ID() uuid.UUID
+	Context() context.Context
+	Close() error
+	RequestConnection() (conn.Request, error)
+}
 
 type AuthRepo interface {
 	Verify(user, pass string) bool
@@ -22,7 +28,7 @@ type AuthRepo interface {
 
 type ConnManager interface {
 	RequestConnection(ctx context.Context, userID string) (conn.Request, error)
-	AddConnection(user string, conn conn.ServConn)
+	AddConnection(user string, conn ServConn)
 	ResolveRequest(id uuid.UUID, conn net.Conn)
 	CancelRequest(id uuid.UUID)
 }
@@ -91,13 +97,13 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, cliCo
 
 	req, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to request connection: %w", core.ErrFailedToConnect)
+		return fmt.Errorf("failed to request connection: %w", ErrFailedToConnect)
 	}
 
 	revConn, err := req.WaitConn(ctx)
 	if err != nil {
 		s.connmng.CancelRequest(req.ID())
-		return fmt.Errorf("connection request failed: %w", core.ErrFailedToConnect)
+		return fmt.Errorf("connection request failed: %w", ErrFailedToConnect)
 	}
 
 	slog.DebugContext(ctx, "connection received", slog.Any("remote", cliConn.RemoteAddr()))
@@ -106,7 +112,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, cliCo
 	if err := write(revConn); err != nil {
 		slog.DebugContext(ctx, "failed to write initial request", slog.Any("error", err))
 
-		return fmt.Errorf("failed to write initial request: %w", core.ErrFailedToConnect)
+		return fmt.Errorf("failed to write initial request: %w", ErrFailedToConnect)
 	}
 
 	// Create error group for managing both copy operations
@@ -141,7 +147,7 @@ func pipeConn(src io.Reader, dst io.Writer) func() error {
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
 			if n == 0 {
-				return core.ErrFailedToConnect
+				return ErrFailedToConnect
 			}
 
 			return io.EOF

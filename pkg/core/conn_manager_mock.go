@@ -2,7 +2,7 @@
 
 //go:build !compile
 
-package connsvc
+package core
 
 import (
 	context "context"
@@ -30,7 +30,7 @@ func (_m *MockConnManager) EXPECT() *MockConnManager_Expecter {
 }
 
 // AddConnection provides a mock function with given fields: user, _a1
-func (_m *MockConnManager) AddConnection(user string, _a1 conn.ServConn) {
+func (_m *MockConnManager) AddConnection(user string, _a1 ServConn) {
 	_m.Called(user, _a1)
 }
 
@@ -41,14 +41,14 @@ type MockConnManager_AddConnection_Call struct {
 
 // AddConnection is a helper method to define mock.On call
 //   - user string
-//   - _a1 conn.ServConn
+//   - _a1 ServConn
 func (_e *MockConnManager_Expecter) AddConnection(user interface{}, _a1 interface{}) *MockConnManager_AddConnection_Call {
 	return &MockConnManager_AddConnection_Call{Call: _e.mock.On("AddConnection", user, _a1)}
 }
 
-func (_c *MockConnManager_AddConnection_Call) Run(run func(user string, _a1 conn.ServConn)) *MockConnManager_AddConnection_Call {
+func (_c *MockConnManager_AddConnection_Call) Run(run func(user string, _a1 ServConn)) *MockConnManager_AddConnection_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(conn.ServConn))
+		run(args[0].(string), args[1].(ServConn))
 	})
 	return _c
 }
@@ -58,7 +58,7 @@ func (_c *MockConnManager_AddConnection_Call) Return() *MockConnManager_AddConne
 	return _c
 }
 
-func (_c *MockConnManager_AddConnection_Call) RunAndReturn(run func(string, conn.ServConn)) *MockConnManager_AddConnection_Call {
+func (_c *MockConnManager_AddConnection_Call) RunAndReturn(run func(string, ServConn)) *MockConnManager_AddConnection_Call {
 	_c.Run(run)
 	return _c
 }

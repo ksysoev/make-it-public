@@ -2,7 +2,7 @@
 
 //go:build !compile
 
-package connsvc
+package core
 
 import mock "github.com/stretchr/testify/mock"
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15,7 +16,7 @@ import (
 
 func TestConnManager_AddConnection(t *testing.T) {
 	cm := New()
-	mockConn := conn.NewMockServConn(t)
+	mockConn := core.NewMockServConn(t)
 
 	mockConn.EXPECT().Close().Return(nil)
 
@@ -25,7 +26,7 @@ func TestConnManager_AddConnection(t *testing.T) {
 	assert.Equal(t, mockConn, cm.conns["key1"])
 
 	// Overwrite connection
-	newConn := conn.NewMockServConn(t)
+	newConn := core.NewMockServConn(t)
 
 	cm.AddConnection("key1", newConn)
 
@@ -34,7 +35,7 @@ func TestConnManager_AddConnection(t *testing.T) {
 
 func TestConnManager_RemoveConnection(t *testing.T) {
 	cm := New()
-	mockConn := conn.NewMockServConn(t)
+	mockConn := core.NewMockServConn(t)
 
 	connID := uuid.New()
 	mockConn.EXPECT().ID().Return(connID)
@@ -47,7 +48,7 @@ func TestConnManager_RemoveConnection(t *testing.T) {
 }
 
 func TestConnManager_RequestConnection(t *testing.T) {
-	mockConn := conn.NewMockServConn(t)
+	mockConn := core.NewMockServConn(t)
 	mockReq := conn.NewMockRequest(t)
 	cm := New()
 
@@ -73,7 +74,7 @@ func TestConnManager_RequestConnection_NoConnection(t *testing.T) {
 }
 
 func TestConnManager_RequestConnection_Error(t *testing.T) {
-	mockConn := conn.NewMockServConn(t)
+	mockConn := core.NewMockServConn(t)
 	cm := New()
 
 	mockConn.EXPECT().RequestConnection().Return(nil, errors.New("connection error"))
@@ -120,7 +121,7 @@ func TestConnManager_CancelRequest(t *testing.T) {
 }
 
 func TestConnManager_Close(t *testing.T) {
-	mockConn := conn.NewMockServConn(t)
+	mockConn := core.NewMockServConn(t)
 	mockReq := conn.NewMockRequest(t)
 	cm := New()
 

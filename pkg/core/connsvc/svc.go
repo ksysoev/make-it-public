@@ -21,8 +21,8 @@ type AuthRepo interface {
 }
 
 type ConnManager interface {
-	RequestConnection(ctx context.Context, userID string) (core.ConnReq, error)
-	AddConnection(user string, conn core.ServConn)
+	RequestConnection(ctx context.Context, userID string) (conn.Req, error)
+	AddConnection(user string, conn conn.ServConn)
 	ResolveRequest(id uuid.UUID, conn net.Conn)
 	CancelRequest(id uuid.UUID)
 }
@@ -39,13 +39,13 @@ func New(connmng ConnManager, auth AuthRepo) *Service {
 	}
 }
 
-func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
+func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error {
 	var connUser string
 
-	slog.DebugContext(ctx, "new connection", slog.Any("remote", conn.RemoteAddr()))
-	defer slog.DebugContext(ctx, "closing connection", slog.Any("remote", conn.RemoteAddr()))
+	slog.DebugContext(ctx, "new connection", slog.Any("remote", revConn.RemoteAddr()))
+	defer slog.DebugContext(ctx, "closing connection", slog.Any("remote", revConn.RemoteAddr()))
 
-	servConn := proto.NewServer(conn, proto.WithUserPassAuth(func(user, pass string) bool {
+	servConn := proto.NewServer(revConn, proto.WithUserPassAuth(func(user, pass string) bool {
 		if s.auth.Verify(user, pass) {
 			connUser = user
 			return true
@@ -63,7 +63,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 		srvConn := conn.NewServerConn(ctx, servConn)
 
 		s.connmng.AddConnection(connUser, srvConn)
-		slog.DebugContext(ctx, "control connection established", slog.Any("remote", conn.RemoteAddr()))
+		slog.DebugContext(ctx, "control connection established", slog.Any("remote", revConn.RemoteAddr()))
 
 		// TODO: currently we don't have possibility to identify closed connection
 		// when we add ping command to the protocol, we should add here for loop with sending ping command for checking state of the connection
@@ -72,10 +72,10 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 
 		return nil
 	case proto.StateBound:
-		notifier := conn.NewCloseNotifier(conn)
+		notifier := conn.NewCloseNotifier(revConn)
 
 		s.connmng.ResolveRequest(servConn.ID(), notifier)
-		slog.DebugContext(ctx, "bound connection established", slog.Any("remote", conn.RemoteAddr()), slog.Any("id", servConn.ID()))
+		slog.DebugContext(ctx, "bound connection established", slog.Any("remote", revConn.RemoteAddr()), slog.Any("id", servConn.ID()))
 
 		notifier.WaitClose(ctx)
 
@@ -85,9 +85,9 @@ func (s *Service) HandleReverseConn(ctx context.Context, conn net.Conn) error {
 	}
 }
 
-func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error) error {
-	slog.DebugContext(ctx, "new HTTP connection", slog.Any("remote", conn.RemoteAddr()))
-	defer slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", conn.RemoteAddr()))
+func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, cliConn net.Conn, write func(net.Conn) error) error {
+	slog.DebugContext(ctx, "new HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
+	defer slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 
 	req, err := s.connmng.RequestConnection(ctx, userID)
 	if err != nil {
@@ -100,7 +100,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 		return fmt.Errorf("connection request failed: %w", core.ErrFailedToConnect)
 	}
 
-	slog.DebugContext(ctx, "connection received", slog.Any("remote", conn.RemoteAddr()))
+	slog.DebugContext(ctx, "connection received", slog.Any("remote", cliConn.RemoteAddr()))
 
 	// Write initial request data
 	if err := write(revConn); err != nil {
@@ -111,10 +111,10 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, conn 
 
 	// Create error group for managing both copy operations
 	eg, ctx := errgroup.WithContext(ctx)
-	cliConn := core.NewContextConnNopCloser(ctx, conn)
+	connNopCloser := core.NewContextConnNopCloser(ctx, cliConn)
 
-	eg.Go(pipeConn(cliConn, revConn))
-	eg.Go(pipeConn(revConn, cliConn))
+	eg.Go(pipeConn(connNopCloser, revConn))
+	eg.Go(pipeConn(revConn, connNopCloser))
 	eg.Go(func() error {
 		select {
 		case <-ctx.Done():

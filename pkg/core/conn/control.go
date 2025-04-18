@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/revdial/proto"
 )
 
@@ -21,22 +20,22 @@ type serverConn interface {
 	State() proto.State
 }
 
-// servConn represents a managed server connection with support for context cancellation.
+// ControlConn represents a managed server connection with support for context cancellation.
 // It embeds a serverConn instance to handle low-level connection operations and state management.
-// servConn ensures proper context handling and provides methods to interact with and manage the connection's lifecycle.
-type servConn struct {
+// ControlConn ensures proper context handling and provides methods to interact with and manage the connection's lifecycle.
+type ControlConn struct {
 	conn   serverConn
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // NewServerConn creates a new managed server connection with context support.
-// It initializes the servConn with the provided context and serverConn interface.
-// Returns a pointer to servConn, which manages the server connection and supports context cancellation.
-func NewServerConn(ctx context.Context, conn serverConn) *servConn {
+// It initializes the ControlConn with the provided context and serverConn interface.
+// Returns a pointer to ControlConn, which manages the server connection and supports context cancellation.
+func NewServerConn(ctx context.Context, conn serverConn) *ControlConn {
 	ctx, cancel := context.WithCancel(ctx)
 
-	return &servConn{
+	return &ControlConn{
 		conn:   conn,
 		ctx:    ctx,
 		cancel: cancel,
@@ -44,20 +43,20 @@ func NewServerConn(ctx context.Context, conn serverConn) *servConn {
 }
 
 // ID retrieves the unique identifier (UUID) of the server connection wrapper instance. It ensures thread-safe access.
-func (r *servConn) ID() uuid.UUID {
+func (r *ControlConn) ID() uuid.UUID {
 	return r.conn.ID()
 }
 
-// Context retrieves the context associated with the servConn instance.
+// Context retrieves the context associated with the ControlConn instance.
 // It provides context for managing lifecycle, cancellation, and timeout of the connection.
 // Returns the context.Context instance associated with the server connection.
-func (r *servConn) Context() context.Context {
+func (r *ControlConn) Context() context.Context {
 	return r.ctx
 }
 
-// Close releases the server connection and cancels the associated context to free resources of the servConn instance.
+// Close releases the server connection and cancels the associated context to free resources of the ControlConn instance.
 // It returns an error if the underlying connection cannot be successfully closed.
-func (r *servConn) Close() error {
+func (r *ControlConn) Close() error {
 	defer r.cancel()
 
 	return r.conn.Close()
@@ -66,7 +65,7 @@ func (r *servConn) Close() error {
 // RequestConnection initiates a new connection request by issuing a connect command to the server.
 // It ensures the server is in a registered state before proceeding.
 // Returns a pointer to Request containing the connection request details and an error if the server is not connected or if the command fails to send.
-func (r *servConn) RequestConnection() (core.ConnReq, error) {
+func (r *ControlConn) RequestConnection() (Req, error) {
 	if r.conn.State() != proto.StateRegistered {
 		return nil, fmt.Errorf("server is not connected")
 	}

@@ -1,4 +1,4 @@
-package core
+package conn
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type ConnReq interface {
+type Req interface {
 	ID() uuid.UUID
 	ParentContext() context.Context
 	WaitConn(ctx context.Context) (net.Conn, error)
@@ -19,5 +19,5 @@ type ServConn interface {
 	ID() uuid.UUID
 	Context() context.Context
 	Close() error
-	RequestConnection() (ConnReq, error)
+	RequestConnection() (Req, error)
 }

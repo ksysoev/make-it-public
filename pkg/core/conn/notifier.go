@@ -1,6 +1,9 @@
 package conn
 
-import "net"
+import (
+	"context"
+	"net"
+)
 
 // CloseNotifier is a type that wraps a network connection and provides a mechanism to signal when the connection is closed.
 type CloseNotifier struct {

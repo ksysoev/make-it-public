@@ -117,10 +117,10 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 
 func TestPipeConn(t *testing.T) {
 	tests := []struct {
-		name        string
 		src         io.Reader
 		dst         io.Writer
 		expectErr   error
+		name        string
 		expectBytes int64
 	}{
 		{

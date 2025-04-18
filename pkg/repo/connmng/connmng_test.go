@@ -16,7 +16,7 @@ import (
 
 func TestConnManager_AddConnection(t *testing.T) {
 	cm := New()
-	mockConn := core.NewMockServConn(t)
+	mockConn := core.NewMockControlConn(t)
 
 	mockConn.EXPECT().Close().Return(nil)
 
@@ -26,7 +26,7 @@ func TestConnManager_AddConnection(t *testing.T) {
 	assert.Equal(t, mockConn, cm.conns["key1"])
 
 	// Overwrite connection
-	newConn := core.NewMockServConn(t)
+	newConn := core.NewMockControlConn(t)
 
 	cm.AddConnection("key1", newConn)
 
@@ -35,7 +35,7 @@ func TestConnManager_AddConnection(t *testing.T) {
 
 func TestConnManager_RemoveConnection(t *testing.T) {
 	cm := New()
-	mockConn := core.NewMockServConn(t)
+	mockConn := core.NewMockControlConn(t)
 
 	connID := uuid.New()
 	mockConn.EXPECT().ID().Return(connID)
@@ -48,7 +48,7 @@ func TestConnManager_RemoveConnection(t *testing.T) {
 }
 
 func TestConnManager_RequestConnection(t *testing.T) {
-	mockConn := core.NewMockServConn(t)
+	mockConn := core.NewMockControlConn(t)
 	mockReq := conn.NewMockRequest(t)
 	cm := New()
 
@@ -74,7 +74,7 @@ func TestConnManager_RequestConnection_NoConnection(t *testing.T) {
 }
 
 func TestConnManager_RequestConnection_Error(t *testing.T) {
-	mockConn := core.NewMockServConn(t)
+	mockConn := core.NewMockControlConn(t)
 	cm := New()
 
 	mockConn.EXPECT().RequestConnection().Return(nil, errors.New("connection error"))
@@ -121,7 +121,7 @@ func TestConnManager_CancelRequest(t *testing.T) {
 }
 
 func TestConnManager_Close(t *testing.T) {
-	mockConn := core.NewMockServConn(t)
+	mockConn := core.NewMockControlConn(t)
 	mockReq := conn.NewMockRequest(t)
 	cm := New()
 

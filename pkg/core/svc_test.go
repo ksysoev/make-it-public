@@ -1,10 +1,13 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
+	"syscall"
 	"testing"
 	"time"
 
@@ -110,4 +113,42 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
 	require.ErrorIs(t, err, ErrFailedToConnect)
+}
+
+func TestPipeConn(t *testing.T) {
+	tests := []struct {
+		name        string
+		src         io.Reader
+		dst         io.Writer
+		expectErr   error
+		expectBytes int64
+	}{
+		{
+			name:        "successfully copies data",
+			src:         bytes.NewReader([]byte("sample data")),
+			dst:         &bytes.Buffer{},
+			expectErr:   io.EOF,
+			expectBytes: int64(len("sample data")),
+		},
+		{
+			name:        "error on closed pipe",
+			src:         bytes.NewReader([]byte("")),
+			dst:         nil,
+			expectErr:   fmt.Errorf("error copying from reverse connection: %w", syscall.ECONNRESET),
+			expectBytes: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			copyFunc := pipeConn(tt.src, tt.dst)
+
+			err := copyFunc()
+			if tt.expectErr != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

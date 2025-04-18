@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type ServConn interface {
+type ControlConn interface {
 	ID() uuid.UUID
 	Context() context.Context
 	Close() error
@@ -28,7 +28,7 @@ type AuthRepo interface {
 
 type ConnManager interface {
 	RequestConnection(ctx context.Context, userID string) (conn.Request, error)
-	AddConnection(user string, conn ServConn)
+	AddConnection(user string, conn ControlConn)
 	ResolveRequest(id uuid.UUID, conn net.Conn)
 	CancelRequest(id uuid.UUID)
 }

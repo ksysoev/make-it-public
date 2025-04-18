@@ -18,7 +18,7 @@ type connRequest struct {
 }
 
 type ConnManager struct {
-	conns    map[string]core.ServConn
+	conns    map[string]core.ControlConn
 	requests map[uuid.UUID]*connRequest
 	mu       sync.RWMutex
 }
@@ -28,7 +28,7 @@ type ConnManager struct {
 // It returns a pointer to a ConnManager with initialized internal maps for conn and requests.
 func New() *ConnManager {
 	return &ConnManager{
-		conns:    make(map[string]core.ServConn),
+		conns:    make(map[string]core.ControlConn),
 		requests: make(map[uuid.UUID]*connRequest),
 	}
 }
@@ -36,7 +36,7 @@ func New() *ConnManager {
 // AddConnection adds a server connection to the user's connection pool.
 // It takes a user parameter of type string and a conn parameter of type *proto.Server.
 // It does not return any value and ensures thread-safe access.
-func (cm *ConnManager) AddConnection(keyID string, conn core.ServConn) {
+func (cm *ConnManager) AddConnection(keyID string, conn core.ControlConn) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 

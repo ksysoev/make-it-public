@@ -1,14 +1,18 @@
-package connsvc
+package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
+	"syscall"
 	"testing"
 	"time"
 
-	"github.com/ksysoev/make-it-public/pkg/core"
+	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -62,17 +66,18 @@ func TestHandleHTTPConnection_ConnectionRequestFailure(t *testing.T) {
 	defer cancel()
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
-	require.ErrorIs(t, err, core.ErrFailedToConnect)
+	require.ErrorIs(t, err, ErrFailedToConnect)
 }
 
 func TestHandleHTTPConnection_WriteError(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
 
-	connChan := make(chan net.Conn, 1)
 	revConn := &mockConn{readData: []byte("response data")}
-	connChan <- revConn
-	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(connChan, nil)
+
+	mockReq := conn.NewMockRequest(t)
+	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
+	mockReq.EXPECT().WaitConn(mock.Anything).Return(revConn, nil)
 
 	service := New(connManager, authRepo)
 	clientConn := &mockConn{}
@@ -85,15 +90,20 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 	}
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, writeFunc)
-	assert.ErrorIs(t, err, core.ErrFailedToConnect)
+	assert.ErrorIs(t, err, ErrFailedToConnect)
 }
 
 func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
 
-	connChan := make(chan net.Conn, 1)
-	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(connChan, nil)
+	reqID := uuid.New()
+	mockReq := conn.NewMockRequest(t)
+	mockReq.EXPECT().ID().Return(reqID)
+	mockReq.EXPECT().WaitConn(mock.Anything).Return(nil, context.Canceled)
+
+	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
+	connManager.EXPECT().CancelRequest(reqID).Return()
 
 	service := New(connManager, authRepo)
 	clientConn := &mockConn{}
@@ -102,5 +112,43 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	defer cancel()
 
 	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
-	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, ErrFailedToConnect)
+}
+
+func TestPipeConn(t *testing.T) {
+	tests := []struct {
+		src         io.Reader
+		dst         io.Writer
+		expectErr   error
+		name        string
+		expectBytes int64
+	}{
+		{
+			name:        "successfully copies data",
+			src:         bytes.NewReader([]byte("sample data")),
+			dst:         &bytes.Buffer{},
+			expectErr:   io.EOF,
+			expectBytes: int64(len("sample data")),
+		},
+		{
+			name:        "error on closed pipe",
+			src:         bytes.NewReader([]byte("")),
+			dst:         nil,
+			expectErr:   fmt.Errorf("error copying from reverse connection: %w", syscall.ECONNRESET),
+			expectBytes: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			copyFunc := pipeConn(tt.src, tt.dst)
+
+			err := copyFunc()
+			if tt.expectErr != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

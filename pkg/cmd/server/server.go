@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/ksysoev/make-it-public/pkg/core/connsvc"
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/edge"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/ksysoev/make-it-public/pkg/repo/connmng"
@@ -55,7 +55,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 
 	authRepo := auth.New(&cfg.Auth)
 	connManager := connmng.New()
-	connService := connsvc.New(connManager, authRepo)
+	connService := core.New(connManager, authRepo)
 
 	revServ := revproxy.New(cfg.RevProxy.Listen, connService)
 	httpServ := edge.New(cfg.HTTP, connService)

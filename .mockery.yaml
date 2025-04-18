@@ -18,4 +18,4 @@ packages:
   github.com/ksysoev/make-it-public/pkg/core/conn:
     interfaces:
       ServConn:
-      ConnReq:
+      Request:

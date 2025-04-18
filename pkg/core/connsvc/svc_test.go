@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/stretchr/testify/assert"
@@ -72,18 +73,15 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 
 	revConn := &mockConn{readData: []byte("response data")}
 
-	mockReq := conn.NewRequest(t.Context())
+	mockReq := conn.NewMockRequest(t)
 	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
+	mockReq.EXPECT().WaitConn(mock.Anything).Return(revConn, nil)
 
 	service := New(connManager, authRepo)
 	clientConn := &mockConn{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-
-	go func() {
-		mockReq.SendConn(ctx, revConn)
-	}()
 
 	writeFunc := func(_ net.Conn) error {
 		return assert.AnError
@@ -97,9 +95,13 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
 
-	mockReq := conn.NewRequest(t.Context())
+	reqID := uuid.New()
+	mockReq := conn.NewMockRequest(t)
+	mockReq.EXPECT().ID().Return(reqID)
+	mockReq.EXPECT().WaitConn(mock.Anything).Return(nil, context.Canceled)
+
 	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
-	connManager.EXPECT().CancelRequest(mockReq.ID()).Return()
+	connManager.EXPECT().CancelRequest(reqID).Return()
 
 	service := New(connManager, authRepo)
 	clientConn := &mockConn{}

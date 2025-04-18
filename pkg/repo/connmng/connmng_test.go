@@ -48,7 +48,7 @@ func TestConnManager_RemoveConnection(t *testing.T) {
 
 func TestConnManager_RequestConnection(t *testing.T) {
 	mockConn := conn.NewMockServConn(t)
-	mockReq := conn.NewMockConnReq(t)
+	mockReq := conn.NewMockRequest(t)
 	cm := New()
 
 	reqID := uuid.New()
@@ -85,7 +85,7 @@ func TestConnManager_RequestConnection_Error(t *testing.T) {
 }
 
 func TestConnManager_ResolveRequest(t *testing.T) {
-	mockReq := conn.NewMockConnReq(t)
+	mockReq := conn.NewMockRequest(t)
 	cm := New()
 
 	reqID := uuid.New()
@@ -103,7 +103,7 @@ func TestConnManager_ResolveRequest(t *testing.T) {
 }
 
 func TestConnManager_CancelRequest(t *testing.T) {
-	mockReq := conn.NewMockConnReq(t)
+	mockReq := conn.NewMockRequest(t)
 	cm := New()
 
 	reqID := uuid.New()
@@ -121,7 +121,7 @@ func TestConnManager_CancelRequest(t *testing.T) {
 
 func TestConnManager_Close(t *testing.T) {
 	mockConn := conn.NewMockServConn(t)
-	mockReq := conn.NewMockConnReq(t)
+	mockReq := conn.NewMockRequest(t)
 	cm := New()
 
 	reqID := uuid.New()

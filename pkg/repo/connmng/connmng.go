@@ -13,7 +13,7 @@ import (
 
 type connRequest struct {
 	ctx context.Context
-	req conn.Req
+	req conn.Request
 }
 
 type ConnManager struct {
@@ -64,7 +64,7 @@ func (cm *ConnManager) RemoveConnection(keyID string, id uuid.UUID) {
 // It takes ctx of type context.Context and userID of type string.
 // It returns a channel of type net.Conn to receive the connection or an error if the operation fails.
 // It returns an error if no connections are available for the user, the user does not exist, or a command fails to send.
-func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (conn.Req, error) {
+func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (conn.Request, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 

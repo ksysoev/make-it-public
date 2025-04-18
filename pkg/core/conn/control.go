@@ -64,13 +64,13 @@ func (r *ControlConn) Close() error {
 
 // RequestConnection initiates a new connection request by issuing a connect command to the server.
 // It ensures the server is in a registered state before proceeding.
-// Returns a pointer to Request containing the connection request details and an error if the server is not connected or if the command fails to send.
-func (r *ControlConn) RequestConnection() (Req, error) {
+// Returns a pointer to request containing the connection request details and an error if the server is not connected or if the command fails to send.
+func (r *ControlConn) RequestConnection() (Request, error) {
 	if r.conn.State() != proto.StateRegistered {
 		return nil, fmt.Errorf("server is not connected")
 	}
 
-	req := NewRequest(r.Context())
+	req := newRequest(r.Context())
 	if err := r.conn.SendConnectCommand(req.ID()); err != nil {
 		return nil, fmt.Errorf("failed to send connect command: %w", err)
 	}

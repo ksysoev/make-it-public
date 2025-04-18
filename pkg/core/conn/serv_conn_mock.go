@@ -164,23 +164,23 @@ func (_c *MockServConn_ID_Call) RunAndReturn(run func() uuid.UUID) *MockServConn
 }
 
 // RequestConnection provides a mock function with no fields
-func (_m *MockServConn) RequestConnection() (Req, error) {
+func (_m *MockServConn) RequestConnection() (Request, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for RequestConnection")
 	}
 
-	var r0 Req
+	var r0 Request
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (Req, error)); ok {
+	if rf, ok := ret.Get(0).(func() (Request, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() Req); ok {
+	if rf, ok := ret.Get(0).(func() Request); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(Req)
+			r0 = ret.Get(0).(Request)
 		}
 	}
 
@@ -210,12 +210,12 @@ func (_c *MockServConn_RequestConnection_Call) Run(run func()) *MockServConn_Req
 	return _c
 }
 
-func (_c *MockServConn_RequestConnection_Call) Return(_a0 Req, _a1 error) *MockServConn_RequestConnection_Call {
+func (_c *MockServConn_RequestConnection_Call) Return(_a0 Request, _a1 error) *MockServConn_RequestConnection_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockServConn_RequestConnection_Call) RunAndReturn(run func() (Req, error)) *MockServConn_RequestConnection_Call {
+func (_c *MockServConn_RequestConnection_Call) RunAndReturn(run func() (Request, error)) *MockServConn_RequestConnection_Call {
 	_c.Call.Return(run)
 	return _c
 }

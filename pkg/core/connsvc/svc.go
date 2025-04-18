@@ -21,7 +21,7 @@ type AuthRepo interface {
 }
 
 type ConnManager interface {
-	RequestConnection(ctx context.Context, userID string) (conn.Req, error)
+	RequestConnection(ctx context.Context, userID string) (conn.Request, error)
 	AddConnection(user string, conn conn.ServConn)
 	ResolveRequest(id uuid.UUID, conn net.Conn)
 	CancelRequest(id uuid.UUID)
@@ -111,7 +111,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, cliCo
 
 	// Create error group for managing both copy operations
 	eg, ctx := errgroup.WithContext(ctx)
-	connNopCloser := core.NewContextConnNopCloser(ctx, cliConn)
+	connNopCloser := conn.NewContextConnNopCloser(ctx, cliConn)
 
 	eg.Go(pipeConn(connNopCloser, revConn))
 	eg.Go(pipeConn(revConn, connNopCloser))

@@ -97,23 +97,23 @@ func (_c *MockConnManager_CancelRequest_Call) RunAndReturn(run func(uuid.UUID)) 
 }
 
 // RequestConnection provides a mock function with given fields: ctx, userID
-func (_m *MockConnManager) RequestConnection(ctx context.Context, userID string) (conn.Req, error) {
+func (_m *MockConnManager) RequestConnection(ctx context.Context, userID string) (conn.Request, error) {
 	ret := _m.Called(ctx, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RequestConnection")
 	}
 
-	var r0 conn.Req
+	var r0 conn.Request
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (conn.Req, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (conn.Request, error)); ok {
 		return rf(ctx, userID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) conn.Req); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) conn.Request); ok {
 		r0 = rf(ctx, userID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(conn.Req)
+			r0 = ret.Get(0).(conn.Request)
 		}
 	}
 
@@ -145,12 +145,12 @@ func (_c *MockConnManager_RequestConnection_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockConnManager_RequestConnection_Call) Return(_a0 conn.Req, _a1 error) *MockConnManager_RequestConnection_Call {
+func (_c *MockConnManager_RequestConnection_Call) Return(_a0 conn.Request, _a1 error) *MockConnManager_RequestConnection_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockConnManager_RequestConnection_Call) RunAndReturn(run func(context.Context, string) (conn.Req, error)) *MockConnManager_RequestConnection_Call {
+func (_c *MockConnManager_RequestConnection_Call) RunAndReturn(run func(context.Context, string) (conn.Request, error)) *MockConnManager_RequestConnection_Call {
 	_c.Call.Return(run)
 	return _c
 }

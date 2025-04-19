@@ -52,13 +52,16 @@ func (cm *ConnManager) AddConnection(keyID string, conn core.ControlConn) {
 // It does not return any value but safely does nothing if the user or connection ID does not exist.
 func (cm *ConnManager) RemoveConnection(keyID string, id uuid.UUID) {
 	cm.mu.Lock()
-	defer cm.mu.Unlock()
 
 	if revConn, ok := cm.conns[keyID]; ok && revConn.ID() == id {
-		_ = revConn.Close()
-
 		delete(cm.conns, keyID)
+
+		defer func() {
+			_ = revConn.Close()
+		}()
 	}
+
+	cm.mu.Unlock()
 }
 
 // RequestConnection attempts to establish a new connection for the specified user.

@@ -75,6 +75,8 @@ func (r *ControlConn) RequestConnection() (Request, error) {
 	return req, nil
 }
 
+// Ping sends a ping command to the server to verify the connection's responsiveness.
+// It returns an error if the ping command fails to send or encounters an issue.
 func (r *ControlConn) Ping() error {
 	if err := r.conn.SendPingCommand(); err != nil {
 		return fmt.Errorf("failed to send ping command: %w", err)

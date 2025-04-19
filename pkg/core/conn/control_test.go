@@ -62,7 +62,6 @@ func TestServConn_RequestConnection(t *testing.T) {
 		{name: "SendConnectCommandFails", mockState: proto.StateRegistered, mockSendResponse: assert.AnError, expectedError: assert.AnError},
 		{name: "Success", mockState: proto.StateRegistered, mockSendResponse: nil, expectedError: nil},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockConn := NewMockserverConn(t)
@@ -130,5 +129,39 @@ func TestCloseNotifier_Close(t *testing.T) {
 	case <-cn.done:
 	default:
 		t.Fail()
+	}
+}
+
+func TestControlConn_Ping(t *testing.T) {
+	tests := []struct {
+		name          string
+		mockPingError error
+		expectErr     bool
+	}{
+		{"PingSuccess", nil, false},
+		{"PingFailure", assert.AnError, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Mock serverConn
+			mockConn := NewMockserverConn(t)
+
+			// Arrange: Setup the mock expectation for SendPingCommand
+			mockConn.EXPECT().SendPingCommand().Return(tt.mockPingError)
+
+			// Create a ControlConn instance
+			cc := NewServerConn(context.Background(), mockConn)
+
+			// Act: Call Ping()
+			err := cc.Ping()
+
+			// Assert: Check results based on expectation
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
 }

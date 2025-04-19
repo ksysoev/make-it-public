@@ -77,16 +77,16 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 		slog.DebugContext(ctx, "control connection established", slog.Any("remote", revConn.RemoteAddr()))
 
 		for {
-			err := srvConn.Ping()
-			if err != nil {
-				slog.DebugContext(ctx, "ping failed", slog.Any("error", err))
-				return fmt.Errorf("ping failed: %w", err)
-			}
-
 			select {
 			case <-srvConn.Context().Done():
 				return nil
 			case <-time.After(200 * time.Millisecond):
+			}
+
+			err := srvConn.Ping()
+			if err != nil {
+				slog.DebugContext(ctx, "ping failed", slog.Any("error", err))
+				return fmt.Errorf("ping failed: %w", err)
 			}
 		}
 	case proto.StateBound:

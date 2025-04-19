@@ -96,6 +96,40 @@ func (_c *MockConnManager_CancelRequest_Call) RunAndReturn(run func(uuid.UUID)) 
 	return _c
 }
 
+// RemoveConnection provides a mock function with given fields: user, id
+func (_m *MockConnManager) RemoveConnection(user string, id uuid.UUID) {
+	_m.Called(user, id)
+}
+
+// MockConnManager_RemoveConnection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveConnection'
+type MockConnManager_RemoveConnection_Call struct {
+	*mock.Call
+}
+
+// RemoveConnection is a helper method to define mock.On call
+//   - user string
+//   - id uuid.UUID
+func (_e *MockConnManager_Expecter) RemoveConnection(user interface{}, id interface{}) *MockConnManager_RemoveConnection_Call {
+	return &MockConnManager_RemoveConnection_Call{Call: _e.mock.On("RemoveConnection", user, id)}
+}
+
+func (_c *MockConnManager_RemoveConnection_Call) Run(run func(user string, id uuid.UUID)) *MockConnManager_RemoveConnection_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *MockConnManager_RemoveConnection_Call) Return() *MockConnManager_RemoveConnection_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockConnManager_RemoveConnection_Call) RunAndReturn(run func(string, uuid.UUID)) *MockConnManager_RemoveConnection_Call {
+	_c.Run(run)
+	return _c
+}
+
 // RequestConnection provides a mock function with given fields: ctx, userID
 func (_m *MockConnManager) RequestConnection(ctx context.Context, userID string) (conn.Request, error) {
 	ret := _m.Called(ctx, userID)

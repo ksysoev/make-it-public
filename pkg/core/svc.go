@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"syscall"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
@@ -30,6 +31,7 @@ type ConnManager interface {
 	RequestConnection(ctx context.Context, userID string) (conn.Request, error)
 	AddConnection(user string, conn ControlConn)
 	ResolveRequest(id uuid.UUID, conn net.Conn)
+	RemoveConnection(user string, id uuid.UUID)
 	CancelRequest(id uuid.UUID)
 }
 
@@ -69,14 +71,24 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 		srvConn := conn.NewServerConn(ctx, servConn)
 
 		s.connmng.AddConnection(connUser, srvConn)
+
+		defer s.connmng.RemoveConnection(connUser, srvConn.ID())
+
 		slog.DebugContext(ctx, "control connection established", slog.Any("remote", revConn.RemoteAddr()))
 
-		// TODO: currently we don't have possibility to identify closed connection
-		// when we add ping command to the protocol, we should add here for loop with sending ping command for checking state of the connection
+		for {
+			err := srvConn.Ping()
+			if err != nil {
+				slog.DebugContext(ctx, "ping failed", slog.Any("error", err))
+				return fmt.Errorf("ping failed: %w", err)
+			}
 
-		<-srvConn.Context().Done()
-
-		return nil
+			select {
+			case <-srvConn.Context().Done():
+				return nil
+			case <-time.After(200 * time.Millisecond):
+			}
+		}
 	case proto.StateBound:
 		notifier := conn.NewCloseNotifier(revConn)
 

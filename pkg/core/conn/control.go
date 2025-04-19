@@ -17,6 +17,7 @@ type serverConn interface {
 	ID() uuid.UUID
 	Close() error
 	SendConnectCommand(id uuid.UUID) error
+	SendPingCommand() error
 	State() proto.State
 }
 
@@ -66,14 +67,18 @@ func (r *ControlConn) Close() error {
 // It ensures the server is in a registered state before proceeding.
 // Returns a pointer to request containing the connection request details and an error if the server is not connected or if the command fails to send.
 func (r *ControlConn) RequestConnection() (Request, error) {
-	if r.conn.State() != proto.StateRegistered {
-		return nil, fmt.Errorf("server is not connected")
-	}
-
 	req := newRequest(r.Context())
 	if err := r.conn.SendConnectCommand(req.ID()); err != nil {
 		return nil, fmt.Errorf("failed to send connect command: %w", err)
 	}
 
 	return req, nil
+}
+
+func (r *ControlConn) Ping() error {
+	if err := r.conn.SendPingCommand(); err != nil {
+		return fmt.Errorf("failed to send ping command: %w", err)
+	}
+
+	return nil
 }

@@ -134,12 +134,12 @@ func TestCloseNotifier_Close(t *testing.T) {
 
 func TestControlConn_Ping(t *testing.T) {
 	tests := []struct {
-		name          string
 		mockPingError error
+		name          string
 		expectErr     bool
 	}{
-		{"PingSuccess", nil, false},
-		{"PingFailure", assert.AnError, true},
+		{name: "PingSuccess", mockPingError: nil, expectErr: false},
+		{name: "PingFailure", mockPingError: assert.AnError, expectErr: true},
 	}
 
 	for _, tt := range tests {

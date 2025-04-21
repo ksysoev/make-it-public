@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type keyIdKeyType struct{}
+type keyIDKeyType struct{}
 
 // ParseKeyID checks if the request's host ends with the specified domain postfix and validates the subdomain.
 // It rejects requests with unmatched postfix or missing subdomains by returning a 404 response.
@@ -27,7 +27,7 @@ func ParseKeyID(domainPostfix string) func(next http.Handler) http.Handler {
 			}
 
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, keyIdKeyType{}, keyID)
+			ctx = context.WithValue(ctx, keyIDKeyType{}, keyID)
 			r = r.WithContext(ctx)
 
 			next.ServeHTTP(w, r)
@@ -38,9 +38,10 @@ func ParseKeyID(domainPostfix string) func(next http.Handler) http.Handler {
 // GetKeyID retrieves the key ID from the request's context if available.
 // It returns the key ID as a string, or an empty string if not found or the value is not a string.
 func GetKeyID(r *http.Request) string {
-	if keyID, ok := r.Context().Value(keyIdKeyType{}).(string); ok {
+	if keyID, ok := r.Context().Value(keyIDKeyType{}).(string); ok {
 		return keyID
 	}
+
 	return ""
 }
 

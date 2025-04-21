@@ -58,7 +58,7 @@ func TestParseKeyID(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			}))
 
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 			req.Host = tt.host
 			rec := httptest.NewRecorder()
 
@@ -77,7 +77,7 @@ func TestGetKeyID(t *testing.T) {
 	}{
 		{
 			name:          "keyID exists in context",
-			contextValues: map[interface{}]interface{}{keyIdKeyType{}: "mockKeyID"},
+			contextValues: map[interface{}]interface{}{keyIDKeyType{}: "mockKeyID"},
 			expectedKeyID: "mockKeyID",
 		},
 		{
@@ -87,7 +87,7 @@ func TestGetKeyID(t *testing.T) {
 		},
 		{
 			name:          "context value is not a string",
-			contextValues: map[interface{}]interface{}{keyIdKeyType{}: 1234},
+			contextValues: map[interface{}]interface{}{keyIDKeyType{}: 1234},
 			expectedKeyID: "",
 		},
 	}
@@ -99,7 +99,7 @@ func TestGetKeyID(t *testing.T) {
 				ctx = context.WithValue(ctx, key, value)
 			}
 
-			req := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody).WithContext(ctx)
 			actualKeyID := GetKeyID(req)
 
 			assert.Equal(t, tt.expectedKeyID, actualKeyID)
@@ -142,7 +142,7 @@ func TestGetUserIDFromRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 			req.Host = tt.host
 
 			actual := getUserIDFromRequest(req)

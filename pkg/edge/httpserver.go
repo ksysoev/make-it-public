@@ -1,6 +1,7 @@
 package edge
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"log/slog"
@@ -22,9 +23,12 @@ type HTTPServer struct {
 	config      Config
 }
 
+const defaultConnLimitPerKeyID = 4
+
 type Config struct {
-	Listen string `mapstructure:"listen"`
-	Domain string `mapstructure:"domain"`
+	Listen    string `mapstructure:"listen"`
+	Domain    string `mapstructure:"domain"`
+	ConnLimit int    `mapstructure:"conn_limit"`
 }
 
 func New(cfg Config, connService ConnService) *HTTPServer {
@@ -37,7 +41,10 @@ func New(cfg Config, connService ConnService) *HTTPServer {
 func (s *HTTPServer) Run(ctx context.Context) error {
 	var mw []func(next http.Handler) http.Handler
 
-	mw = append(mw, middleware.ParseKeyID(s.config.Domain))
+	mw = append(mw,
+		middleware.ParseKeyID(s.config.Domain),
+		middleware.LimitConnections(cmp.Or(s.config.ConnLimit, defaultConnLimitPerKeyID)),
+	)
 
 	var handler http.Handler = s
 

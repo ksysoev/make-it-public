@@ -32,6 +32,7 @@ func (l *limiter) Allow(key string) bool {
 	}
 
 	l.counter[key]++
+
 	return true
 }
 
@@ -52,9 +53,10 @@ func (l *limiter) Release(key string) {
 // It uses a rate limiter to track active connections and rejects requests exceeding the limit with a 429 status code.
 // Accepts max, the maximum number of connections allowed per key.
 // Returns an HTTP handler middleware and a 429 error for excess connections.
-func LimitConnections(max int) func(next http.Handler) http.Handler {
+func LimitConnections(maxConcurrentRequestsPerKey int) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		l := newLimiter(max)
+		l := newLimiter(maxConcurrentRequestsPerKey)
+
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			keyID := GetKeyID(r)
 

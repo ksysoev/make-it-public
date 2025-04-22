@@ -12,15 +12,15 @@ import (
 func TestLimiter_Allow(t *testing.T) {
 	tests := []struct {
 		name      string
-		limit     int
 		key       string
+		limit     int
 		repeat    int
 		allowAll  bool
 		finalFail bool
 	}{
-		{"within limit", 3, "test-key", 2, true, false},
-		{"exceeds limit", 2, "test-key", 3, false, true},
-		{"exact limit", 1, "test-key", 1, true, true},
+		{name: "within limit", limit: 3, key: "test-key", repeat: 2, allowAll: true, finalFail: false},
+		{name: "exceeds limit", limit: 2, key: "test-key", repeat: 3, allowAll: false, finalFail: true},
+		{name: "exact limit", limit: 1, key: "test-key", repeat: 1, allowAll: true, finalFail: true},
 	}
 
 	for _, tt := range tests {
@@ -68,15 +68,16 @@ func TestLimitConnections(t *testing.T) {
 		requests       int
 		expectTooMany  bool
 	}{
-		{"within limit", 2, 2, false},
-		{"exceeds limit", 2, 3, true},
+		{name: "within limit", maxConnections: 2, requests: 2, expectTooMany: false},
+		{name: "exceeds limit", maxConnections: 2, requests: 3, expectTooMany: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			start := make(chan struct{})
 			done := make(chan bool, 3)
-			mockHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			mockHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				<-start
 				time.Sleep(10 * time.Millisecond)
 				w.WriteHeader(http.StatusOK)
@@ -86,8 +87,9 @@ func TestLimitConnections(t *testing.T) {
 
 			for i := 0; i < tt.requests; i++ {
 				go func() {
-					req := httptest.NewRequest(http.MethodGet, "/", nil)
+					req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 					recorder := httptest.NewRecorder()
+
 					limiterMiddleware.ServeHTTP(recorder, req)
 
 					if http.StatusTooManyRequests == recorder.Code {
@@ -101,6 +103,7 @@ func TestLimitConnections(t *testing.T) {
 			close(start)
 
 			countErrors := 0
+
 			for i := 0; i < tt.requests; i++ {
 				select {
 				case result := <-done:

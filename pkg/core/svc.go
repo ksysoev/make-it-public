@@ -24,7 +24,7 @@ type ControlConn interface {
 }
 
 type AuthRepo interface {
-	Verify(user, pass string) bool
+	Verify(ctx context.Context, keyID, secret string) (bool, error)
 }
 
 type ConnManager interface {
@@ -48,15 +48,18 @@ func New(connmng ConnManager, auth AuthRepo) *Service {
 }
 
 func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error {
-	var connUser string
+	var connKeyID string
 
 	slog.DebugContext(ctx, "new connection", slog.Any("remote", revConn.RemoteAddr()))
 	defer slog.DebugContext(ctx, "closing connection", slog.Any("remote", revConn.RemoteAddr()))
 
-	servConn := proto.NewServer(revConn, proto.WithUserPassAuth(func(user, pass string) bool {
-		if s.auth.Verify(user, pass) {
-			connUser = user
+	servConn := proto.NewServer(revConn, proto.WithUserPassAuth(func(keyID, secret string) bool {
+		valid, err := s.auth.Verify(ctx, keyID, secret)
+		if err == nil && valid {
+			connKeyID = keyID
 			return true
+		} else if err != nil {
+			slog.ErrorContext(ctx, "failed to verify user", slog.Any("error", err))
 		}
 
 		return false
@@ -70,9 +73,9 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	case proto.StateRegistered:
 		srvConn := conn.NewServerConn(ctx, servConn)
 
-		s.connmng.AddConnection(connUser, srvConn)
+		s.connmng.AddConnection(connKeyID, srvConn)
 
-		defer s.connmng.RemoveConnection(connUser, srvConn.ID())
+		defer s.connmng.RemoveConnection(connKeyID, srvConn.ID())
 
 		slog.DebugContext(ctx, "control connection established", slog.Any("remote", revConn.RemoteAddr()))
 

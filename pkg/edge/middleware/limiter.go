@@ -42,6 +42,7 @@ func (l *limiter) Release(key string) {
 
 	if l.counter[key] <= 1 {
 		delete(l.counter, key)
+		return
 	}
 
 	l.counter[key]--

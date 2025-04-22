@@ -1,16 +1,17 @@
 package edge
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"log/slog"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core"
+	"github.com/ksysoev/make-it-public/pkg/edge/middleware"
 )
 
 type ConnService interface {
@@ -22,9 +23,12 @@ type HTTPServer struct {
 	config      Config
 }
 
+const defaultConnLimitPerKeyID = 4
+
 type Config struct {
-	Listen string `mapstructure:"listen"`
-	Domain string `mapstructure:"domain"`
+	Listen    string `mapstructure:"listen"`
+	Domain    string `mapstructure:"domain"`
+	ConnLimit int    `mapstructure:"conn_limit"`
 }
 
 func New(cfg Config, connService ConnService) *HTTPServer {
@@ -35,9 +39,22 @@ func New(cfg Config, connService ConnService) *HTTPServer {
 }
 
 func (s *HTTPServer) Run(ctx context.Context) error {
+	var mw []func(next http.Handler) http.Handler
+
+	mw = append(mw,
+		middleware.ParseKeyID(s.config.Domain),
+		middleware.LimitConnections(cmp.Or(s.config.ConnLimit, defaultConnLimitPerKeyID)),
+	)
+
+	var handler http.Handler = s
+
+	for i := len(mw) - 1; i >= 0; i-- {
+		handler = mw[i](handler)
+	}
+
 	server := &http.Server{
 		Addr:              s.config.Listen,
-		Handler:           s,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,
 	}
@@ -59,19 +76,6 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//nolint:staticcheck,revive // don't want to couple with cmd package for now
 	ctx := context.WithValue(r.Context(), "req_id", uuid.New().String())
 
-	if !strings.HasSuffix(r.Host, s.config.Domain) {
-		http.Error(w, "request is not sent to the defined domain", http.StatusBadRequest)
-
-		return
-	}
-
-	userID := s.getUserIDFromRequest(r)
-	if userID == "" {
-		http.Error(w, "invalid or missing subdomain", http.StatusBadRequest)
-
-		return
-	}
-
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		slog.ErrorContext(ctx, "webserver doesn't support hijacking", slog.String("host", r.Host))
@@ -90,7 +94,9 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() { _ = clientConn.Close() }()
 
-	err = s.connService.HandleHTTPConnection(ctx, userID, clientConn, func(conn net.Conn) error {
+	keyID := middleware.GetKeyID(r)
+
+	err = s.connService.HandleHTTPConnection(ctx, keyID, clientConn, func(conn net.Conn) error {
 		return r.Write(conn)
 	})
 
@@ -112,21 +118,4 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
 		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)
 	}
-}
-
-// getUserIDFromRequest extracts the subdomain from the host in the HTTP request.
-// It assumes the host follows the subdomain.domain.tld format.
-// Returns the subdomain as a string or an empty string if no subdomain exists.
-func (s *HTTPServer) getUserIDFromRequest(r *http.Request) string {
-	host := r.Host
-
-	if host != "" {
-		parts := strings.Split(host, ".")
-		if len(parts) > 2 {
-			// Extract subdomain (assuming subdomain.domain.tld format)
-			return parts[0]
-		}
-	}
-
-	return ""
 }

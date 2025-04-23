@@ -4,11 +4,27 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 type Token struct {
 	ID     string
 	Secret string
+}
+
+// GenerateToken creates a new Token instance with a unique ID and a secure Secret.
+// It ensures both the ID and Secret are random strings suitable for use in URLs and secure contexts.
+// Returns a pointer to the generated Token containing the ID and Secret.
+func GenerateToken() *Token {
+	// TODO: find better way to generate ids and secrets
+	// Id should be unique and easy to use in URL
+	// Secret should be unique and hard to guess
+	// Both should be strings
+	return &Token{
+		ID:     uuid.New().String(),
+		Secret: uuid.New().String(),
+	}
 }
 
 func NewToken(id, secret string) *Token {

@@ -3,7 +3,9 @@ package auth
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -15,6 +17,8 @@ type Config struct {
 
 type Redis interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
+	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
+	Close() error
 }
 
 type Repo struct {
@@ -30,6 +34,8 @@ func New(cfg *Config) *Repo {
 		Addr:     cfg.RedisAddr,
 		Password: cfg.Pass,
 	})
+
+	rdb.SetNX(context.Background(), "test", "test", 0)
 
 	return &Repo{
 		db:        rdb,
@@ -51,4 +57,34 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
 	default:
 		return false, fmt.Errorf("failed to get key: %w", res.Err())
 	}
+}
+
+// GenerateToken generates a new token, stores its secret in the database with a specified TTL, and returns the token.
+// It attempts up to 3 times to store the token, ensuring the operation completes successfully.
+// Returns the generated token on success or an error if all attempts fail due to database issues or conflicts.
+func (r *Repo) GenerateToken(ctx context.Context, ttl time.Duration) (*token.Token, error) {
+	for i := 0; i < 3; i++ {
+		t := token.GenerateToken()
+
+		// TODO: we should store hash of the token instead of the token itself
+		res := r.db.SetNX(ctx, r.keyPrefix+t.ID, t.Secret, ttl)
+
+		if res.Err() != nil {
+			return nil, fmt.Errorf("failed to save token: %w", res.Err())
+		}
+
+		if !res.Val() {
+			continue
+		}
+
+		return t, nil
+	}
+
+	return nil, fmt.Errorf("failed to generate token after 3 attempts")
+}
+
+// Close releases any resources associated with the Redis connection.
+// Returns an error if the connection fails to close.
+func (r *Repo) Close() error {
+	return r.db.Close()
 }

@@ -9,6 +9,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+var (
+	ErrFailedToGenerateToken = fmt.Errorf("failed to generate uniq token")
+)
+
 type Config struct {
 	RedisAddr string `mapstructure:"redis_addr"`
 	Pass      string `mapstructure:"pass"`
@@ -80,7 +84,7 @@ func (r *Repo) GenerateToken(ctx context.Context, ttl time.Duration) (*token.Tok
 		return t, nil
 	}
 
-	return nil, fmt.Errorf("failed to generate token after 3 attempts")
+	return nil, ErrFailedToGenerateToken
 }
 
 // Close releases any resources associated with the Redis connection.

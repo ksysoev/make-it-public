@@ -15,7 +15,7 @@ var (
 
 type Config struct {
 	RedisAddr string `mapstructure:"redis_addr"`
-	Pass      string `mapstructure:"pass"`
+	Pass      string `mapstructure:"redis_pass"`
 	KeyPrefix string `mapstructure:"key_prefix"`
 }
 

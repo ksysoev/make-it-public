@@ -3,7 +3,7 @@ http:
 reverse_proxy:
   listen: ":8081"
 auth:
-  users:
-    user1: test
-    user2: test
+  redis_addr: "localhost:6379"
+  redis_password: ""
+  key_prefix: "MIT::AUTH::"
 

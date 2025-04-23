@@ -13,12 +13,12 @@ import (
 
 func TestRepo_Verify(t *testing.T) {
 	tests := []struct {
+		wantErr   error
+		mockSetup func(m redismock.ClientMock)
 		name      string
 		keyID     string
 		secret    string
-		mockSetup func(m redismock.ClientMock)
 		want      bool
-		wantErr   error
 	}{
 		{
 			name:   "valid key with matching secret",
@@ -66,6 +66,7 @@ func TestRepo_Verify(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rdb, mockRDB := redismock.NewClientMock()
 			tt.mockSetup(mockRDB)
+
 			r := &Repo{
 				db:        rdb,
 				keyPrefix: "prefix",
@@ -78,20 +79,21 @@ func TestRepo_Verify(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+
 			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
 func TestRepo_GenerateToken(t *testing.T) {
-	matcher := func(expected, actual []interface{}) error {
+	matcher := func(_, _ []interface{}) error {
 		return nil
 	}
 
 	tests := []struct {
-		name      string
-		mockSetup func(m redismock.ClientMock)
 		wantErr   error
+		mockSetup func(m redismock.ClientMock)
+		name      string
 	}{
 		{
 			name: "successful token generation",
@@ -130,6 +132,7 @@ func TestRepo_GenerateToken(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rdb, mockRDB := redismock.NewClientMock()
 			tt.mockSetup(mockRDB)
+
 			r := &Repo{
 				db:        rdb,
 				keyPrefix: "prefix",

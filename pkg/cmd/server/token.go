@@ -8,6 +8,9 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 )
 
+// RunGenerateToken initializes the logger, loads configuration, and generates a new token for authentication.
+// It takes a context for request scoping, and args containing configuration details like path, log level, and format.
+// Returns an error if logger initialization, configuration loading, or token generation fails.
 func RunGenerateToken(ctx context.Context, args *args) error {
 	if err := initLogger(args); err != nil {
 		return fmt.Errorf("failed to init logger: %w", err)

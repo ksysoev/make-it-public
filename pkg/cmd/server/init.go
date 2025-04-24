@@ -11,7 +11,9 @@ type args struct {
 	textFormat bool
 }
 
-// InitCommand initializes and returns a cobra.Command for running the server with configurable args.
+// InitCommand creates and initializes the root command for the Make It Public server CLI application.
+// It sets up subcommands for starting the server and generating tokens, adds command-line flag definitions,
+// and returns the fully configured cobra.Command instance for execution.
 func InitCommand() cobra.Command {
 	arg := args{}
 
@@ -21,7 +23,7 @@ func InitCommand() cobra.Command {
 		Long:  "Make It Public server is a reverse proxy server that allows you to expose your local services to the internet.",
 	}
 
-	cmd.AddCommand(InitServerCommand(&arg))
+	cmd.AddCommand(InitServeCommand(&arg))
 	cmd.AddCommand(InitTokenCommand(&arg))
 
 	cmd.Flags().StringVar(&arg.configPath, "config", "runtime/config.yaml", "config path")
@@ -31,7 +33,11 @@ func InitCommand() cobra.Command {
 	return cmd
 }
 
-func InitServerCommand(arg *args) *cobra.Command {
+// InitServeCommand creates and initializes the "serve" command for starting the server and its subcommands.
+// It utilizes the provided args parameter to configure options like configuration path and log level.
+// Returns a pointer to a cobra.Command that includes the "all" subcommand to run all server modules.
+// Returns nil if the args parameter is not properly initialized.
+func InitServeCommand(arg *args) *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "serve",
 		Short: "Run the server",
@@ -56,11 +62,15 @@ func InitServerCommand(arg *args) *cobra.Command {
 	return &cmd
 }
 
+// InitTokenCommand initializes the "token" command with subcommands like "generate" for token management in the CLI.
+// It binds the "generate" subcommand to trigger token generation using the provided configuration arguments.
+// Accepts arg which contains configuration details like config path, log level, and text format.
+// Returns a pointer to a cobra.Command that encapsulates the "token" command and its subcommands.
 func InitTokenCommand(arg *args) *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "token",
-		Short: "",
-		Long:  "",
+		Short: "Token management",
+		Long:  "Token management commands for the server.",
 	}
 
 	cmdGenerateToken := &cobra.Command{

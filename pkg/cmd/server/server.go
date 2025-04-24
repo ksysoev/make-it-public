@@ -10,35 +10,8 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/ksysoev/make-it-public/pkg/repo/connmng"
 	"github.com/ksysoev/make-it-public/pkg/revproxy"
-	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
-
-type args struct {
-	configPath string
-	logLevel   string
-	version    string
-	textFormat bool
-}
-
-// InitCommand initializes and returns a cobra.Command for running the server with configurable args.
-func InitCommand() cobra.Command {
-	args := args{}
-
-	cmd := cobra.Command{
-		Use:   "server",
-		Short: "Run server",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return RunServerCommand(cmd.Context(), &args)
-		},
-	}
-
-	cmd.Flags().StringVar(&args.configPath, "config", "runtime/config.yaml", "config path")
-	cmd.Flags().StringVar(&args.logLevel, "log-level", "info", "log level (debug, info, warn, error)")
-	cmd.Flags().BoolVar(&args.textFormat, "log-text", false, "log in text format, otherwise JSON")
-
-	return cmd
-}
 
 // RunServerCommand initializes and starts both reverse proxy and HTTP servers for handling revclient connections.
 // It takes ctx of type context.Context for managing the server lifecycle and args of type *args to load configuration.

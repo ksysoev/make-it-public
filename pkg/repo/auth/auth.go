@@ -15,7 +15,7 @@ var (
 
 type Config struct {
 	RedisAddr string `mapstructure:"redis_addr"`
-	Pass      string `mapstructure:"redis_pass"`
+	Password  string `mapstructure:"redis_password"`
 	KeyPrefix string `mapstructure:"key_prefix"`
 }
 
@@ -36,10 +36,8 @@ type Repo struct {
 func New(cfg *Config) *Repo {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisAddr,
-		Password: cfg.Pass,
+		Password: cfg.Password,
 	})
-
-	rdb.SetNX(context.Background(), "test", "test", 0)
 
 	return &Repo{
 		db:        rdb,

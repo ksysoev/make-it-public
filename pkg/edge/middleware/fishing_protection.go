@@ -202,58 +202,56 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 // It ensures CSRF token validity by comparing form data and cookie values, deletes the CSRF token cookie if valid,
 // and redirects users to the original requested URL. Errors occur on invalid CSRF tokens or request parsing.
 func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err == nil {
-		// Verify CSRF token
-		formToken := r.FormValue("csrf_token")
-		csrfCookie, csrfErr := r.Cookie(csrfTokenName)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+	}
 
-		if csrfErr != nil || formToken == "" || formToken != csrfCookie.Value {
-			// CSRF validation failed, show the consent form again
-			http.Error(w, "Invalid request: CSRF validation failed", http.StatusBadRequest)
-			return
-		}
+	// Verify CSRF token
+	formToken := r.FormValue("csrf_token")
+	csrfCookie, csrfErr := r.Cookie(csrfTokenName)
 
-		// Delete the CSRF token cookie since it's no longer needed
-		http.SetCookie(w, &http.Cookie{
-			Name:     csrfTokenName,
-			Value:    "",
-			Path:     "/",
-			MaxAge:   -1,
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		originalURL := r.FormValue("original_url")
-		if originalURL == "" {
-			originalURL = "/"
-		} else {
-			// Replace backslashes with forward slashes
-			originalURL = strings.ReplaceAll(originalURL, "\\", "/")
-
-			// Parse the URL to validate it
-			parsedURL, err := url.Parse(originalURL)
-			if err != nil || parsedURL.Hostname() != "" {
-				// If invalid or not a relative URL, redirect to the default safe URL
-				originalURL = "/"
-			}
-		}
-
-		// Set consent cookie
-		cookie := http.Cookie{
-			Name:     consentCookieName,
-			Value:    consentValue,
-			Path:     "/",
-			MaxAge:   3600 * 24, // 24 hours
-			HttpOnly: true,
-			SameSite: http.SameSiteNoneMode,
-		}
-		http.SetCookie(w, &cookie)
-
-		// Redirect to the originally requested URL
-		http.Redirect(w, r, originalURL, http.StatusSeeOther)
-
+	if csrfErr != nil || formToken == "" || formToken != csrfCookie.Value {
+		// CSRF validation failed, show the consent form again
+		http.Error(w, "Invalid request: CSRF validation failed", http.StatusBadRequest)
 		return
 	}
 
-	http.Error(w, "Invalid request", http.StatusBadRequest)
+	// Delete the CSRF token cookie since it's no longer needed
+	http.SetCookie(w, &http.Cookie{
+		Name:     csrfTokenName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	originalURL := r.FormValue("original_url")
+	if originalURL == "" {
+		originalURL = "/"
+	} else {
+		// Replace backslashes with forward slashes
+		originalURL = strings.ReplaceAll(originalURL, "\\", "/")
+
+		// Parse the URL to validate it
+		parsedURL, err := url.Parse(originalURL)
+		if err != nil || parsedURL.Hostname() != "" {
+			// If invalid or not a relative URL, redirect to the default safe URL
+			originalURL = "/"
+		}
+	}
+
+	// Set consent cookie
+	cookie := http.Cookie{
+		Name:     consentCookieName,
+		Value:    consentValue,
+		Path:     "/",
+		MaxAge:   3600 * 24, // 24 hours
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	}
+	http.SetCookie(w, &cookie)
+
+	// Redirect to the originally requested URL
+	http.Redirect(w, r, originalURL, http.StatusSeeOther)
 }

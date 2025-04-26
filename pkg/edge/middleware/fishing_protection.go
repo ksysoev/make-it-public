@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/mileusna/useragent"
 )

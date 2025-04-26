@@ -5,11 +5,19 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+
+	"log/slog"
 )
 
 type API struct {
 	Listen string `mapstructure:"listen"`
 }
+
+type Endpoint string
+
+const (
+	HealthCheckEndpoint Endpoint = "/health"
+)
 
 func New(listenAddr string) *API {
 	return &API{
@@ -19,7 +27,7 @@ func New(listenAddr string) *API {
 
 // Runs the API management server
 func (api *API) Run() error {
-	http.HandleFunc(("/health"), api.healthCheckHandler)
+	http.HandleFunc((string(HealthCheckEndpoint)), api.healthCheckHandler)
 	return http.ListenAndServe(api.Listen, nil)
 }
 
@@ -28,5 +36,10 @@ func (api *API) Run() error {
 func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{"status": "healthy"}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	err := json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		slog.Error("Failed to encode response", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+	return
 }

@@ -12,9 +12,9 @@ import (
 func TestFishingProtection_UnknownUserAgent(t *testing.T) {
 	// Setup
 	handler := setupTestHandler()
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("User-Agent", "unknown-agent")
 	resp := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req.Header.Set("User-Agent", "unknown-agent")
 
 	// Execute
 	handler.ServeHTTP(resp, req)
@@ -23,6 +23,7 @@ func TestFishingProtection_UnknownUserAgent(t *testing.T) {
 	if resp.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, resp.Code)
 	}
+
 	if resp.Body.String() != "passed through" {
 		t.Errorf("Expected body 'passed through', got '%s'", resp.Body.String())
 	}
@@ -31,7 +32,7 @@ func TestFishingProtection_UnknownUserAgent(t *testing.T) {
 func TestFishingProtection_WithConsentCookie(t *testing.T) {
 	// Setup
 	handler := setupTestHandler()
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
 	// Add consent cookie
@@ -49,6 +50,7 @@ func TestFishingProtection_WithConsentCookie(t *testing.T) {
 	if resp.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, resp.Code)
 	}
+
 	if resp.Body.String() != "passed through" {
 		t.Errorf("Expected body 'passed through', got '%s'", resp.Body.String())
 	}
@@ -57,7 +59,7 @@ func TestFishingProtection_WithConsentCookie(t *testing.T) {
 func TestFishingProtection_KnownBrowserNoConsent(t *testing.T) {
 	// Setup
 	handler := setupTestHandler()
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 	req.Host = "example.com"
 	resp := httptest.NewRecorder()
@@ -126,6 +128,7 @@ func TestFishingProtection_ValidConsentSubmission(t *testing.T) {
 	if consentCookie == nil {
 		t.Error("Expected consent cookie to be set")
 	}
+
 	if consentCookie != nil && consentCookie.Value != consentValue {
 		t.Errorf("Expected consent cookie value '%s', got '%s'", consentValue, consentCookie.Value)
 	}
@@ -135,6 +138,7 @@ func TestFishingProtection_ValidConsentSubmission(t *testing.T) {
 	if csrfCookie == nil {
 		t.Error("Expected CSRF cookie to be present (but deleted)")
 	}
+
 	if csrfCookie != nil && csrfCookie.MaxAge != -1 {
 		t.Errorf("Expected CSRF cookie MaxAge -1, got %d", csrfCookie.MaxAge)
 	}
@@ -211,7 +215,7 @@ func TestFishingProtection_MissingCSRFCookie(t *testing.T) {
 // Helper functions
 
 func setupTestHandler() http.Handler {
-	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, "passed through")
 	})
@@ -225,11 +229,14 @@ func getCookie(recorder *httptest.ResponseRecorder, name string) *http.Cookie {
 			return cookie
 		}
 	}
+
 	return nil
 }
 
 func getCSRFToken(t *testing.T, handler http.Handler) string {
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 	req.Host = "example.com"
 	resp := httptest.NewRecorder()

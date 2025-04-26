@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 
@@ -138,14 +139,23 @@ func NewFishingProtection() func(next http.Handler) http.Handler {
 			}
 
 			// For known browsers without consent, show the consent form
-			currentURL := r.URL.String()
-			if currentURL == "" {
-				currentURL = "/"
+			currentPath := r.URL.String()
+			if currentPath == "" {
+				currentPath = "/"
 			}
 
+			// Construct absolute URL
+			scheme := "http"
+			if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+				scheme = "https"
+			}
+
+			host := r.Host
+			absoluteURL := fmt.Sprintf("%s://%s%s", scheme, host, currentPath)
+
 			data := templateData{
-				OriginalURL: currentURL,
-				CurrentURL:  currentURL,
+				OriginalURL: absoluteURL,
+				CurrentURL:  currentPath,
 			}
 
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")

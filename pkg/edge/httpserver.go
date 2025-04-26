@@ -42,6 +42,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	var mw []func(next http.Handler) http.Handler
 
 	mw = append(mw,
+		middleware.NewFishingProtection(),
 		middleware.ParseKeyID(s.config.Domain),
 		middleware.LimitConnections(cmp.Or(s.config.ConnLimit, defaultConnLimitPerKeyID)),
 	)

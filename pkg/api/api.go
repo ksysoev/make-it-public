@@ -66,6 +66,4 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
 		slog.Error("Failed to encode response", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
-
-	return
 }

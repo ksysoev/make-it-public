@@ -19,8 +19,8 @@ func (m *mockResponseWriter) Write(b []byte) (int, error) {
 }
 
 func TestHealthCheckHandler(t *testing.T) {
-	api := New(":8082")
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	api := New(Config{Listen: ":8082"})
+	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(api.healthCheckHandler)
 
@@ -37,7 +37,7 @@ func TestHealthCheckHandler(t *testing.T) {
 }
 
 func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
-	api := New(":8082")
+	api := New(Config{Listen: ":8082"})
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	mockWriter := &mockResponseWriter{ResponseWriter: httptest.NewRecorder()}
 	handler := http.HandlerFunc(api.healthCheckHandler)

@@ -3,14 +3,20 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"log/slog"
 )
 
-type API struct {
+type Config struct {
 	Listen string `mapstructure:"listen"`
+}
+
+type API struct {
+	config Config
 }
 
 type Endpoint string
@@ -19,16 +25,32 @@ const (
 	HealthCheckEndpoint Endpoint = "/health"
 )
 
-func New(listenAddr string) *API {
+func New(cfg Config) *API {
 	return &API{
-		Listen: listenAddr,
+		config: cfg,
 	}
 }
 
 // Runs the API management server
-func (api *API) Run() error {
+func (api *API) Run(ctx context.Context) error {
 	http.HandleFunc((string(HealthCheckEndpoint)), api.healthCheckHandler)
-	return http.ListenAndServe(api.Listen, nil)
+	server := &http.Server{
+		Addr:              api.config.Listen,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+	}
+
+	go func() {
+		<-ctx.Done()
+
+		_ = server.Close()
+	}()
+
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+		return err
+	}
+
+	return nil
 }
 
 // healthCheckHandler returns the API status.

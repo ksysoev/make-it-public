@@ -36,7 +36,7 @@ api:
 			expectConfig: &appConfig{
 				HTTP:     edge.Config{Listen: ":8080"},
 				RevProxy: revProxyConfig{Listen: ":8081"},
-				API:      api.API{Listen: ":8082"},
+				API:      api.Config{Listen: ":8082"},
 			},
 		},
 		{
@@ -60,7 +60,7 @@ api:
 			expectConfig: &appConfig{
 				HTTP:     edge.Config{Listen: ":8083"},
 				RevProxy: revProxyConfig{Listen: ":8081"},
-				API:      api.API{Listen: ":8082"},
+				API:      api.Config{Listen: ":8082"},
 			},
 		},
 	}

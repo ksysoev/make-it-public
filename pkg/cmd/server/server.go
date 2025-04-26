@@ -60,7 +60,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 
 	revServ := revproxy.New(cfg.RevProxy.Listen, connService)
 	httpServ := edge.New(cfg.HTTP, connService)
-	apiServ := api.New(cfg.API.Listen)
+	apiServ := api.New(cfg.API)
 
 	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen, "api", cfg.API.Listen)
 
@@ -68,7 +68,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 
 	eg.Go(func() error { return revServ.Run(ctx) })
 	eg.Go(func() error { return httpServ.Run(ctx) })
-	eg.Go(func() error { return apiServ.Run() })
+	eg.Go(func() error { return apiServ.Run(ctx) })
 
 	return eg.Wait()
 }

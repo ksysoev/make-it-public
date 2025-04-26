@@ -219,6 +219,16 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 		originalURL := r.FormValue("original_url")
 		if originalURL == "" {
 			originalURL = "/"
+		} else {
+			// Replace backslashes with forward slashes
+			originalURL = strings.ReplaceAll(originalURL, "\\", "/")
+
+			// Parse the URL to validate it
+			parsedURL, err := url.Parse(originalURL)
+			if err != nil || parsedURL.Hostname() != "" {
+				// If invalid or not a relative URL, redirect to the default safe URL
+				originalURL = "/"
+			}
 		}
 
 		// Set consent cookie

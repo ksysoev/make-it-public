@@ -14,7 +14,7 @@ type mockResponseWriter struct {
 	http.ResponseWriter
 }
 
-func (m *mockResponseWriter) Write(b []byte) (int, error) {
+func (m *mockResponseWriter) Write(_ []byte) (int, error) {
 	return 0, errors.New("mock encoding error")
 }
 
@@ -38,9 +38,10 @@ func TestHealthCheckHandler(t *testing.T) {
 
 func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
 	api := New(Config{Listen: ":8082"})
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	mockWriter := &mockResponseWriter{ResponseWriter: httptest.NewRecorder()}
 	handler := http.HandlerFunc(api.healthCheckHandler)
 
 	handler.ServeHTTP(mockWriter, req)
+	t.Logf("The test did not panic")
 }

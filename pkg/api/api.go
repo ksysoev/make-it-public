@@ -55,13 +55,17 @@ func (api *API) Run(ctx context.Context) error {
 
 // healthCheckHandler returns the API status.
 // This handler can be later modified to cross check required resources
-func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
 	resp := map[string]string{"status": "healthy"}
+
 	w.Header().Set("Content-Type", "application/json")
+
 	err := json.NewEncoder(w).Encode(resp)
+
 	if err != nil {
 		slog.Error("Failed to encode response", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
+
 	return
 }

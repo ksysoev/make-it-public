@@ -101,10 +101,11 @@ type templateData struct {
 // It returns the generated token and an error if secure random data generation fails.
 func generateCSRFToken() (string, error) {
 	bytes := make([]byte, csrfTokenLength)
-	_, err := rand.Read(bytes)
-	if err != nil {
+
+	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
+
 	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
@@ -139,7 +140,7 @@ func NewFishingProtection() func(next http.Handler) http.Handler {
 				return
 			}
 
-			renderConsentForm(w, r, err, tmpl)
+			renderConsentForm(w, r, tmpl)
 		})
 	}
 }
@@ -147,7 +148,7 @@ func NewFishingProtection() func(next http.Handler) http.Handler {
 // renderConsentForm renders an HTTP consent form to request user acknowledgement for proxy access.
 // It generates a CSRF token to ensure secure interaction, sets a CSRF token cookie, and populates the form with dynamic data.
 // Errors occur during CSRF token generation or template execution, responding with HTTP 500 in these cases.
-func renderConsentForm(w http.ResponseWriter, r *http.Request, err error, tmpl *template.Template) {
+func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Template) {
 	// For known browsers without consent, show the consent form
 	currentPath := r.URL.String()
 	if currentPath == "" {
@@ -188,7 +189,11 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, err error, tmpl *
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	tmpl.Execute(w, data)
+
+	if err = tmpl.Execute(w, data); err != nil {
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // handleConsentFormSubmission processes a user's form submission, validating CSRF tokens and setting consent cookies.
@@ -238,15 +243,15 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 			Path:     "/",
 			MaxAge:   3600 * 24, // 24 hours
 			HttpOnly: true,
-			SameSite: http.SameSiteStrictMode,
+			SameSite: http.SameSiteNoneMode,
 		}
 		http.SetCookie(w, &cookie)
 
 		// Redirect to the originally requested URL
 		http.Redirect(w, r, originalURL, http.StatusSeeOther)
+
 		return
 	}
 
 	http.Error(w, "Invalid request", http.StatusBadRequest)
-	return
 }

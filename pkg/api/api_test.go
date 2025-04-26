@@ -50,8 +50,7 @@ func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
 
 func TestAPIRun(t *testing.T) {
 	api := New(Config{Listen: ":8083"})
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
 		err := api.Run(ctx)
@@ -73,5 +72,4 @@ func TestAPIRun(t *testing.T) {
 
 	defer resp.Body.Close()
 	cancel()
-	time.Sleep(100 * time.Millisecond)
 }

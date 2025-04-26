@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -11,6 +13,8 @@ import (
 const (
 	consentCookieName = "consent"
 	consentValue      = "approved"
+	csrfTokenName     = "csrf_token"
+	csrfTokenLength   = 32
 )
 
 var consentFormTemplate = `
@@ -79,6 +83,7 @@ var consentFormTemplate = `
         <form method="POST" action="{{.CurrentURL}}">
             <input type="hidden" name="original_url" value="{{.OriginalURL}}">
             <input type="hidden" name="consent" value="true">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
             <button type="submit" class="button">I understand, proceed to the site</button>
         </form>
     </div>
@@ -89,6 +94,17 @@ var consentFormTemplate = `
 type templateData struct {
 	OriginalURL string
 	CurrentURL  string
+	CSRFToken   string
+}
+
+// generateCSRFToken creates a cryptographically secure random token
+func generateCSRFToken() (string, error) {
+	bytes := make([]byte, csrfTokenLength)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
 func NewFishingProtection() func(next http.Handler) http.Handler {
@@ -108,6 +124,26 @@ func NewFishingProtection() func(next http.Handler) http.Handler {
 			// Handle consent submission
 			if r.Method == http.MethodPost && r.FormValue("consent") == "true" {
 				if err := r.ParseForm(); err == nil {
+					// Verify CSRF token
+					formToken := r.FormValue("csrf_token")
+					csrfCookie, csrfErr := r.Cookie(csrfTokenName)
+
+					if csrfErr != nil || formToken == "" || formToken != csrfCookie.Value {
+						// CSRF validation failed, show the consent form again
+						http.Error(w, "Invalid request: CSRF validation failed", http.StatusBadRequest)
+						return
+					}
+
+					// Delete the CSRF token cookie since it's no longer needed
+					http.SetCookie(w, &http.Cookie{
+						Name:     csrfTokenName,
+						Value:    "",
+						Path:     "/",
+						MaxAge:   -1,
+						HttpOnly: true,
+						SameSite: http.SameSiteLaxMode,
+					})
+
 					originalURL := r.FormValue("original_url")
 					if originalURL == "" {
 						originalURL = "/"
@@ -153,9 +189,27 @@ func NewFishingProtection() func(next http.Handler) http.Handler {
 			host := r.Host
 			absoluteURL := fmt.Sprintf("%s://%s%s", scheme, host, currentPath)
 
+			// Generate CSRF token
+			csrfToken, err := generateCSRFToken()
+			if err != nil {
+				http.Error(w, "Server error", http.StatusInternalServerError)
+				return
+			}
+
+			// Set CSRF token cookie
+			csrfCookie := http.Cookie{
+				Name:     csrfTokenName,
+				Value:    csrfToken,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			}
+			http.SetCookie(w, &csrfCookie)
+
 			data := templateData{
 				OriginalURL: absoluteURL,
 				CurrentURL:  currentPath,
+				CSRFToken:   csrfToken,
 			}
 
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/ksysoev/make-it-public/pkg/api"
 	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/edge"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
@@ -59,13 +60,15 @@ func RunServerCommand(ctx context.Context, args *args) error {
 
 	revServ := revproxy.New(cfg.RevProxy.Listen, connService)
 	httpServ := edge.New(cfg.HTTP, connService)
+	apiServ := api.New(cfg.API.Listen)
 
-	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen)
+	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen, "api", cfg.API.Listen)
 
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error { return revServ.Run(ctx) })
 	eg.Go(func() error { return httpServ.Run(ctx) })
+	eg.Go(func() error { return apiServ.Run() })
 
 	return eg.Wait()
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ksysoev/make-it-public/pkg/api"
 	"github.com/ksysoev/make-it-public/pkg/edge"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,8 @@ http:
   listen: ":8080"
 reverse_proxy:
   listen: ":8081"
+api:
+  listen: ":8082"
 `
 
 	tests := []struct {
@@ -33,6 +36,7 @@ reverse_proxy:
 			expectConfig: &appConfig{
 				HTTP:     edge.Config{Listen: ":8080"},
 				RevProxy: revProxyConfig{Listen: ":8081"},
+				API:      api.API{Listen: ":8082"},
 			},
 		},
 		{
@@ -49,13 +53,14 @@ reverse_proxy:
 		{
 			name: "valid config with environment overrides",
 			envVars: map[string]string{
-				"HTTP_LISTEN": ":8082",
+				"HTTP_LISTEN": ":8083",
 			},
 			expectError: false,
 			configData:  validConfig,
 			expectConfig: &appConfig{
-				HTTP:     edge.Config{Listen: ":8082"},
+				HTTP:     edge.Config{Listen: ":8083"},
 				RevProxy: revProxyConfig{Listen: ":8081"},
+				API:      api.API{Listen: ":8082"},
 			},
 		},
 	}

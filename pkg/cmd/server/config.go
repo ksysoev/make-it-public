@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/ksysoev/make-it-public/pkg/api"
 	"github.com/ksysoev/make-it-public/pkg/edge"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/spf13/viper"
@@ -14,6 +15,7 @@ type appConfig struct {
 	Auth     auth.Config    `mapstructure:"auth"`
 	RevProxy revProxyConfig `mapstructure:"reverse_proxy"`
 	HTTP     edge.Config    `mapstructure:"http"`
+	API      api.API        `mapstructure:"api"`
 }
 
 type revProxyConfig struct {

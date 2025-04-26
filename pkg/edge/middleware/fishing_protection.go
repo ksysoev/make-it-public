@@ -204,6 +204,7 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
 	}
 
 	// Verify CSRF token

@@ -6,3 +6,9 @@ lint:
 
 mocks:
 	mockery
+
+mod-tidy:
+	go mod tidy
+
+fmt:
+	go fmt ./...

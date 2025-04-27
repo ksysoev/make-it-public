@@ -2,6 +2,8 @@ http:
   listen: ":8080"
 reverse_proxy:
   listen: ":8081"
+api:
+  listen: ":8082"
 auth:
   redis_addr: "localhost:6379"
   redis_password: ""

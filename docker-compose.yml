@@ -18,7 +18,7 @@ services:
     environment:
       - CONFIG_PATH=/runtime/config.yaml
     volumes:
-      - ./runtime/config.yaml:./runtime/config.yaml
+      - ./runtime/config.yaml:/runtime/config.yaml
     depends_on:
       - redis
 

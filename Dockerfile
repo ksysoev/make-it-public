@@ -10,11 +10,9 @@ RUN CGO_ENABLED=0 go build -o mitserver ./cmd/mitserver
 
 FROM scratch
 
-WORKDIR /root/
-
 COPY --from=builder /app/mitserver .
-COPY ./runtime/config.yaml ./runtime/config.yaml
+COPY ./runtime/config.yaml /runtime/config.yaml
 
 EXPOSE 8080 8081 8082
 
-CMD ["./mitserver", "serve", "all", "config", "./runtime/config.yaml"]
+CMD ["./mitserver", "serve", "all", "config", "/runtime/config.yaml"]

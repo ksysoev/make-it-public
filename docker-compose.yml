@@ -15,8 +15,6 @@ services:
       - "8080:8080" # HTTP server
       - "8081:8081" # Reverse proxy
       - "8082:8082" # API server
-    environment:
-      - CONFIG_PATH=/runtime/config.yaml
     volumes:
       - ./runtime/config.yaml:/runtime/config.yaml
     depends_on:

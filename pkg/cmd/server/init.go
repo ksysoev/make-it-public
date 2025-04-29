@@ -26,9 +26,9 @@ func InitCommand() cobra.Command {
 	cmd.AddCommand(InitServeCommand(&arg))
 	cmd.AddCommand(InitTokenCommand(&arg))
 
-	cmd.Flags().StringVar(&arg.configPath, "config", "runtime/config.yaml", "config path")
-	cmd.Flags().StringVar(&arg.logLevel, "log-level", "info", "log level (debug, info, warn, error)")
-	cmd.Flags().BoolVar(&arg.textFormat, "log-text", false, "log in text format, otherwise JSON")
+	cmd.PersistentFlags().StringVar(&arg.configPath, "config", "runtime/config.yaml", "config path")
+	cmd.PersistentFlags().StringVar(&arg.logLevel, "log-level", "info", "log level (debug, info, warn, error)")
+	cmd.PersistentFlags().BoolVar(&arg.textFormat, "log-text", false, "log in text format, otherwise JSON")
 
 	return cmd
 }

@@ -15,4 +15,5 @@ COPY ./runtime/config.yaml /runtime/config.yaml
 
 EXPOSE 8080 8081 8082
 
-CMD ["./mitserver", "serve", "all", "config", "/runtime/config.yaml"]
+ENTRYPOINT ["/mitserver"]
+CMD ["serve", "all", "--config", "runtime/config.yaml"]

@@ -23,6 +23,7 @@ func GenerateToken(keyID string) *Token {
 	// Secret should be unique and hard to guess
 	// Both should be strings
 	return &Token{
+		// Use cmp.Or to set a custom key ID if provided; otherwise, generate a new UUID.
 		ID:     cmp.Or(keyID, uuid.New().String()),
 		Secret: uuid.New().String(),
 	}

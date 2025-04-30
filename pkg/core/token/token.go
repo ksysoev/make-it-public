@@ -2,6 +2,7 @@ package token
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/base64"
 	"fmt"
 
@@ -16,21 +17,14 @@ type Token struct {
 // GenerateToken creates a new Token instance with a unique ID and a secure Secret.
 // It ensures both the ID and Secret are random strings suitable for use in URLs and secure contexts.
 // Returns a pointer to the generated Token containing the ID and Secret.
-func GenerateToken() *Token {
+func GenerateToken(keyID string) *Token {
 	// TODO: find better way to generate ids and secrets
 	// Id should be unique and easy to use in URL
 	// Secret should be unique and hard to guess
 	// Both should be strings
 	return &Token{
-		ID:     uuid.New().String(),
+		ID:     cmp.Or(keyID, uuid.New().String()),
 		Secret: uuid.New().String(),
-	}
-}
-
-func NewToken(id, secret string) *Token {
-	return &Token{
-		ID:     id,
-		Secret: secret,
 	}
 }
 

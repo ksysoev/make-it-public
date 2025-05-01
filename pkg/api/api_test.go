@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -46,6 +47,88 @@ func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
 
 	handler.ServeHTTP(mockWriter, req)
 	t.Logf("The test did not panic")
+}
+
+func TestGenerateTokenHandler(t *testing.T) {
+	api := New(Config{
+		TokenExpiry: 3600, // 1 hour
+	})
+
+	t.Run("Invalid Request Payload", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer([]byte("invalid json")))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Bad Request")
+	})
+
+	t.Run("Missing KeyID", func(t *testing.T) {
+		requestBody := GenerateTokenRequest{
+			TTL: 3600,
+		}
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var response GenerateTokenResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.True(t, response.Success)
+		assert.NotEmpty(t, response.KeyID)
+		assert.NotEmpty(t, response.Token)
+		assert.Equal(t, 3600, response.TTL)
+	})
+
+	t.Run("Valid Request with KeyID", func(t *testing.T) {
+		requestBody := GenerateTokenRequest{
+			KeyID: "test-key-id",
+			TTL:   3601,
+		}
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var response GenerateTokenResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.True(t, response.Success)
+		assert.Equal(t, "test-key-id", response.KeyID)
+		assert.NotEmpty(t, response.Token)
+		assert.Equal(t, 3601, response.TTL)
+	})
+
+	t.Run("Invalid TTL", func(t *testing.T) {
+		requestBody := GenerateTokenRequest{
+			KeyID: "test-key-id",
+			TTL:   0,
+		}
+		_api := New(Config{
+			TokenExpiry: 0,
+		})
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		rec := httptest.NewRecorder()
+
+		_api.generateTokenHandler(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		var response GenerateTokenResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.False(t, response.Success)
+		assert.Contains(t, response.Message, "TTL must be greater than 0")
+	})
 }
 
 func TestAPIRun(t *testing.T) {

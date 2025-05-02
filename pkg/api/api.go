@@ -26,8 +26,8 @@ type API struct {
 type Endpoint string
 
 const (
-	HealthCheckEndpoint   Endpoint = "/health"
-	GenerateTokenEndpoint Endpoint = "/generateToken"
+	HealthCheckEndpoint   Endpoint = "GET /health"
+	GenerateTokenEndpoint Endpoint = "POST /generateToken"
 )
 
 func New(cfg Config) *API {
@@ -38,13 +38,16 @@ func New(cfg Config) *API {
 
 // Runs the API management server
 func (api *API) Run(ctx context.Context) error {
-	http.HandleFunc((string(HealthCheckEndpoint)), api.healthCheckHandler)
-	http.HandleFunc((string(GenerateTokenEndpoint)), api.generateTokenHandler)
+	router := http.NewServeMux()
+
+	router.HandleFunc((string(HealthCheckEndpoint)), api.healthCheckHandler)
+	router.HandleFunc((string(GenerateTokenEndpoint)), api.generateTokenHandler)
 
 	server := &http.Server{
 		Addr:              api.config.Listen,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,
+		Handler:           router,
 	}
 
 	go func() {

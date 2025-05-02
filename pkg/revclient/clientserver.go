@@ -37,7 +37,16 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to create auth option: %w", err)
 	}
 
-	listener, err := revdial.Listen(ctx, s.serverAddr, authOpt)
+	onConnect, err := revdial.WithEventHandler("urlToConnectUpdated", func(event revdial.Event) {
+		var url string
+		if err := event.ParsePayload(&url); err != nil {
+			slog.ErrorContext(ctx, "failed to parse payload for event urlToConnectUpdated", "error", err)
+		}
+
+		slog.InfoContext(ctx, "Client url to connect", "url", url)
+	})
+
+	listener, err := revdial.Listen(ctx, s.serverAddr, authOpt, onConnect)
 	if err != nil {
 		return err
 	}

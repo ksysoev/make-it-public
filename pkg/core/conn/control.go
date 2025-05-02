@@ -18,6 +18,7 @@ type serverConn interface {
 	Close() error
 	SendConnectCommand(id uuid.UUID) error
 	SendPingCommand() error
+	SendCustomEvent(name string, data any) error
 	State() proto.State
 }
 
@@ -83,4 +84,8 @@ func (r *ControlConn) Ping() error {
 	}
 
 	return nil
+}
+
+func (r *ControlConn) SendUrlToConnectUpdatedEvent(url string) error {
+	return r.conn.SendCustomEvent("urlToConnectUpdated", url)
 }

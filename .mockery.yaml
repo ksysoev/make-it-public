@@ -20,3 +20,6 @@ packages:
     interfaces:
       Request:
       serverConn:
+  github.com/ksysoev/make-it-public/pkg/api:
+    interfaces:
+      AuthRepo:

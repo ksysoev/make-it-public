@@ -33,7 +33,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 
 	revServ := revproxy.New(cfg.RevProxy.Listen, connService)
 	httpServ := edge.New(cfg.HTTP, connService)
-	apiServ := api.New(cfg.API)
+	apiServ := api.New(cfg.API, authRepo)
 
 	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen, "api", cfg.API.Listen)
 

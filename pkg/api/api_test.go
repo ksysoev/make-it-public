@@ -22,7 +22,7 @@ func (m *mockResponseWriter) Write(_ []byte) (int, error) {
 }
 
 func TestHealthCheckHandler(t *testing.T) {
-	api := New(Config{Listen: ":8082"})
+	api := New(Config{Listen: ":8082"}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(api.healthCheckHandler)
@@ -40,7 +40,7 @@ func TestHealthCheckHandler(t *testing.T) {
 }
 
 func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
-	api := New(Config{Listen: ":8082"})
+	api := New(Config{Listen: ":8082"}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	mockWriter := &mockResponseWriter{ResponseWriter: httptest.NewRecorder()}
 	handler := http.HandlerFunc(api.healthCheckHandler)
@@ -51,8 +51,8 @@ func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
 
 func TestGenerateTokenHandler(t *testing.T) {
 	api := New(Config{
-		TokenExpiry: 3600, // 1 hour
-	})
+		DefaultTokenExpiry: 3600, // 1 hour
+	}, nil)
 
 	t.Run("Invalid Request Payload", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer([]byte("invalid json")))
@@ -113,8 +113,8 @@ func TestGenerateTokenHandler(t *testing.T) {
 			TTL:   0,
 		}
 		_api := New(Config{
-			TokenExpiry: 0,
-		})
+			DefaultTokenExpiry: 0,
+		}, nil)
 		body, _ := json.Marshal(requestBody)
 		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
@@ -132,7 +132,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 }
 
 func TestAPIRun(t *testing.T) {
-	api := New(Config{Listen: ":8083"})
+	api := New(Config{Listen: ":8083"}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {

@@ -15,12 +15,17 @@ import (
 )
 
 type Config struct {
-	Listen      string `mapstructure:"listen"`
-	TokenExpiry uint   `mapstructure:"token_expiry"`
+	Listen             string `mapstructure:"listen"`
+	DefaultTokenExpiry uint   `mapstructure:"token_expiry"`
 }
 
 type API struct {
 	config Config
+	auth   AuthRepo
+}
+
+type AuthRepo interface {
+	GenerateToken(ctx context.Context, keyId string, ttl time.Duration) (*token.Token, error)
 }
 
 type Endpoint string
@@ -30,9 +35,10 @@ const (
 	GenerateTokenEndpoint Endpoint = "POST /generateToken"
 )
 
-func New(cfg Config) *API {
+func New(cfg Config, auth AuthRepo) *API {
 	return &API{
 		config: cfg,
+		auth:   auth,
 	}
 }
 
@@ -100,7 +106,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	ttl := generateTokenRequest.TTL
 	if ttl == 0 {
-		ttl = api.config.TokenExpiry
+		ttl = api.config.DefaultTokenExpiry
 	}
 
 	if ttl == 0 {
@@ -123,25 +129,47 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := token.GenerateToken(keyId).Encode()
+	token, err := api.auth.GenerateToken(r.Context(), keyId, time.Second*time.Duration(ttl))
+
+	if err != nil {
+		slog.Error("Failed to generate token", "error", err)
+		resp := GenerateTokenResponse{
+			Success: false,
+			Message: "Failed to generate token",
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		err = json.NewEncoder(w).Encode(resp)
+
+		if err != nil {
+			slog.Error("Failed to encode response", "error", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+
+			return
+		}
+
+		return
+	}
 
 	resp := GenerateTokenResponse{
 		Success: true,
 		Message: "Token generated successfully",
-		Token:   token,
+		Token:   token.Encode(),
 		KeyID:   keyId,
 		TTL:     ttl,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 
-	err := json.NewEncoder(w).Encode(resp)
+	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
 		slog.Error("Failed to encode response", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 	slog.Info("Token generated successfully", "key_id", keyId, "ttl", ttl)
 }

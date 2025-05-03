@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type mockResponseWriter struct {
@@ -50,9 +52,10 @@ func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
 }
 
 func TestGenerateTokenHandler(t *testing.T) {
+	auth := NewMockAuthRepo(t)
 	api := New(Config{
 		DefaultTokenExpiry: 3600, // 1 hour
-	}, nil)
+	}, auth)
 
 	t.Run("Invalid Request Payload", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer([]byte("invalid json")))
@@ -64,7 +67,12 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.Contains(t, rec.Body.String(), "Bad Request")
 	})
 
-	t.Run("Missing KeyID", func(t *testing.T) {
+	t.Run("Missing KeyID still generates the token", func(t *testing.T) {
+		auth.EXPECT().GenerateToken(mock.Anything, mock.Anything, time.Hour).Return(&token.Token{
+			ID:     "random-key-id",
+			Secret: "test-token",
+		}, nil).Once()
+
 		requestBody := GenerateTokenRequest{
 			TTL: 3600,
 		}
@@ -86,9 +94,14 @@ func TestGenerateTokenHandler(t *testing.T) {
 	})
 
 	t.Run("Valid Request with KeyID", func(t *testing.T) {
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", time.Hour).Return(&token.Token{
+			ID:     "test-key-id",
+			Secret: "test-token",
+		}, nil).Once()
+
 		requestBody := GenerateTokenRequest{
 			KeyID: "test-key-id",
-			TTL:   3601,
+			TTL:   3600,
 		}
 		body, _ := json.Marshal(requestBody)
 		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
@@ -104,7 +117,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.True(t, response.Success)
 		assert.Equal(t, "test-key-id", response.KeyID)
 		assert.NotEmpty(t, response.Token)
-		assert.Equal(t, uint(3601), response.TTL)
+		assert.Equal(t, uint(3600), response.TTL)
 	})
 
 	t.Run("Invalid TTL", func(t *testing.T) {

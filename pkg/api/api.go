@@ -139,7 +139,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusOK)
 		err = json.NewEncoder(w).Encode(resp)
 
 		if err != nil {

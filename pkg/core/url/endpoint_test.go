@@ -10,14 +10,14 @@ import (
 
 func TestNewEndpointGenerator(t *testing.T) {
 	tests := []struct {
+		wantInitErr error
+		wantFuncErr error
 		name        string
 		schema      string
 		domain      string
 		keyID       string
 		want        string
 		port        int
-		wantInitErr error
-		wantFuncErr error
 	}{
 		{
 			name:        "valid input",
@@ -81,8 +81,10 @@ func TestNewEndpointGenerator(t *testing.T) {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, tt.wantInitErr.Error())
 				assert.Nil(t, generator)
+
 				return
 			}
+
 			require.NoError(t, err)
 			require.NotNil(t, generator)
 
@@ -93,8 +95,10 @@ func TestNewEndpointGenerator(t *testing.T) {
 			if tt.wantFuncErr != nil {
 				assert.Error(t, funcErr)
 				assert.ErrorContains(t, funcErr, tt.wantFuncErr.Error())
+
 				return
 			}
+
 			assert.NoError(t, funcErr)
 			assert.Equal(t, tt.want, result)
 		})

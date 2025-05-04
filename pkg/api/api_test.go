@@ -90,7 +90,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.True(t, response.Success)
 		assert.NotEmpty(t, response.KeyID)
 		assert.NotEmpty(t, response.Token)
-		assert.Equal(t, uint(3600), response.TTL)
+		assert.Equal(t, int64(3600), response.TTL)
 	})
 
 	t.Run("Valid Request with KeyID", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.True(t, response.Success)
 		assert.Equal(t, "test-key-id", response.KeyID)
 		assert.NotEmpty(t, response.Token)
-		assert.Equal(t, uint(3600), response.TTL)
+		assert.Equal(t, int64(3600), response.TTL)
 	})
 
 	t.Run("Invalid TTL", func(t *testing.T) {

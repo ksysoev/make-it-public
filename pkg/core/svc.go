@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
+	"github.com/ksysoev/make-it-public/pkg/core/conn/meta"
 	"github.com/ksysoev/revdial/proto"
 	"golang.org/x/sync/errgroup"
 )
@@ -28,23 +29,31 @@ type AuthRepo interface {
 }
 
 type ConnManager interface {
-	RequestConnection(ctx context.Context, userID string) (conn.Request, error)
-	AddConnection(user string, conn ControlConn)
+	RequestConnection(ctx context.Context, keyID string) (conn.Request, error)
+	AddConnection(keyID string, conn ControlConn)
 	ResolveRequest(id uuid.UUID, conn net.Conn)
-	RemoveConnection(user string, id uuid.UUID)
+	RemoveConnection(keyID string, id uuid.UUID)
 	CancelRequest(id uuid.UUID)
 }
 
 type Service struct {
-	connmng ConnManager
-	auth    AuthRepo
+	connmng           ConnManager
+	auth              AuthRepo
+	endpointGenerator func(string) (string, error)
 }
 
 func New(connmng ConnManager, auth AuthRepo) *Service {
 	return &Service{
 		connmng: connmng,
 		auth:    auth,
+		endpointGenerator: func(_ string) (string, error) {
+			return "", fmt.Errorf("endpoint generator is not set")
+		},
 	}
+}
+
+func (s *Service) SetEndpointGenerator(generator func(string) (string, error)) {
+	s.endpointGenerator = generator
 }
 
 func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error {
@@ -72,6 +81,15 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	switch servConn.State() {
 	case proto.StateRegistered:
 		srvConn := conn.NewServerConn(ctx, servConn)
+
+		url, err := s.endpointGenerator(connKeyID)
+		if err != nil {
+			return fmt.Errorf("failed to generate endpoint: %w", err)
+		}
+
+		if err := srvConn.SendURLToConnectUpdatedEvent(url); err != nil {
+			return fmt.Errorf("failed to send url to connect updated event: %w", err)
+		}
 
 		s.connmng.AddConnection(connKeyID, srvConn)
 
@@ -106,11 +124,11 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	}
 }
 
-func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, cliConn net.Conn, write func(net.Conn) error) error {
+func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliConn net.Conn, write func(net.Conn) error, clientIP string) error {
 	slog.DebugContext(ctx, "new HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 	defer slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 
-	req, err := s.connmng.RequestConnection(ctx, userID)
+	req, err := s.connmng.RequestConnection(ctx, keyID)
 	if err != nil {
 		return fmt.Errorf("failed to request connection: %w", ErrFailedToConnect)
 	}
@@ -122,6 +140,12 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, cliCo
 	}
 
 	slog.DebugContext(ctx, "connection received", slog.Any("remote", cliConn.RemoteAddr()))
+
+	if err := meta.WriteData(revConn, &meta.ClientConnMeta{IP: clientIP}); err != nil {
+		slog.DebugContext(ctx, "failed to write client connection meta", slog.Any("error", err))
+
+		return fmt.Errorf("failed to write client connection meta: %w", ErrFailedToConnect)
+	}
 
 	// Write initial request data
 	if err := write(revConn); err != nil {

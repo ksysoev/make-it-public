@@ -35,6 +35,11 @@ func RunServerCommand(ctx context.Context, args *args) error {
 	httpServ := edge.New(cfg.HTTP, connService)
 	apiServ := api.New(cfg.API, authRepo)
 
+	httpServ, err := edge.New(cfg.HTTP, connService)
+	if err != nil {
+		return fmt.Errorf("failed to create http server: %w", err)
+	}
+
 	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen, "api", cfg.API.Listen)
 
 	eg, ctx := errgroup.WithContext(ctx)

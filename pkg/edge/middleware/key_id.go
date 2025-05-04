@@ -15,7 +15,8 @@ type keyIDKeyType struct{}
 func ParseKeyID(domainPostfix string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !strings.HasSuffix(r.Host, domainPostfix) {
+			host := strings.Split(r.Host, ":")[0]
+			if !strings.HasSuffix(host, domainPostfix) {
 				http.NotFound(w, r)
 				return
 			}

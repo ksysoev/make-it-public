@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core/conn/meta"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/ksysoev/revdial"
 	"golang.org/x/sync/errgroup"
@@ -37,7 +38,20 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to create auth option: %w", err)
 	}
 
-	listener, err := revdial.Listen(ctx, s.serverAddr, authOpt)
+	onConnect, err := revdial.WithEventHandler("urlToConnectUpdated", func(event revdial.Event) {
+		var url string
+		if err := event.ParsePayload(&url); err != nil {
+			slog.ErrorContext(ctx, "failed to parse payload for event urlToConnectUpdated", "error", err)
+		}
+
+		slog.InfoContext(ctx, "Client url to connect", "url", url)
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create event handler: %w", err)
+	}
+
+	listener, err := revdial.Listen(ctx, s.serverAddr, authOpt, onConnect)
 	if err != nil {
 		return err
 	}
@@ -77,6 +91,15 @@ func (s *ClientServer) listenAndServe(ctx context.Context, listener net.Listener
 
 func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 	defer func() { _ = conn.Close() }()
+
+	var connMeta meta.ClientConnMeta
+	if err := meta.ReadData(conn, &connMeta); err != nil {
+		slog.ErrorContext(ctx, "failed to read connection metadata", "error", err)
+		return
+	}
+
+	slog.InfoContext(ctx, "new incoming connection", "clientIP", connMeta.IP)
+	defer slog.InfoContext(ctx, "closing connection", "clientIP", connMeta.IP)
 
 	d := net.Dialer{
 		Timeout: 5 * time.Second,

@@ -37,15 +37,23 @@ type ConnManager interface {
 }
 
 type Service struct {
-	connmng ConnManager
-	auth    AuthRepo
+	connmng           ConnManager
+	auth              AuthRepo
+	endpointGenerator func(string) (string, error)
 }
 
 func New(connmng ConnManager, auth AuthRepo) *Service {
 	return &Service{
 		connmng: connmng,
 		auth:    auth,
+		endpointGenerator: func(_ string) (string, error) {
+			return "", fmt.Errorf("endpoint generator is not set")
+		},
 	}
+}
+
+func (s *Service) SetEndpointGenerator(generator func(string) (string, error)) {
+	s.endpointGenerator = generator
 }
 
 func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error {
@@ -74,8 +82,12 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	case proto.StateRegistered:
 		srvConn := conn.NewServerConn(ctx, servConn)
 
-		err := srvConn.SendURLToConnectUpdatedEvent(connKeyID)
+		url, err := s.endpointGenerator(connKeyID)
 		if err != nil {
+			return fmt.Errorf("failed to generate endpoint: %w", err)
+		}
+
+		if err := srvConn.SendURLToConnectUpdatedEvent(url); err != nil {
 			return fmt.Errorf("failed to send url to connect updated event: %w", err)
 		}
 

@@ -16,16 +16,16 @@ import (
 
 type Config struct {
 	Listen             string `mapstructure:"listen"`
-	DefaultTokenExpiry uint   `mapstructure:"token_expiry"`
+	DefaultTokenExpiry int64  `mapstructure:"token_expiry"`
 }
 
 type API struct {
-	config Config
 	auth   AuthRepo
+	config Config
 }
 
 type AuthRepo interface {
-	GenerateToken(ctx context.Context, keyId string, ttl time.Duration) (*token.Token, error)
+	GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error)
 }
 
 type Endpoint string
@@ -99,9 +99,9 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyId := generateTokenRequest.KeyID
-	if keyId == "" {
-		keyId = generateKeyIdForRequest()
+	keyID := generateTokenRequest.KeyID
+	if keyID == "" {
+		keyID = generateKeyIDForRequest()
 	}
 
 	ttl := generateTokenRequest.TTL
@@ -129,10 +129,11 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := api.auth.GenerateToken(r.Context(), keyId, time.Second*time.Duration(ttl))
+	generatedToken, err := api.auth.GenerateToken(r.Context(), keyID, time.Second*time.Duration(ttl))
 
 	if err != nil {
 		slog.Error("Failed to generate token", "error", err)
+
 		resp := GenerateTokenResponse{
 			Success: false,
 			Message: "Failed to generate token",
@@ -155,8 +156,8 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	resp := GenerateTokenResponse{
 		Success: true,
 		Message: "Token generated successfully",
-		Token:   token.Encode(),
-		KeyID:   keyId,
+		Token:   generatedToken.Encode(),
+		KeyID:   keyID,
 		TTL:     ttl,
 	}
 
@@ -171,11 +172,11 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	slog.Info("Token generated successfully", "key_id", keyId, "ttl", ttl)
+	slog.Info("Token generated successfully", "key_id", keyID, "ttl", ttl)
 }
 
-// generateKeyIdForRequest generates a unique key ID for the request.
+// generateKeyIDForRequest generates a unique key ID for the request.
 // It uses a UUID to ensure uniqueness and returns it as a string.
-func generateKeyIdForRequest() string {
+func generateKeyIDForRequest() string {
 	return uuid.New().String()
 }

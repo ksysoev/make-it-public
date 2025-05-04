@@ -17,9 +17,6 @@ Service for publishing services that are hidden behind NAT
    - [pkg/revclient](#pkgrevclient)
    - [pkg/revproxy](#pkgrevproxy)
 4. [Configuration](#configuration)
-5. [Usage](#usage)
-6. [Development](#development)
-7. [License](#license)
 
 ---
 
@@ -134,11 +131,17 @@ The project uses a YAML configuration file to define server settings. The defaul
 
 ```yaml
 http:
-  listen: ":8080"
+   public:
+      schema: "http"
+      domain: "makeitpublic.com"
+      port: 8080
+   listen: ":8080"
 reverse_proxy:
-  listen: ":8081"
+   listen: ":8081"
+api:
+   listen: ":8082"
 auth:
-  users:
-    user1: test
-    user2: test
+   redis_addr: "localhost:6379"
+   redis_password: ""
+   key_prefix: "MIT::AUTH::"
 ```

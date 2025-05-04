@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/google/uuid v1.6.0
-	github.com/ksysoev/revdial v0.3.2
+	github.com/ksysoev/revdial v0.4.0
 	github.com/mileusna/useragent v1.3.5
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/spf13/cobra v1.9.1

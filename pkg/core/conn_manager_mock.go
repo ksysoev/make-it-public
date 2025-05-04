@@ -29,9 +29,9 @@ func (_m *MockConnManager) EXPECT() *MockConnManager_Expecter {
 	return &MockConnManager_Expecter{mock: &_m.Mock}
 }
 
-// AddConnection provides a mock function with given fields: user, _a1
-func (_m *MockConnManager) AddConnection(user string, _a1 ControlConn) {
-	_m.Called(user, _a1)
+// AddConnection provides a mock function with given fields: keyID, _a1
+func (_m *MockConnManager) AddConnection(keyID string, _a1 ControlConn) {
+	_m.Called(keyID, _a1)
 }
 
 // MockConnManager_AddConnection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddConnection'
@@ -40,13 +40,13 @@ type MockConnManager_AddConnection_Call struct {
 }
 
 // AddConnection is a helper method to define mock.On call
-//   - user string
+//   - keyID string
 //   - _a1 ControlConn
-func (_e *MockConnManager_Expecter) AddConnection(user interface{}, _a1 interface{}) *MockConnManager_AddConnection_Call {
-	return &MockConnManager_AddConnection_Call{Call: _e.mock.On("AddConnection", user, _a1)}
+func (_e *MockConnManager_Expecter) AddConnection(keyID interface{}, _a1 interface{}) *MockConnManager_AddConnection_Call {
+	return &MockConnManager_AddConnection_Call{Call: _e.mock.On("AddConnection", keyID, _a1)}
 }
 
-func (_c *MockConnManager_AddConnection_Call) Run(run func(user string, _a1 ControlConn)) *MockConnManager_AddConnection_Call {
+func (_c *MockConnManager_AddConnection_Call) Run(run func(keyID string, _a1 ControlConn)) *MockConnManager_AddConnection_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string), args[1].(ControlConn))
 	})
@@ -96,9 +96,9 @@ func (_c *MockConnManager_CancelRequest_Call) RunAndReturn(run func(uuid.UUID)) 
 	return _c
 }
 
-// RemoveConnection provides a mock function with given fields: user, id
-func (_m *MockConnManager) RemoveConnection(user string, id uuid.UUID) {
-	_m.Called(user, id)
+// RemoveConnection provides a mock function with given fields: keyID, id
+func (_m *MockConnManager) RemoveConnection(keyID string, id uuid.UUID) {
+	_m.Called(keyID, id)
 }
 
 // MockConnManager_RemoveConnection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveConnection'
@@ -107,13 +107,13 @@ type MockConnManager_RemoveConnection_Call struct {
 }
 
 // RemoveConnection is a helper method to define mock.On call
-//   - user string
+//   - keyID string
 //   - id uuid.UUID
-func (_e *MockConnManager_Expecter) RemoveConnection(user interface{}, id interface{}) *MockConnManager_RemoveConnection_Call {
-	return &MockConnManager_RemoveConnection_Call{Call: _e.mock.On("RemoveConnection", user, id)}
+func (_e *MockConnManager_Expecter) RemoveConnection(keyID interface{}, id interface{}) *MockConnManager_RemoveConnection_Call {
+	return &MockConnManager_RemoveConnection_Call{Call: _e.mock.On("RemoveConnection", keyID, id)}
 }
 
-func (_c *MockConnManager_RemoveConnection_Call) Run(run func(user string, id uuid.UUID)) *MockConnManager_RemoveConnection_Call {
+func (_c *MockConnManager_RemoveConnection_Call) Run(run func(keyID string, id uuid.UUID)) *MockConnManager_RemoveConnection_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string), args[1].(uuid.UUID))
 	})
@@ -130,9 +130,9 @@ func (_c *MockConnManager_RemoveConnection_Call) RunAndReturn(run func(string, u
 	return _c
 }
 
-// RequestConnection provides a mock function with given fields: ctx, userID
-func (_m *MockConnManager) RequestConnection(ctx context.Context, userID string) (conn.Request, error) {
-	ret := _m.Called(ctx, userID)
+// RequestConnection provides a mock function with given fields: ctx, keyID
+func (_m *MockConnManager) RequestConnection(ctx context.Context, keyID string) (conn.Request, error) {
+	ret := _m.Called(ctx, keyID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RequestConnection")
@@ -141,10 +141,10 @@ func (_m *MockConnManager) RequestConnection(ctx context.Context, userID string)
 	var r0 conn.Request
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) (conn.Request, error)); ok {
-		return rf(ctx, userID)
+		return rf(ctx, keyID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) conn.Request); ok {
-		r0 = rf(ctx, userID)
+		r0 = rf(ctx, keyID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(conn.Request)
@@ -152,7 +152,7 @@ func (_m *MockConnManager) RequestConnection(ctx context.Context, userID string)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, userID)
+		r1 = rf(ctx, keyID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -167,12 +167,12 @@ type MockConnManager_RequestConnection_Call struct {
 
 // RequestConnection is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID string
-func (_e *MockConnManager_Expecter) RequestConnection(ctx interface{}, userID interface{}) *MockConnManager_RequestConnection_Call {
-	return &MockConnManager_RequestConnection_Call{Call: _e.mock.On("RequestConnection", ctx, userID)}
+//   - keyID string
+func (_e *MockConnManager_Expecter) RequestConnection(ctx interface{}, keyID interface{}) *MockConnManager_RequestConnection_Call {
+	return &MockConnManager_RequestConnection_Call{Call: _e.mock.On("RequestConnection", ctx, keyID)}
 }
 
-func (_c *MockConnManager_RequestConnection_Call) Run(run func(ctx context.Context, userID string)) *MockConnManager_RequestConnection_Call {
+func (_c *MockConnManager_RequestConnection_Call) Run(run func(ctx context.Context, keyID string)) *MockConnManager_RequestConnection_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})

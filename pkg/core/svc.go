@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
+	"github.com/ksysoev/make-it-public/pkg/core/conn/meta"
 	"github.com/ksysoev/revdial/proto"
 	"golang.org/x/sync/errgroup"
 )
@@ -111,7 +112,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	}
 }
 
-func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliConn net.Conn, write func(net.Conn) error) error {
+func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliConn net.Conn, write func(net.Conn) error, clientIP string) error {
 	slog.DebugContext(ctx, "new HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 	defer slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 
@@ -127,6 +128,12 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	}
 
 	slog.DebugContext(ctx, "connection received", slog.Any("remote", cliConn.RemoteAddr()))
+
+	if err := meta.WriteData(revConn, &meta.ClientConnMeta{IP: clientIP}); err != nil {
+		slog.DebugContext(ctx, "failed to write client connection meta", slog.Any("error", err))
+
+		return fmt.Errorf("failed to write client connection meta: %w", ErrFailedToConnect)
+	}
 
 	// Write initial request data
 	if err := write(revConn); err != nil {

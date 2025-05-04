@@ -7,6 +7,10 @@ import (
 	"io"
 )
 
+type ClientConnMeta struct {
+	IP string `json:"ip"`
+}
+
 const maxDataSize = 65535 // Maximum size for uint16
 
 // WriteData serializes data to JSON and writes it to the provided writer.

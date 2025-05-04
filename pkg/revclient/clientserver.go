@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core/conn/meta"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/ksysoev/revdial"
 	"golang.org/x/sync/errgroup"
@@ -86,6 +87,15 @@ func (s *ClientServer) listenAndServe(ctx context.Context, listener net.Listener
 
 func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 	defer func() { _ = conn.Close() }()
+
+	var connMeta meta.ClientConnMeta
+	if err := meta.ReadData(conn, &connMeta); err != nil {
+		slog.ErrorContext(ctx, "failed to read connection metadata", "error", err)
+		return
+	}
+
+	slog.InfoContext(ctx, "new incoming connection", "clientIP", connMeta.IP)
+	defer slog.InfoContext(ctx, "closing connection", "clientIP", connMeta.IP)
 
 	d := net.Dialer{
 		Timeout: 5 * time.Second,

@@ -15,7 +15,7 @@ import (
 )
 
 type ConnService interface {
-	HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error) error
+	HandleHTTPConnection(ctx context.Context, keyID string, conn net.Conn, write func(net.Conn) error, clientIP string) error
 }
 
 type HTTPServer struct {
@@ -97,10 +97,11 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = clientConn.Close() }()
 
 	keyID := middleware.GetKeyID(r)
+	clientIP := middleware.GetClientIP(r)
 
 	err = s.connService.HandleHTTPConnection(ctx, keyID, clientConn, func(conn net.Conn) error {
 		return r.Write(conn)
-	})
+	}, clientIP)
 
 	switch {
 	case errors.Is(err, core.ErrFailedToConnect):

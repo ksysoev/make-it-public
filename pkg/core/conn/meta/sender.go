@@ -22,12 +22,13 @@ func WriteData(w io.Writer, data interface{}) error {
 		return fmt.Errorf("failed to marshal data to JSON: %w", err)
 	}
 
-	if len(jsonData) > maxDataSize {
+	dataLen := len(jsonData)
+	if dataLen > maxDataSize {
 		return fmt.Errorf("data length exceeds maximum allowed size (65535 bytes)")
 	}
 
 	lenBuf := make([]byte, 2) // uint16 is 2 bytes
-	binary.BigEndian.PutUint16(lenBuf, uint16(len(jsonData)))
+	binary.BigEndian.PutUint16(lenBuf, uint16(dataLen))
 
 	if _, err := w.Write(lenBuf); err != nil {
 		return fmt.Errorf("failed to write data length: %w", err)

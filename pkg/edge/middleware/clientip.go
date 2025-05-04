@@ -34,6 +34,7 @@ func GetClientIP(r *http.Request) string {
 	if clientIP, ok := r.Context().Value(clientIPKeyType{}).(string); ok {
 		return clientIP
 	}
+
 	return ""
 }
 

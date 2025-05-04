@@ -74,7 +74,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	case proto.StateRegistered:
 		srvConn := conn.NewServerConn(ctx, servConn)
 
-		err := srvConn.SendUrlToConnectUpdatedEvent(connKeyID)
+		err := srvConn.SendURLToConnectUpdatedEvent(connKeyID)
 		if err != nil {
 			return fmt.Errorf("failed to send url to connect updated event: %w", err)
 		}

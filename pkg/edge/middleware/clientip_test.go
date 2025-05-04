@@ -74,8 +74,10 @@ func TestClientIP(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a test handler that will check the client IP
 			var capturedIP string
+
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				capturedIP = GetClientIP(r)
+
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -84,7 +86,7 @@ func TestClientIP(t *testing.T) {
 			handler := middleware(testHandler)
 
 			// Create a test request
-			req := httptest.NewRequest("GET", "http://example.com", nil)
+			req := httptest.NewRequest("GET", "http://example.com", http.NoBody)
 			req.RemoteAddr = tt.remoteAddr
 
 			// Add headers
@@ -162,7 +164,7 @@ func TestExtractClientIP(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a test request
-			req := httptest.NewRequest("GET", "http://example.com", nil)
+			req := httptest.NewRequest("GET", "http://example.com", http.NoBody)
 			req.RemoteAddr = tt.remoteAddr
 
 			// Add headers

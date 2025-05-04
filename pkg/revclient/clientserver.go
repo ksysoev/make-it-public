@@ -47,6 +47,10 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		slog.InfoContext(ctx, "Client url to connect", "url", url)
 	})
 
+	if err != nil {
+		return fmt.Errorf("failed to create event handler: %w", err)
+	}
+
 	listener, err := revdial.Listen(ctx, s.serverAddr, authOpt, onConnect)
 	if err != nil {
 		return err

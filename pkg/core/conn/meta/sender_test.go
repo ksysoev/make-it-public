@@ -8,8 +8,8 @@ import (
 func TestWriteAndReadData(t *testing.T) {
 	// Test cases with different data types
 	testCases := []struct {
-		name string
 		data interface{}
+		name string
 	}{
 		{
 			name: "string",
@@ -67,6 +67,7 @@ func TestWriteAndReadData(t *testing.T) {
 			// Read data from the buffer
 			var result interface{}
 			err = ReadData(&buf, &result)
+
 			if err != nil {
 				t.Fatalf("ReadData failed: %v", err)
 			}

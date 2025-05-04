@@ -86,6 +86,6 @@ func (r *ControlConn) Ping() error {
 	return nil
 }
 
-func (r *ControlConn) SendUrlToConnectUpdatedEvent(url string) error {
+func (r *ControlConn) SendURLToConnectUpdatedEvent(url string) error {
 	return r.conn.SendCustomEvent("urlToConnectUpdated", url)
 }

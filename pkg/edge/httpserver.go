@@ -45,6 +45,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		middleware.NewFishingProtection(),
 		middleware.ParseKeyID(s.config.Domain),
 		middleware.LimitConnections(cmp.Or(s.config.ConnLimit, defaultConnLimitPerKeyID)),
+		middleware.ClientIP(),
 	)
 
 	var handler http.Handler = s

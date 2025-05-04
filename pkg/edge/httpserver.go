@@ -30,11 +30,11 @@ const defaultConnLimitPerKeyID = 4
 
 type Config struct {
 	Listen    string               `mapstructure:"listen"`
-	Public    PublicEndpoingConfig `mapstructure:"public"`
+	Public    PublicEndpointConfig `mapstructure:"public"`
 	ConnLimit int                  `mapstructure:"conn_limit"`
 }
 
-type PublicEndpoingConfig struct {
+type PublicEndpointConfig struct {
 	Schema string `mapstructure:"schema"`
 	Domain string `mapstructure:"domain"`
 	Port   int    `mapstructure:"port"`

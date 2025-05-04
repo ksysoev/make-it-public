@@ -142,6 +142,28 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.False(t, response.Success)
 		assert.Contains(t, response.Message, "TTL must be greater than 0")
 	})
+
+	t.Run("Token Generation Error", func(t *testing.T) {
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", time.Hour).Return(nil, errors.New("token generation error")).Once()
+
+		requestBody := GenerateTokenRequest{
+			KeyID: "test-key-id",
+			TTL:   3600,
+		}
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var response GenerateTokenResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+
+		assert.NoError(t, err)
+		assert.False(t, response.Success)
+		assert.Equal(t, response.Message, "Failed to generate token")
+	})
 }
 
 func TestAPIRun(t *testing.T) {

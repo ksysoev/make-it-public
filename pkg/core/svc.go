@@ -28,10 +28,10 @@ type AuthRepo interface {
 }
 
 type ConnManager interface {
-	RequestConnection(ctx context.Context, userID string) (conn.Request, error)
-	AddConnection(user string, conn ControlConn)
+	RequestConnection(ctx context.Context, keyID string) (conn.Request, error)
+	AddConnection(keyID string, conn ControlConn)
 	ResolveRequest(id uuid.UUID, conn net.Conn)
-	RemoveConnection(user string, id uuid.UUID)
+	RemoveConnection(keyID string, id uuid.UUID)
 	CancelRequest(id uuid.UUID)
 }
 
@@ -111,11 +111,11 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	}
 }
 
-func (s *Service) HandleHTTPConnection(ctx context.Context, userID string, cliConn net.Conn, write func(net.Conn) error) error {
+func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliConn net.Conn, write func(net.Conn) error) error {
 	slog.DebugContext(ctx, "new HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 	defer slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 
-	req, err := s.connmng.RequestConnection(ctx, userID)
+	req, err := s.connmng.RequestConnection(ctx, keyID)
 	if err != nil {
 		return fmt.Errorf("failed to request connection: %w", ErrFailedToConnect)
 	}

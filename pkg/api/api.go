@@ -20,7 +20,7 @@ const (
 
 type Config struct {
 	Listen             string `mapstructure:"listen"`
-	DefaultTokenExpiry int64  `mapstructure:"token_expiry"`
+	DefaultTokenExpiry int64  `mapstructure:"defaultTokenExpiry"`
 }
 
 type API struct {
@@ -75,7 +75,7 @@ func (api *API) Run(ctx context.Context) error {
 
 // healthCheckHandler returns the API status.
 // This handler can be later modified to cross check required resources
-func (api *API) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
+func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{"status": "healthy"}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -83,7 +83,7 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
 	err := json.NewEncoder(w).Encode(resp)
 
 	if err != nil {
-		slog.Error("Failed to encode response", "error", err)
+		slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 		return
@@ -97,7 +97,7 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
 func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var generateTokenRequest GenerateTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&generateTokenRequest); err != nil {
-		slog.Error("Failed to decode request", "error", err)
+		slog.ErrorContext(r.Context(), "Failed to decode request", "error", err)
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 
 		return
@@ -111,7 +111,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	generatedToken, err := api.auth.GenerateToken(r.Context(), keyID, time.Second*time.Duration(ttl))
 
 	if err != nil {
-		slog.Error("Failed to generate token", "error", err)
+		slog.ErrorContext(r.Context(), "Failed to generate token", "error", err)
 
 		resp := GenerateTokenResponse{
 			Success: false,
@@ -123,7 +123,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		err = json.NewEncoder(w).Encode(resp)
 
 		if err != nil {
-			slog.Error("Failed to encode response", "error", err)
+			slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 			return
@@ -144,7 +144,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
-		slog.Error("Failed to encode response", "error", err)
+		slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 		return

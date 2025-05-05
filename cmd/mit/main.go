@@ -7,18 +7,19 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ksysoev/make-it-public/pkg/cmd/client"
+	"github.com/ksysoev/make-it-public/pkg/cmd"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-	cmd := client.InitCommand()
+	command := cmd.InitCommand()
 
-	err := cmd.ExecuteContext(ctx)
+	err := command.ExecuteContext(ctx)
 	if err != nil {
 		fmt.Println(err)
 		cancel()
+
 		os.Exit(1)
 	}
 

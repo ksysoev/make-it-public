@@ -1,4 +1,4 @@
-package server
+package cmd
 
 import (
 	"github.com/spf13/cobra"
@@ -9,6 +9,10 @@ type args struct {
 	logLevel   string
 	version    string
 	textFormat bool
+	// client args
+	server string
+	expose string
+	token  string
 }
 
 // InitCommand creates and initializes the root command for the Make It Public server CLI application.
@@ -18,17 +22,38 @@ func InitCommand() cobra.Command {
 	arg := args{}
 
 	cmd := cobra.Command{
-		Use:   "mitserver",
-		Short: "Make It Public server",
-		Long:  "Make It Public server is a reverse proxy server that allows you to expose your local services to the internet.",
+		Use:   "mit",
+		Short: "Make It Public",
+		Long:  "",
 	}
 
-	cmd.AddCommand(InitServeCommand(&arg))
-	cmd.AddCommand(InitTokenCommand(&arg))
+	serverCmd := cobra.Command{
+		Use:   "server",
+		Short: "Make It Public server",
+		Long:  "",
+	}
 
-	cmd.PersistentFlags().StringVar(&arg.configPath, "config", "runtime/config.yaml", "config path")
-	cmd.PersistentFlags().StringVar(&arg.logLevel, "log-level", "info", "log level (debug, info, warn, error)")
-	cmd.PersistentFlags().BoolVar(&arg.textFormat, "log-text", false, "log in text format, otherwise JSON")
+	clientCmd := cobra.Command{
+		Use:   "revclient",
+		Short: "Run revclient",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return RunClientCommand(cmd.Context(), &arg)
+		},
+	}
+
+	cmd.AddCommand(&serverCmd)
+	cmd.AddCommand(&clientCmd)
+
+	serverCmd.AddCommand(InitServeCommand(&arg))
+	serverCmd.AddCommand(InitTokenCommand(&arg))
+
+	serverCmd.PersistentFlags().StringVar(&arg.configPath, "config", "runtime/config.yaml", "config path")
+	serverCmd.PersistentFlags().StringVar(&arg.logLevel, "log-level", "info", "log level (debug, info, warn, error)")
+	serverCmd.PersistentFlags().BoolVar(&arg.textFormat, "log-text", false, "log in text format, otherwise JSON")
+
+	clientCmd.Flags().StringVar(&arg.server, "server", "localhost:8081", "server address")
+	clientCmd.Flags().StringVar(&arg.expose, "expose", "localhost:80", "expose service")
+	clientCmd.Flags().StringVar(&arg.token, "token", "", "token")
 
 	return cmd
 }

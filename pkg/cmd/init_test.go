@@ -10,13 +10,13 @@ import (
 func TestInitCommand(t *testing.T) {
 	cmd := InitCommand()
 
-	assert.Equal(t, "mitserver", cmd.Use)
+	assert.Equal(t, "mit", cmd.Use)
 	assert.Contains(t, cmd.Short, "Make It Public")
-	assert.Contains(t, cmd.Long, "reverse proxy server")
+	assert.Equal(t, "", cmd.Long)
 
 	require.Len(t, cmd.Commands(), 2)
-	assert.Equal(t, "serve", cmd.Commands()[0].Use)
-	assert.Equal(t, "token", cmd.Commands()[1].Use)
+	assert.Equal(t, "revclient", cmd.Commands()[0].Use)
+	assert.Equal(t, "server", cmd.Commands()[1].Use)
 }
 
 func TestInitServeCommand(t *testing.T) {

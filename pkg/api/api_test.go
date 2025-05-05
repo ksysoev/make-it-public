@@ -125,6 +125,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 			ID:     "test-key-id",
 			Secret: "test-token",
 		}, nil).Once()
+
 		requestBody := GenerateTokenRequest{
 			KeyID: "test-key-id",
 			TTL:   0,

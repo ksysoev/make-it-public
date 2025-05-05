@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DEFAULT_TTL_SECONDS = int64(3600) // 1 hour
+	DefaultTTLSeconds = int64(3600) // 1 hour
 )
 
 type Config struct {
@@ -106,7 +106,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	keyID := generateTokenRequest.KeyID
 	ttl := cmp.Or(generateTokenRequest.TTL, api.config.DefaultTokenExpiry)
 
-	ttl = cmp.Or(ttl, DEFAULT_TTL_SECONDS)
+	ttl = cmp.Or(ttl, DefaultTTLSeconds)
 
 	generatedToken, err := api.auth.GenerateToken(r.Context(), keyID, time.Second*time.Duration(ttl))
 

@@ -5,14 +5,16 @@ import (
 )
 
 type args struct {
-	configPath string
-	logLevel   string
-	version    string
-	textFormat bool
 	// client args
 	server string
 	expose string
 	token  string
+
+	// server args
+	configPath string
+	logLevel   string
+	version    string
+	textFormat bool
 }
 
 // InitCommand creates and initializes the root command for the Make It Public server CLI application.

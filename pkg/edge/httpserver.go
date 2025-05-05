@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -11,11 +12,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core"
+	"github.com/ksysoev/make-it-public/pkg/core/url"
 	"github.com/ksysoev/make-it-public/pkg/edge/middleware"
 )
 
 type ConnService interface {
-	HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error) error
+	HandleHTTPConnection(ctx context.Context, keyID string, conn net.Conn, write func(net.Conn) error, clientIP string) error
+	SetEndpointGenerator(generator func(string) (string, error))
 }
 
 type HTTPServer struct {
@@ -26,16 +29,29 @@ type HTTPServer struct {
 const defaultConnLimitPerKeyID = 4
 
 type Config struct {
-	Listen    string `mapstructure:"listen"`
-	Domain    string `mapstructure:"domain"`
-	ConnLimit int    `mapstructure:"conn_limit"`
+	Listen    string               `mapstructure:"listen"`
+	Public    PublicEndpointConfig `mapstructure:"public"`
+	ConnLimit int                  `mapstructure:"conn_limit"`
 }
 
-func New(cfg Config, connService ConnService) *HTTPServer {
+type PublicEndpointConfig struct {
+	Schema string `mapstructure:"schema"`
+	Domain string `mapstructure:"domain"`
+	Port   int    `mapstructure:"port"`
+}
+
+func New(cfg Config, connService ConnService) (*HTTPServer, error) {
+	generator, err := url.NewEndpointGenerator(cfg.Public.Schema, cfg.Public.Domain, cfg.Public.Port)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create endpoint generator: %w", err)
+	}
+
+	connService.SetEndpointGenerator(generator)
+
 	return &HTTPServer{
 		config:      cfg,
 		connService: connService,
-	}
+	}, nil
 }
 
 func (s *HTTPServer) Run(ctx context.Context) error {
@@ -43,8 +59,9 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 
 	mw = append(mw,
 		middleware.NewFishingProtection(),
-		middleware.ParseKeyID(s.config.Domain),
+		middleware.ParseKeyID(s.config.Public.Domain),
 		middleware.LimitConnections(cmp.Or(s.config.ConnLimit, defaultConnLimitPerKeyID)),
+		middleware.ClientIP(),
 	)
 
 	var handler http.Handler = s
@@ -96,10 +113,11 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = clientConn.Close() }()
 
 	keyID := middleware.GetKeyID(r)
+	clientIP := middleware.GetClientIP(r)
 
 	err = s.connService.HandleHTTPConnection(ctx, keyID, clientConn, func(conn net.Conn) error {
 		return r.Write(conn)
-	})
+	}, clientIP)
 
 	switch {
 	case errors.Is(err, core.ErrFailedToConnect):

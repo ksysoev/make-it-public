@@ -34,9 +34,9 @@ func New() *ConnManager {
 }
 
 // AddConnection adds a server connection to the user's connection pool.
-// It takes a user parameter of type string and a conn parameter of type *proto.Server.
+// It takes a user parameter of type string and a controlConn parameter of type core.ControlConn.
 // It does not return any value and ensures thread-safe access.
-func (cm *ConnManager) AddConnection(keyID string, conn core.ControlConn) {
+func (cm *ConnManager) AddConnection(keyID string, controlConn core.ControlConn) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -44,7 +44,7 @@ func (cm *ConnManager) AddConnection(keyID string, conn core.ControlConn) {
 		_ = oldConn.Close()
 	}
 
-	cm.conns[keyID] = conn
+	cm.conns[keyID] = controlConn
 }
 
 // RemoveConnection removes a connection associated with a specific user by its unique ID.
@@ -93,9 +93,9 @@ func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (con
 }
 
 // ResolveRequest resolves a pending connection request by sending the provided connection to the request's channel.
-// It takes an id parameter of type uuid.UUID and a conn parameter of type net.Conn.
+// It takes an id parameter of type uuid.UUID and a netConn parameter of type net.Conn.
 // If the request is not found or its context is canceled, the connection is closed and no further actions are taken.
-func (cm *ConnManager) ResolveRequest(id uuid.UUID, conn net.Conn) {
+func (cm *ConnManager) ResolveRequest(id uuid.UUID, netConn net.Conn) {
 	cm.mu.Lock()
 	r, ok := cm.requests[id]
 	delete(cm.requests, id)
@@ -105,7 +105,7 @@ func (cm *ConnManager) ResolveRequest(id uuid.UUID, conn net.Conn) {
 		return
 	}
 
-	r.req.SendConn(r.ctx, conn)
+	r.req.SendConn(r.ctx, netConn)
 }
 
 // CancelRequest cancels a pending connection request by its unique ID.

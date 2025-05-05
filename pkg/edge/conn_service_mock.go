@@ -24,17 +24,17 @@ func (_m *MockConnService) EXPECT() *MockConnService_Expecter {
 	return &MockConnService_Expecter{mock: &_m.Mock}
 }
 
-// HandleHTTPConnection provides a mock function with given fields: ctx, userID, conn, write
-func (_m *MockConnService) HandleHTTPConnection(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error) error {
-	ret := _m.Called(ctx, userID, conn, write)
+// HandleHTTPConnection provides a mock function with given fields: ctx, keyID, conn, write, clientIP
+func (_m *MockConnService) HandleHTTPConnection(ctx context.Context, keyID string, conn net.Conn, write func(net.Conn) error, clientIP string) error {
+	ret := _m.Called(ctx, keyID, conn, write, clientIP)
 
 	if len(ret) == 0 {
 		panic("no return value specified for HandleHTTPConnection")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, net.Conn, func(net.Conn) error) error); ok {
-		r0 = rf(ctx, userID, conn, write)
+	if rf, ok := ret.Get(0).(func(context.Context, string, net.Conn, func(net.Conn) error, string) error); ok {
+		r0 = rf(ctx, keyID, conn, write, clientIP)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -49,16 +49,17 @@ type MockConnService_HandleHTTPConnection_Call struct {
 
 // HandleHTTPConnection is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID string
+//   - keyID string
 //   - conn net.Conn
 //   - write func(net.Conn) error
-func (_e *MockConnService_Expecter) HandleHTTPConnection(ctx interface{}, userID interface{}, conn interface{}, write interface{}) *MockConnService_HandleHTTPConnection_Call {
-	return &MockConnService_HandleHTTPConnection_Call{Call: _e.mock.On("HandleHTTPConnection", ctx, userID, conn, write)}
+//   - clientIP string
+func (_e *MockConnService_Expecter) HandleHTTPConnection(ctx interface{}, keyID interface{}, conn interface{}, write interface{}, clientIP interface{}) *MockConnService_HandleHTTPConnection_Call {
+	return &MockConnService_HandleHTTPConnection_Call{Call: _e.mock.On("HandleHTTPConnection", ctx, keyID, conn, write, clientIP)}
 }
 
-func (_c *MockConnService_HandleHTTPConnection_Call) Run(run func(ctx context.Context, userID string, conn net.Conn, write func(net.Conn) error)) *MockConnService_HandleHTTPConnection_Call {
+func (_c *MockConnService_HandleHTTPConnection_Call) Run(run func(ctx context.Context, keyID string, conn net.Conn, write func(net.Conn) error, clientIP string)) *MockConnService_HandleHTTPConnection_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(net.Conn), args[3].(func(net.Conn) error))
+		run(args[0].(context.Context), args[1].(string), args[2].(net.Conn), args[3].(func(net.Conn) error), args[4].(string))
 	})
 	return _c
 }
@@ -68,7 +69,7 @@ func (_c *MockConnService_HandleHTTPConnection_Call) Return(_a0 error) *MockConn
 	return _c
 }
 
-func (_c *MockConnService_HandleHTTPConnection_Call) RunAndReturn(run func(context.Context, string, net.Conn, func(net.Conn) error) error) *MockConnService_HandleHTTPConnection_Call {
+func (_c *MockConnService_HandleHTTPConnection_Call) RunAndReturn(run func(context.Context, string, net.Conn, func(net.Conn) error, string) error) *MockConnService_HandleHTTPConnection_Call {
 	_c.Call.Return(run)
 	return _c
 }

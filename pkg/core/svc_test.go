@@ -65,7 +65,7 @@ func TestHandleHTTPConnection_ConnectionRequestFailure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
+	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil }, "127.0.0.1")
 	require.ErrorIs(t, err, ErrFailedToConnect)
 }
 
@@ -89,7 +89,7 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 		return assert.AnError
 	}
 
-	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, writeFunc)
+	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, writeFunc, "127.0.0.1")
 	assert.ErrorIs(t, err, ErrFailedToConnect)
 }
 
@@ -111,7 +111,7 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 
-	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil })
+	err := service.HandleHTTPConnection(ctx, "test-user", clientConn, func(net.Conn) error { return nil }, "127.0.0.1")
 	require.ErrorIs(t, err, ErrFailedToConnect)
 }
 

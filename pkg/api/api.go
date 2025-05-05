@@ -3,6 +3,7 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -10,8 +11,11 @@ import (
 
 	"log/slog"
 
-	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
+)
+
+const (
+	DEFAULT_TTL_SECONDS = int64(3600) // 1 hour
 )
 
 type Config struct {
@@ -100,34 +104,9 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	keyID := generateTokenRequest.KeyID
-	if keyID == "" {
-		keyID = generateKeyIDForRequest()
-	}
+	ttl := cmp.Or(generateTokenRequest.TTL, api.config.DefaultTokenExpiry)
 
-	ttl := generateTokenRequest.TTL
-	if ttl == 0 {
-		ttl = api.config.DefaultTokenExpiry
-	}
-
-	if ttl == 0 {
-		resp := GenerateTokenResponse{
-			Success: false,
-			Message: "TTL must be greater than 0",
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-
-		err := json.NewEncoder(w).Encode(resp)
-		if err != nil {
-			slog.Error("Failed to encode response", "error", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-
-			return
-		}
-
-		return
-	}
+	ttl = cmp.Or(ttl, DEFAULT_TTL_SECONDS)
 
 	generatedToken, err := api.auth.GenerateToken(r.Context(), keyID, time.Second*time.Duration(ttl))
 
@@ -157,7 +136,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "Token generated successfully",
 		Token:   generatedToken.Encode(),
-		KeyID:   keyID,
+		KeyID:   cmp.Or(keyID, generatedToken.ID),
 		TTL:     ttl,
 	}
 
@@ -173,10 +152,4 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	slog.Info("Token generated successfully", "key_id", keyID, "ttl", ttl)
-}
-
-// generateKeyIDForRequest generates a unique key ID for the request.
-// It uses a UUID to ensure uniqueness and returns it as a string.
-func generateKeyIDForRequest() string {
-	return uuid.New().String()
 }

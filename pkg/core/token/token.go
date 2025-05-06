@@ -8,10 +8,12 @@ import (
 )
 
 const (
-	idLength     = 8
-	secretLength = 31
-	alphabet     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	numbers      = "0123456789"
+	idLength            = 8
+	defaultSecretlength = 33
+	alphabet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	numbers             = "0123456789"
+	base64Modulo        = 3
+	maxSecretLength     = 64
 )
 
 type Token struct {
@@ -23,6 +25,7 @@ type Token struct {
 // It ensures both the ID and Secret are random strings suitable for use in URLs and secure contexts.
 // Returns a pointer to the generated Token containing the ID and Secret.
 func GenerateToken(keyID string) (*Token, error) {
+	// TODO: apply different validation rules for keyID like length, characters, etc.
 	if keyID == "" {
 		id, err := generateID()
 		if err != nil {
@@ -31,7 +34,8 @@ func GenerateToken(keyID string) (*Token, error) {
 		keyID = id
 	}
 
-	secret, err := generateSecret()
+	buffer := calculateSecretBuffer(len(keyID))
+	secret, err := generateSecret(buffer)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token secret: %w", err)
@@ -44,7 +48,7 @@ func GenerateToken(keyID string) (*Token, error) {
 }
 
 func (t *Token) Encode() string {
-	return base64.StdEncoding.EncodeToString([]byte(t.ID + ":" + t.Secret))
+	return base64.StdEncoding.EncodeToString([]byte(getTokenPair(t.ID, t.Secret)))
 }
 
 func Decode(encoded string) (*Token, error) {
@@ -80,8 +84,8 @@ func generateID() (string, error) {
 	return string(b), nil
 }
 
-func generateSecret() (string, error) {
-	b := make([]byte, secretLength)
+func generateSecret(buffer int) (string, error) {
+	b := make([]byte, buffer)
 
 	for i := range b {
 		val, err := randomInt(len(alphabet + numbers))
@@ -104,4 +108,18 @@ func randomInt(max int) (int, error) {
 	}
 
 	return int(b[0]) % max, nil
+}
+
+func getTokenPair(id, secret string) string {
+	return id + ":" + secret
+}
+
+func calculateSecretBuffer(keyIDLength int) int {
+	buffer := defaultSecretlength
+
+	for (keyIDLength+buffer+1)%base64Modulo != 0 && buffer <= maxSecretLength {
+		buffer++
+	}
+
+	return buffer
 }

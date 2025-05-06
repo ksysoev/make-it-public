@@ -13,6 +13,7 @@ func TestGenerateToken(t *testing.T) {
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.NotEmpty(t, token.ID, "Token ID should not be empty")
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
+		assert.True(t, len(getTokenPair(token.ID, token.Secret))%3 == 0, "The string should be divisible by 3 for base64 encoding")
 	})
 
 	t.Run("GenerateToken with provided keyID", func(t *testing.T) {
@@ -21,6 +22,7 @@ func TestGenerateToken(t *testing.T) {
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.Equal(t, keyID, token.ID, "Token ID should match the provided keyID")
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
+		assert.True(t, len(getTokenPair(token.ID, token.Secret))%3 == 0, "The string should be divisible by 3 for base64 encoding")
 	})
 }
 
@@ -73,8 +75,9 @@ func TestGenerateID(t *testing.T) {
 
 func TestGenerateSecret(t *testing.T) {
 	t.Run("GenerateSecret generates valid secret", func(t *testing.T) {
-		secret, err := generateSecret()
+		buffer := 21
+		secret, err := generateSecret(buffer)
 		assert.NoError(t, err, "Secret generation should not return an error")
-		assert.Len(t, secret, secretLength, "Generated Secret should have the correct length")
+		assert.Len(t, secret, buffer, "Generated Secret should have the correct length")
 	})
 }

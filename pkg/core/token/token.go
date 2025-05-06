@@ -2,11 +2,17 @@ package token
 
 import (
 	"bytes"
-	"cmp"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 
 	"github.com/google/uuid"
+)
+
+const (
+	idLength     = 8
+	secretLength = 31
+	letterBytes  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
 type Token struct {
@@ -17,16 +23,19 @@ type Token struct {
 // GenerateToken creates a new Token instance with a unique ID and a secure Secret.
 // It ensures both the ID and Secret are random strings suitable for use in URLs and secure contexts.
 // Returns a pointer to the generated Token containing the ID and Secret.
-func GenerateToken(keyID string) *Token {
-	// TODO: find better way to generate ids and secrets
-	// Id should be unique and easy to use in URL
-	// Secret should be unique and hard to guess
-	// Both should be strings
-	return &Token{
-		// Use cmp.Or to set a custom key ID if provided; otherwise, generate a new UUID.
-		ID:     cmp.Or(keyID, uuid.New().String()),
-		Secret: uuid.New().String(),
+func GenerateToken(keyID string) (*Token, error) {
+	if keyID == "" {
+		id, err := generateID()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate token ID: %w", err)
+		}
+		keyID = id
 	}
+
+	return &Token{
+		ID:     keyID,
+		Secret: uuid.New().String(),
+	}, nil
 }
 
 func (t *Token) Encode() string {
@@ -48,4 +57,31 @@ func Decode(encoded string) (*Token, error) {
 		ID:     string(parts[0]),
 		Secret: string(parts[1]),
 	}, nil
+}
+
+// TODO: send and cross-verify the ID in to redis and check for duplicates
+func generateID() (string, error) {
+	b := make([]byte, idLength)
+
+	for i := range b {
+		val, err := randomInt(len(letterBytes))
+		if err != nil {
+			return "", err
+		}
+
+		b[i] = letterBytes[val]
+	}
+
+	return string(b), nil
+}
+
+func randomInt(max int) (int, error) {
+	var b [1]byte
+
+	_, err := rand.Read(b[:])
+	if err != nil {
+		return 0, err
+	}
+
+	return int(b[0]) % max, nil
 }

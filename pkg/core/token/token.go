@@ -10,7 +10,7 @@ import (
 const (
 	defaultIDLength     = 8
 	maxIDLength         = 15
-	defaultSecretlength = 33
+	defaultSecretLength = 33
 	alphabet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	numbers             = "0123456789"
 	base64Modulo        = 3
@@ -126,7 +126,7 @@ func getTokenPair(id, secret string) string {
 }
 
 func calculateSecretBuffer(keyIDLength int) int {
-	buffer := defaultSecretlength
+	buffer := defaultSecretLength
 
 	for (keyIDLength+buffer+1)%base64Modulo != 0 {
 		buffer++

@@ -12,29 +12,28 @@ func TestInitCommand(t *testing.T) {
 
 	assert.Equal(t, "mit", cmd.Use)
 	assert.Contains(t, cmd.Short, "Make It Public")
-	assert.Equal(t, "", cmd.Long)
+	assert.Contains(t, cmd.Long, "Make It Public Reverse Connect Proxy is a tool for exposing local services to the internet.")
 
-	require.Len(t, cmd.Commands(), 2)
-	assert.Equal(t, "revclient", cmd.Commands()[0].Use)
-	assert.Equal(t, "server", cmd.Commands()[1].Use)
+	require.Len(t, cmd.Commands(), 1)
+	assert.Equal(t, "server", cmd.Commands()[0].Use)
 }
 
-func TestInitServeCommand(t *testing.T) {
+func TestInitRunCommand(t *testing.T) {
 	arg := &args{}
-	cmd := InitServeCommand(arg)
+	cmd := initRunCommand(arg)
 
-	assert.Equal(t, "serve", cmd.Use)
+	assert.Equal(t, "run", cmd.Use)
 	assert.Contains(t, cmd.Short, "Run the server")
 	assert.Contains(t, cmd.Long, "specified configuration")
 
 	require.Len(t, cmd.Commands(), 1)
 	assert.Equal(t, "all", cmd.Commands()[0].Use)
-	assert.Contains(t, cmd.Commands()[0].Short, "Run all servers")
+	assert.Contains(t, cmd.Commands()[0].Short, "Run all server components")
 }
 
 func TestInitTokenCommand(t *testing.T) {
 	arg := &args{}
-	cmd := InitTokenCommand(arg)
+	cmd := initTokenCommand(arg)
 
 	assert.Equal(t, "token", cmd.Use)
 	assert.Contains(t, cmd.Short, "Token management")

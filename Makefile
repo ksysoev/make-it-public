@@ -11,4 +11,4 @@ mod-tidy:
 	go mod tidy
 
 fmt:
-	go fmt ./...
+	gofmt -w .

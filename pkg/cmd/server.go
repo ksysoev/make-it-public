@@ -32,7 +32,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 	connService := core.New(connManager, authRepo)
 
 	revServ := revproxy.New(cfg.RevProxy.Listen, connService)
-	apiServ := api.New(cfg.API)
+	apiServ := api.New(cfg.API, authRepo)
 
 	httpServ, err := edge.New(cfg.HTTP, connService)
 	if err != nil {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type mockResponseWriter struct {
@@ -21,7 +24,7 @@ func (m *mockResponseWriter) Write(_ []byte) (int, error) {
 }
 
 func TestHealthCheckHandler(t *testing.T) {
-	api := New(Config{Listen: ":8082"})
+	api := New(Config{Listen: ":8082"}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(api.healthCheckHandler)
@@ -39,7 +42,7 @@ func TestHealthCheckHandler(t *testing.T) {
 }
 
 func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
-	api := New(Config{Listen: ":8082"})
+	api := New(Config{Listen: ":8082"}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	mockWriter := &mockResponseWriter{ResponseWriter: httptest.NewRecorder()}
 	handler := http.HandlerFunc(api.healthCheckHandler)
@@ -48,8 +51,125 @@ func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
 	t.Logf("The test did not panic")
 }
 
+func TestGenerateTokenHandler(t *testing.T) {
+	auth := NewMockAuthRepo(t)
+	api := New(Config{
+		DefaultTokenExpiry: 3600, // 1 hour
+	}, auth)
+
+	t.Run("Invalid Request Payload", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer([]byte("invalid json")))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Bad Request")
+	})
+
+	t.Run("Missing KeyID still generates the token", func(t *testing.T) {
+		auth.EXPECT().GenerateToken(mock.Anything, mock.Anything, time.Hour).Return(&token.Token{
+			ID:     "random-key-id",
+			Secret: "test-token",
+		}, nil).Once()
+
+		requestBody := GenerateTokenRequest{
+			TTL: 3600,
+		}
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var response GenerateTokenResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.True(t, response.Success)
+		assert.NotEmpty(t, response.KeyID)
+		assert.NotEmpty(t, response.Token)
+		assert.Equal(t, int64(3600), response.TTL)
+	})
+
+	t.Run("Valid Request with KeyID", func(t *testing.T) {
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", time.Hour).Return(&token.Token{
+			ID:     "test-key-id",
+			Secret: "test-token",
+		}, nil).Once()
+
+		requestBody := GenerateTokenRequest{
+			KeyID: "test-key-id",
+			TTL:   3600,
+		}
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var response GenerateTokenResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.True(t, response.Success)
+		assert.Equal(t, "test-key-id", response.KeyID)
+		assert.NotEmpty(t, response.Token)
+		assert.Equal(t, int64(3600), response.TTL)
+	})
+
+	t.Run("Giving 0 TTL defaults to TTL of one hour", func(t *testing.T) {
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", time.Hour).Return(&token.Token{
+			ID:     "test-key-id",
+			Secret: "test-token",
+		}, nil).Once()
+
+		requestBody := GenerateTokenRequest{
+			KeyID: "test-key-id",
+			TTL:   0,
+		}
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var response GenerateTokenResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.True(t, response.Success)
+		assert.Contains(t, response.Message, "Token generated successfully")
+	})
+
+	t.Run("Token Generation Error", func(t *testing.T) {
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", time.Hour).Return(nil, errors.New("token generation error")).Once()
+
+		requestBody := GenerateTokenRequest{
+			KeyID: "test-key-id",
+			TTL:   3600,
+		}
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var response GenerateTokenResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+
+		assert.NoError(t, err)
+		assert.False(t, response.Success)
+		assert.Equal(t, response.Message, "Failed to generate token")
+	})
+}
+
 func TestAPIRun(t *testing.T) {
-	api := New(Config{Listen: ":8083"})
+	api := New(Config{Listen: ":8083"}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {

@@ -169,7 +169,8 @@ func TestGenerateTokenHandler(t *testing.T) {
 }
 
 func TestAPIRun(t *testing.T) {
-	api := New(Config{Listen: ":8083"}, nil)
+	// TODO: make it run on :0 port to avoid port conflicts
+	api := New(Config{Listen: ":58083"}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
@@ -179,7 +180,7 @@ func TestAPIRun(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	resp, err := http.Get("http://localhost:8083/health")
+	resp, err := http.Get("http://localhost:58083/health")
 
 	assert.NoError(t, err, "Health check request should not return an error")
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "Health check should return status 200")

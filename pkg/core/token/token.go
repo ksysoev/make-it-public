@@ -105,16 +105,19 @@ func generateSecret(bufferLen int) (string, error) {
 	return string(b), nil
 }
 
-func randomIntSlice(max, length int) ([]int, error) {
+func randomIntSlice(maxLen, length int) ([]int, error) {
 	b := make([]byte, length)
 	_, err := rand.Read(b)
+
 	if err != nil {
 		return nil, err
 	}
+
 	out := make([]int, length)
 	for i := 0; i < length; i++ {
-		out[i] = int(b[i]) % max
+		out[i] = int(b[i]) % maxLen
 	}
+
 	return out, nil
 }
 

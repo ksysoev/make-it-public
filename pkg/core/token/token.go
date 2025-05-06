@@ -74,44 +74,48 @@ func Decode(encoded string) (*Token, error) {
 
 // TODO: send and cross-verify the ID in to redis and check for duplicates
 func generateID() (string, error) {
+	indices, err := randomIntSlice(len(alphabet), defaultIDLength)
+
+	if err != nil {
+		return "", err
+	}
+
 	b := make([]byte, defaultIDLength)
 
-	for i := range b {
-		val, err := randomInt(len(alphabet))
-		if err != nil {
-			return "", err
-		}
-
-		b[i] = alphabet[val]
+	for i, idx := range indices {
+		b[i] = alphabet[idx]
 	}
 
 	return string(b), nil
 }
 
 func generateSecret(bufferLen int) (string, error) {
+	indices, err := randomIntSlice(len(alphabet+numbers), bufferLen)
+
+	if err != nil {
+		return "", err
+	}
+
 	b := make([]byte, bufferLen)
 
-	for i := range b {
-		val, err := randomInt(len(alphabet + numbers))
-		if err != nil {
-			return "", err
-		}
-
-		b[i] = (alphabet + numbers)[val]
+	for i, idx := range indices {
+		b[i] = (alphabet + numbers)[idx]
 	}
 
 	return string(b), nil
 }
 
-func randomInt(maxLen int) (int, error) {
-	var b [1]byte
-
-	_, err := rand.Read(b[:])
+func randomIntSlice(max, length int) ([]int, error) {
+	b := make([]byte, length)
+	_, err := rand.Read(b)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-
-	return int(b[0]) % maxLen, nil
+	out := make([]int, length)
+	for i := 0; i < length; i++ {
+		out[i] = int(b[i]) % max
+	}
+	return out, nil
 }
 
 func getTokenPair(id, secret string) string {

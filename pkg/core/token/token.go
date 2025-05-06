@@ -5,14 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-
-	"github.com/google/uuid"
 )
 
 const (
 	idLength     = 8
 	secretLength = 31
-	letterBytes  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	alphabet     = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	numbers      = "0123456789"
 )
 
 type Token struct {
@@ -32,9 +31,15 @@ func GenerateToken(keyID string) (*Token, error) {
 		keyID = id
 	}
 
+	secret, err := generateSecret()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token secret: %w", err)
+	}
+
 	return &Token{
 		ID:     keyID,
-		Secret: uuid.New().String(),
+		Secret: secret,
 	}, nil
 }
 
@@ -64,12 +69,27 @@ func generateID() (string, error) {
 	b := make([]byte, idLength)
 
 	for i := range b {
-		val, err := randomInt(len(letterBytes))
+		val, err := randomInt(len(alphabet))
 		if err != nil {
 			return "", err
 		}
 
-		b[i] = letterBytes[val]
+		b[i] = alphabet[val]
+	}
+
+	return string(b), nil
+}
+
+func generateSecret() (string, error) {
+	b := make([]byte, secretLength)
+
+	for i := range b {
+		val, err := randomInt(len(alphabet + numbers))
+		if err != nil {
+			return "", err
+		}
+
+		b[i] = (alphabet + numbers)[val]
 	}
 
 	return string(b), nil

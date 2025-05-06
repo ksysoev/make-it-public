@@ -70,3 +70,11 @@ func TestGenerateID(t *testing.T) {
 		assert.Len(t, id2, idLength, "Generated ID should have the correct length")
 	})
 }
+
+func TestGenerateSecret(t *testing.T) {
+	t.Run("GenerateSecret generates valid secret", func(t *testing.T) {
+		secret, err := generateSecret()
+		assert.NoError(t, err, "Secret generation should not return an error")
+		assert.Len(t, secret, secretLength, "Generated Secret should have the correct length")
+	})
+}

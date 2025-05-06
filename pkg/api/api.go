@@ -20,7 +20,7 @@ const (
 
 type Config struct {
 	Listen             string `mapstructure:"listen"`
-	DefaultTokenExpiry int64  `mapstructure:"defaultTokenExpiry"`
+	DefaultTokenExpiry int64  `mapstructure:"default_token_expiry"`
 }
 
 type API struct {

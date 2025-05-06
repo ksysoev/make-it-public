@@ -55,13 +55,9 @@ This architecture enables users to securely expose their local services without 
 
 The `cmd` directory contains the entry points for the client and server applications.
 
-#### `cmd/mitserve/main.go`
-- Entry point for the server application.
-- Initializes the server and starts the reverse proxy and HTTP server.
 
 #### `cmd/mit/main.go`
-- Entry point for the client application.
-- Initializes the client and connects to the server.
+- Entry point for the client and server applications.
 
 ---
 

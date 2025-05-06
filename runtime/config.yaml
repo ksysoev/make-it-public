@@ -8,6 +8,7 @@ reverse_proxy:
   listen: ":8081"
 api:
   listen: ":8082"
+  default_token_expiry: 3600
 auth:
   redis_addr: "localhost:6379"
   redis_password: ""

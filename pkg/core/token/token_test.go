@@ -24,6 +24,13 @@ func TestGenerateToken(t *testing.T) {
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
 		assert.True(t, len(getTokenPair(token.ID, token.Secret))%3 == 0, "The string should be divisible by 3 for base64 encoding")
 	})
+
+	t.Run("unusually long keyID returns error", func(t *testing.T) {
+		keyID := "testKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyID"
+		token, err := GenerateToken(keyID)
+		assert.Error(t, err, "Token generation should return an error for unusually long keyID")
+		assert.Nil(t, token, "Token should be nil on error")
+	})
 }
 
 func TestEncode(t *testing.T) {
@@ -68,8 +75,8 @@ func TestGenerateID(t *testing.T) {
 		assert.NoError(t, err1, "ID generation should not return an error")
 		assert.NoError(t, err2, "ID generation should not return an error")
 		assert.NotEqual(t, id1, id2, "Generated IDs should be unique")
-		assert.Len(t, id1, idLength, "Generated ID should have the correct length")
-		assert.Len(t, id2, idLength, "Generated ID should have the correct length")
+		assert.Len(t, id1, defaultIDLength, "Generated ID should have the correct length")
+		assert.Len(t, id2, defaultIDLength, "Generated ID should have the correct length")
 	})
 }
 

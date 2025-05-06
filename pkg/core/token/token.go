@@ -8,12 +8,12 @@ import (
 )
 
 const (
-	idLength            = 8
+	defaultIDLength     = 8
+	maxIDLength         = 15
 	defaultSecretlength = 33
 	alphabet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	numbers             = "0123456789"
 	base64Modulo        = 3
-	maxSecretLength     = 64
 )
 
 type Token struct {
@@ -25,17 +25,21 @@ type Token struct {
 // It ensures both the ID and Secret are random strings suitable for use in URLs and secure contexts.
 // Returns a pointer to the generated Token containing the ID and Secret.
 func GenerateToken(keyID string) (*Token, error) {
-	// TODO: apply different validation rules for keyID like length, characters, etc.
+	if len(keyID) > maxIDLength {
+		return nil, fmt.Errorf("keyID length exceeds maximum limit of %d characters", maxIDLength)
+	}
+
 	if keyID == "" {
 		id, err := generateID()
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate token ID: %w", err)
 		}
+
 		keyID = id
 	}
 
-	buffer := calculateSecretBuffer(len(keyID))
-	secret, err := generateSecret(buffer)
+	bufferLen := calculateSecretBuffer(len(keyID))
+	secret, err := generateSecret(bufferLen)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token secret: %w", err)
@@ -70,7 +74,7 @@ func Decode(encoded string) (*Token, error) {
 
 // TODO: send and cross-verify the ID in to redis and check for duplicates
 func generateID() (string, error) {
-	b := make([]byte, idLength)
+	b := make([]byte, defaultIDLength)
 
 	for i := range b {
 		val, err := randomInt(len(alphabet))
@@ -84,8 +88,8 @@ func generateID() (string, error) {
 	return string(b), nil
 }
 
-func generateSecret(buffer int) (string, error) {
-	b := make([]byte, buffer)
+func generateSecret(bufferLen int) (string, error) {
+	b := make([]byte, bufferLen)
 
 	for i := range b {
 		val, err := randomInt(len(alphabet + numbers))
@@ -99,7 +103,7 @@ func generateSecret(buffer int) (string, error) {
 	return string(b), nil
 }
 
-func randomInt(max int) (int, error) {
+func randomInt(maxLen int) (int, error) {
 	var b [1]byte
 
 	_, err := rand.Read(b[:])
@@ -107,7 +111,7 @@ func randomInt(max int) (int, error) {
 		return 0, err
 	}
 
-	return int(b[0]) % max, nil
+	return int(b[0]) % maxLen, nil
 }
 
 func getTokenPair(id, secret string) string {
@@ -117,7 +121,7 @@ func getTokenPair(id, secret string) string {
 func calculateSecretBuffer(keyIDLength int) int {
 	buffer := defaultSecretlength
 
-	for (keyIDLength+buffer+1)%base64Modulo != 0 && buffer <= maxSecretLength {
+	for (keyIDLength+buffer+1)%base64Modulo != 0 {
 		buffer++
 	}
 

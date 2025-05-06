@@ -66,7 +66,11 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
 // Returns the generated token on success or an error if all attempts fail due to database issues or conflicts.
 func (r *Repo) GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error) {
 	for i := 0; i < 3; i++ {
-		t := token.GenerateToken(keyID)
+		t, err := token.GenerateToken(keyID)
+
+		if err != nil {
+			return nil, err
+		}
 
 		// TODO: we should store hash of the token instead of the token itself
 		res := r.db.SetNX(ctx, r.keyPrefix+t.ID, t.Secret, ttl)

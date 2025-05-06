@@ -2,11 +2,18 @@ package token
 
 import (
 	"bytes"
-	"cmp"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+)
 
-	"github.com/google/uuid"
+const (
+	defaultIDLength     = 8
+	maxIDLength         = 15
+	defaultSecretLength = 33
+	alphabet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	numbers             = "0123456789"
+	base64Modulo        = 3
 )
 
 type Token struct {
@@ -17,20 +24,35 @@ type Token struct {
 // GenerateToken creates a new Token instance with a unique ID and a secure Secret.
 // It ensures both the ID and Secret are random strings suitable for use in URLs and secure contexts.
 // Returns a pointer to the generated Token containing the ID and Secret.
-func GenerateToken(keyID string) *Token {
-	// TODO: find better way to generate ids and secrets
-	// Id should be unique and easy to use in URL
-	// Secret should be unique and hard to guess
-	// Both should be strings
-	return &Token{
-		// Use cmp.Or to set a custom key ID if provided; otherwise, generate a new UUID.
-		ID:     cmp.Or(keyID, uuid.New().String()),
-		Secret: uuid.New().String(),
+func GenerateToken(keyID string) (*Token, error) {
+	if len(keyID) > maxIDLength {
+		return nil, fmt.Errorf("keyID length exceeds maximum limit of %d characters", maxIDLength)
 	}
+
+	if keyID == "" {
+		id, err := generateID()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate token ID: %w", err)
+		}
+
+		keyID = id
+	}
+
+	bufferLen := calculateSecretBuffer(len(keyID))
+	secret, err := generateSecret(bufferLen)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token secret: %w", err)
+	}
+
+	return &Token{
+		ID:     keyID,
+		Secret: secret,
+	}, nil
 }
 
 func (t *Token) Encode() string {
-	return base64.StdEncoding.EncodeToString([]byte(t.ID + ":" + t.Secret))
+	return base64.StdEncoding.EncodeToString([]byte(getTokenPair(t.ID, t.Secret)))
 }
 
 func Decode(encoded string) (*Token, error) {
@@ -48,4 +70,67 @@ func Decode(encoded string) (*Token, error) {
 		ID:     string(parts[0]),
 		Secret: string(parts[1]),
 	}, nil
+}
+
+// TODO: send and cross-verify the ID in to redis and check for duplicates
+func generateID() (string, error) {
+	indices, err := randomIntSlice(len(alphabet), defaultIDLength)
+
+	if err != nil {
+		return "", err
+	}
+
+	b := make([]byte, defaultIDLength)
+
+	for i, idx := range indices {
+		b[i] = alphabet[idx]
+	}
+
+	return string(b), nil
+}
+
+func generateSecret(bufferLen int) (string, error) {
+	indices, err := randomIntSlice(len(alphabet+numbers), bufferLen)
+
+	if err != nil {
+		return "", err
+	}
+
+	b := make([]byte, bufferLen)
+
+	for i, idx := range indices {
+		b[i] = (alphabet + numbers)[idx]
+	}
+
+	return string(b), nil
+}
+
+func randomIntSlice(maxLen, length int) ([]int, error) {
+	b := make([]byte, length)
+	_, err := rand.Read(b)
+
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]int, length)
+	for i := 0; i < length; i++ {
+		out[i] = int(b[i]) % maxLen
+	}
+
+	return out, nil
+}
+
+func getTokenPair(id, secret string) string {
+	return id + ":" + secret
+}
+
+func calculateSecretBuffer(keyIDLength int) int {
+	buffer := defaultSecretLength
+
+	for (keyIDLength+buffer+1)%base64Modulo != 0 {
+		buffer++
+	}
+
+	return buffer
 }

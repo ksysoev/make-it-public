@@ -1,5 +1,8 @@
 name: Deploy
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -14,7 +17,7 @@ jobs:
       group: deploy
     steps:
       - name: Deploy to DigitalOcean Droplet
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f
         with:
           host: ${{secrets.HOST}}
           username: ${{secrets.USERNAME}}

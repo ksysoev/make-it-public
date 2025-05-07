@@ -4,12 +4,11 @@ services:
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
-      - "6379:6379"
+      - "6379"
   
   mitserver:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: "ghcr.io/ksysoev/make-it-public:main"
+    restart: unless-stopped
     container_name: mitserver
     ports:
       - "8080:8080" # HTTP server

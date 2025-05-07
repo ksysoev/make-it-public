@@ -4,10 +4,15 @@ permissions:
   contents: read
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+#    push:
+#        branches:
+#        - main
+#        tags:
+#        - v*
+#    pull_request:
+#
+    workflow_dispatch:
+
 
 jobs:
   deploy:
@@ -23,17 +28,8 @@ jobs:
           username: ${{secrets.USERNAME}}
           key: ${{secrets.SSH_KEY}}
           port: ${{secrets.PORT}}
-          envs: GITHUB_REF,GITHUB_SHA
           script: |
             cd make-it-public
-            # Ensure we have a complete repository with all objects
-            git fetch --prune --unshallow
-            # Try to checkout the target reference
-            if [ -n "$GITHUB_SHA" ]; then
-              git checkout $GITHUB_SHA
-            else
-              BRANCH_NAME=${GITHUB_REF#refs/heads/}
-              git checkout $BRANCH_NAME
-            fi
-            docker compose build
+            git pull
+            docker compose pull
             docker stack deploy -c docker-compose.yml makeitpublic

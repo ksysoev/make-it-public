@@ -1,0 +1,16 @@
+{
+    # Global options
+    email k.sysoev@me.com
+}
+
+make-it-public.dev {
+	file_server
+}
+
+*.make-it-public.dev {
+    reverse_proxy http://mitserver:8080
+    log {
+        output stdout
+        format console
+    }
+}

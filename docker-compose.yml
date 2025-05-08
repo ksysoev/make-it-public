@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
     container_name: mitserver
     ports:
-      - "8080:8080" # HTTP server
+      - "8080" # HTTP server
       - "8081:8081" # Reverse proxy
       - "8082:8082" # API server
     volumes:
@@ -19,12 +19,24 @@ services:
     depends_on:
       - redis
 
-  nginx:
-    image: nginx:latest
-    container_name: nginx-proxy
+
+  caddy:
+    image: caddy:2.10.0-alpine
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
     ports:
       - "80:80"
+      - "443:443"
+      - "443:443/udp"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./conf:/etc/caddy
+      - ./static:/srv
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       - mitserver
+
+volumes:
+  caddy_data:
+  caddy_config:

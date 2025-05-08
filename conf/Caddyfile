@@ -1,0 +1,21 @@
+{
+    # Global options
+    email {env.EMAIL}
+
+    # Let's Encrypt DNS challenge with Cloudflare
+    # This uses the Cloudflare API token to validate domain ownership
+    # The token needs DNS:Edit permissions for the zones
+    acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+}
+
+{$DOMAIN_NAME} {
+	file_server
+}
+
+*.{$DOMAIN_NAME} {
+    reverse_proxy http://mitserver:8080
+    log {
+        output stdout
+        format console
+    }
+}

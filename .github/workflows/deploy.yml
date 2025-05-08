@@ -4,14 +4,10 @@ permissions:
   contents: read
 
 on:
-#    push:
-#        branches:
-#        - main
-#        tags:
-#        - v*
-#    pull_request:
-#
-    workflow_dispatch:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
 
 
 jobs:

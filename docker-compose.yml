@@ -5,7 +5,7 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
       - "6379"
-  
+
   mitserver:
     image: "ghcr.io/ksysoev/make-it-public:main"
     restart: unless-stopped
@@ -29,6 +29,8 @@ services:
       - "80:80"
       - "443:443"
       - "443:443/udp"
+    environment:
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
     volumes:
       - ./conf:/etc/caddy
       - ./static:/srv

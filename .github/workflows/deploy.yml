@@ -28,8 +28,10 @@ jobs:
           username: ${{secrets.USERNAME}}
           key: ${{secrets.SSH_KEY}}
           port: ${{secrets.PORT}}
+          envs: CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
           script: |
             cd make-it-public
             git pull
             docker compose pull
+            export CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN
             docker stack deploy -c docker-compose.yml makeitpublic

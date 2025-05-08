@@ -21,7 +21,7 @@ services:
 
 
   caddy:
-    image: caddy:2.10.0-alpine
+    image: ghcr.io/caddybuilds/caddy-cloudflare:2.10-alpine
     restart: unless-stopped
     cap_add:
       - NET_ADMIN

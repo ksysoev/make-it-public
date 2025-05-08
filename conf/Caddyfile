@@ -1,6 +1,6 @@
 {
     # Global options
-    email k.sysoev@me.com
+    email {env.EMAIL}
 
     # Let's Encrypt DNS challenge with Cloudflare
     # This uses the Cloudflare API token to validate domain ownership
@@ -8,11 +8,11 @@
     acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 }
 
-make-it-public.dev {
+{$DOMAIN_NAME} {
 	file_server
 }
 
-*.make-it-public.dev {
+*.{$DOMAIN_NAME} {
     reverse_proxy http://mitserver:8080
     log {
         output stdout

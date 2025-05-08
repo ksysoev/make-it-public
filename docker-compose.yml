@@ -31,6 +31,8 @@ services:
       - "443:443/udp"
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - EMAIL=${EMAIL}
+      - DOMAIN_NAME=${DOMAIN_NAME}
     volumes:
       - ./conf:/etc/caddy
       - ./static:/srv

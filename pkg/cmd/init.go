@@ -52,7 +52,7 @@ func initServerCommand(arg *args) *cobra.Command {
 		Long:  "Make It Public Reverse Connect Proxy Server is a service for exposing local services to the internet.",
 	}
 
-	cmd.PersistentFlags().StringVar(&arg.configPath, "config", "runtime/config.yaml", "config path")
+	cmd.PersistentFlags().StringVar(&arg.configPath, "config", "", "config path")
 	cmd.PersistentFlags().StringVar(&arg.logLevel, "log-level", "info", "log level (debug, info, warn, error)")
 	cmd.PersistentFlags().BoolVar(&arg.textFormat, "log-text", false, "log in text format, otherwise JSON")
 

@@ -26,12 +26,14 @@ type revProxyConfig struct {
 // It uses the provided args structure to determine the configuration path.
 // The function returns a pointer to the appConfig structure and an error if something goes wrong.
 func loadConfig(arg *args) (*appConfig, error) {
-	v := viper.New()
+	v := viper.NewWithOptions(viper.ExperimentalBindStruct())
 
-	v.SetConfigFile(arg.configPath)
+	if arg.configPath != "" {
+		v.SetConfigFile(arg.configPath)
 
-	if err := v.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read config: %w", err)
+		if err := v.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("failed to read config: %w", err)
+		}
 	}
 
 	var cfg appConfig

@@ -7,6 +7,8 @@ services:
       - "6379"
 
   mitserver:
+    build:
+      context: .
     image: "ghcr.io/ksysoev/make-it-public:main"
     restart: unless-stopped
     container_name: mitserver
@@ -14,8 +16,15 @@ services:
       - "8080" # HTTP server
       - "8081:8081" # Reverse proxy
       - "8082:8082" # API server
-    volumes:
-      - ./runtime/config.yaml:/runtime/config.yaml
+    environment:
+      - AUTH_REDIS_ADDR=redis:6379
+      - HTTP_PUBLIC_SCHEMA=https
+      - HTTP_PUBLIC_DOMAIN=test.com
+      - HTTP_LISTEN=:8080
+      - REVERSE_PROXY_LISTEN=:8081
+      - API_LISTEN=:8082
+      - API_DEFAULT_TOKEN_EXPIRY=3600
+    command: ["server", "run", "all" ]
     depends_on:
       - redis
 
@@ -34,7 +43,7 @@ services:
       - EMAIL=${EMAIL}
       - DOMAIN_NAME=${DOMAIN_NAME}
     volumes:
-      - ./conf:/etc/caddy
+      - ./runtime/Caddyfile:/etc/caddy/Caddyfile
       - ./static:/srv
       - caddy_data:/data
       - caddy_config:/config

@@ -83,6 +83,7 @@ func Decode(encoded string) (*Token, error) {
 
 // generateID creates a random alphanumeric string of defaultIDLength.
 // It combines characters from lowerCase and numbers.
+// Key id is used in domain names, and domain names are case-insensitive.
 // Returns the generated ID or an error if randomIntSlice fails.
 func generateID() (string, error) {
 	indices, err := randomIntSlice(len(lowerCase+numbers), defaultIDLength)

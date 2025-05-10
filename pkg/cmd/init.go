@@ -39,11 +39,16 @@ func InitCommand() cobra.Command {
 	cmd.Flags().StringVar(&arg.Expose, "expose", "localhost:80", "expose service")
 	cmd.Flags().StringVar(&arg.Token, "token", "", "token")
 
+	cmd.PersistentFlags().StringVar(&arg.LogLevel, "log-level", "info", "log level (debug, info, warn, error)")
+	cmd.PersistentFlags().BoolVar(&arg.TextFormat, "log-text", false, "log in text format, otherwise JSON")
+
 	cmd.AddCommand(initServerCommand(&arg))
 
-	viper.BindEnv("server")
-	viper.BindEnv("expose")
-	viper.BindEnv("token")
+	for _, name := range []string{"server", "expose", "token", "log_level", "log_text"} {
+		if err := viper.BindEnv(name); err != nil {
+			slog.Error("failed to bind env var", "name", name, "error", err)
+		}
+	}
 
 	viper.AutomaticEnv()
 
@@ -66,8 +71,10 @@ func initServerCommand(arg *args) *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVar(&arg.ConfigPath, "config", "", "config path")
-	cmd.PersistentFlags().StringVar(&arg.LogLevel, "log-level", "info", "log level (debug, info, warn, error)")
-	cmd.PersistentFlags().BoolVar(&arg.TextFormat, "log-text", false, "log in text format, otherwise JSON")
+
+	if err := viper.BindEnv("config"); err != nil {
+		slog.Error("failed to bind env var", "name", "config", "error", err)
+	}
 
 	cmd.AddCommand(initRunCommand(arg))
 	cmd.AddCommand(initTokenCommand(arg))

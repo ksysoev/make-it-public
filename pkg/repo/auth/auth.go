@@ -105,12 +105,12 @@ func (r *Repo) Close() error {
 	return r.db.Close()
 }
 
-// encryptSecret encrypts the given secret using the scrypt key derivation function with the Repo's salt.
-// It returns the encrypted secret as a base64-encoded string or an error if the encryption process fails.
-func (r *Repo) encryptSecret(secret string) (string, error) {
+// hashSecret hashes the given secret using the scrypt key derivation function with the Repo's salt.
+// It returns the hashed secret as a base64-encoded string or an error if the hashing process fails.
+func (r *Repo) hashSecret(secret string) (string, error) {
 	dk, err := scrypt.Key([]byte(secret), r.salt, 1<<15, 8, 1, 32)
 	if err != nil {
-		return "", fmt.Errorf("failed to encrypt secret: %w", err)
+		return "", fmt.Errorf("failed to hash secret: %w", err)
 	}
 
 	return base64.StdEncoding.EncodeToString(dk), nil

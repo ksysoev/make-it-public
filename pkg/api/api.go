@@ -11,7 +11,9 @@ import (
 
 	"log/slog"
 
+	"github.com/ksysoev/make-it-public/docs"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 const (
@@ -19,6 +21,7 @@ const (
 )
 
 type Config struct {
+	Scheme             string `mapstructure:"scheme"`
 	Listen             string `mapstructure:"listen"`
 	DefaultTokenExpiry int64  `mapstructure:"default_token_expiry"`
 }
@@ -37,6 +40,8 @@ type Endpoint string
 const (
 	HealthCheckEndpoint   Endpoint = "GET /health"
 	GenerateTokenEndpoint Endpoint = "POST /generateToken"
+	SwaggerEndpoint       Endpoint = "/swagger/"
+	SwaggerDataEndpoint   Endpoint = "/swaggerData/"
 )
 
 func New(cfg Config, auth AuthRepo) *API {
@@ -46,12 +51,22 @@ func New(cfg Config, auth AuthRepo) *API {
 	}
 }
 
+// @title MIT Server Management API
+// @version 1.0
+// @description This is the API for managing MIT server resources.
+// @host localhost:8082
+// @BasePath /
+
 // Runs the API management server
 func (api *API) Run(ctx context.Context) error {
 	router := http.NewServeMux()
 
 	router.HandleFunc((string(HealthCheckEndpoint)), api.healthCheckHandler)
 	router.HandleFunc((string(GenerateTokenEndpoint)), api.generateTokenHandler)
+	router.HandleFunc((string(SwaggerDataEndpoint)), api.swaggerDataHandler)
+
+	httpScheme := cmp.Or(api.config.Scheme, "http")
+	router.HandleFunc((string(SwaggerEndpoint)), httpSwagger.Handler(httpSwagger.URL(httpScheme+"://"+docs.SwaggerInfo.Host+string(SwaggerDataEndpoint))))
 
 	server := &http.Server{
 		Addr:              api.config.Listen,
@@ -74,7 +89,14 @@ func (api *API) Run(ctx context.Context) error {
 }
 
 // healthCheckHandler returns the API status.
-// This handler can be later modified to cross check required resources
+// @Summary Health Check
+// @Description Returns the health status of the API.
+// @Tags Health
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /health [get]
 func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{"status": "healthy"}
 
@@ -94,6 +116,18 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // It optionally accepts a key ID, which is automatically generated if not provided.
 // It also optionally accepts a TTL for API token, which is set to a default value if not provided.
 // As a part of response, it returns the key ID, generated token, and the TTL in seconds.
+
+// generateTokenHandler is an endpoint to create API token.
+// @Summary Generate Token
+// @Description Generates an API token with an optional key ID and TTL.
+// @Tags Token
+// @Accept json
+// @Produce json
+// @Param request body GenerateTokenRequest true "Generate Token Request"
+// @Success 200 {object} GenerateTokenResponse
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /generateToken [post]
 func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var generateTokenRequest GenerateTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&generateTokenRequest); err != nil {
@@ -152,4 +186,11 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	slog.Info("Token generated successfully", "key_id", keyID, "ttl", ttl)
+}
+
+// a simple handler to serve the swagger spec as json file
+func (api *API) swaggerDataHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	http.ServeFile(w, r, "/docs/swagger.json")
 }

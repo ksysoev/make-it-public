@@ -11,6 +11,7 @@ FROM scratch
 
 COPY --from=builder /app/mit .
 COPY ./runtime/config.yaml /runtime/config.yaml
+COPY ./docs/swagger.json /docs/swagger.json
 
 EXPOSE 8080 8081 8082
 

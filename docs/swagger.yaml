@@ -1,0 +1,81 @@
+basePath: /
+definitions:
+  api.GenerateTokenRequest:
+    properties:
+      key_id:
+        type: string
+      ttl:
+        type: integer
+    type: object
+  api.GenerateTokenResponse:
+    properties:
+      key_id:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+      token:
+        type: string
+      ttl:
+        type: integer
+    type: object
+host: localhost:8082
+info:
+  contact: {}
+  description: This is the API for managing MIT server resources.
+  title: MIT Server Management API
+  version: "1.0"
+paths:
+  /generateToken:
+    post:
+      consumes:
+      - application/json
+      description: Generates an API token with an optional key ID and TTL.
+      parameters:
+      - description: Generate Token Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.GenerateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.GenerateTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Generate Token
+      tags:
+      - Token
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Returns the health status of the API.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Health Check
+      tags:
+      - Health
+swagger: "2.0"

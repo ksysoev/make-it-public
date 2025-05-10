@@ -7,7 +7,12 @@ services:
       - "6379"
 
   mitserver:
-    image: "ghcr.io/ksysoev/make-it-public:main"
+    # comment this for local build
+    # image: "ghcr.io/ksysoev/make-it-public:main"
+    # uncomment this for local build
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     container_name: mitserver
     ports:
@@ -16,6 +21,7 @@ services:
       - "8082:8082" # API server
     volumes:
       - ./runtime/config.yaml:/runtime/config.yaml
+      - ./docs/swagger.json:/docs/swagger.json
     depends_on:
       - redis
 

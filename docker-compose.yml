@@ -19,11 +19,12 @@ services:
     environment:
       - AUTH_REDIS_ADDR=redis:6379
       - HTTP_PUBLIC_SCHEMA=https
-      - HTTP_PUBLIC_DOMAIN=test.com
+      - HTTP_PUBLIC_DOMAIN=${DOMAIN_NAME}
       - HTTP_LISTEN=:8080
       - REVERSE_PROXY_LISTEN=:8081
       - API_LISTEN=:8082
       - API_DEFAULT_TOKEN_EXPIRY=3600
+      - LOG_LEVEL=info
     command: ["server", "run", "all" ]
     depends_on:
       - redis

@@ -11,6 +11,10 @@ import (
 	"golang.org/x/crypto/scrypt"
 )
 
+const (
+	scryptPrefix = "sc:"
+)
+
 var (
 	ErrFailedToGenerateToken = fmt.Errorf("failed to generate uniq token")
 )
@@ -54,11 +58,16 @@ func New(cfg *Config) *Repo {
 // It retrieves the value from the database using the keyID and keyPrefix.
 // Returns true if the secret matches, false if not found or mismatched, and error if a database operation fails.
 func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
+	secretHash, err := r.hashSecret(secret)
+	if err != nil {
+		return false, fmt.Errorf("failed to hash secret: %w", err)
+	}
+
 	res := r.db.Get(ctx, r.keyPrefix+keyID)
 
 	switch res.Err() {
 	case nil:
-		return res.Val() == secret, nil
+		return res.Val() == secretHash, nil
 	case redis.Nil:
 		return false, nil
 	default:
@@ -113,5 +122,5 @@ func (r *Repo) hashSecret(secret string) (string, error) {
 		return "", fmt.Errorf("failed to hash secret: %w", err)
 	}
 
-	return base64.StdEncoding.EncodeToString(dk), nil
+	return scryptPrefix + base64.StdEncoding.EncodeToString(dk), nil
 }

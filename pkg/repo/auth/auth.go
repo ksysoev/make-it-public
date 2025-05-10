@@ -58,7 +58,7 @@ func New(cfg *Config) *Repo {
 // It retrieves the value from the database using the keyID and keyPrefix.
 // Returns true if the secret matches, false if not found or mismatched, and error if a database operation fails.
 func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
-	secretHash, err := r.hashSecret(secret)
+	secretHash, err := hashSecret(secret, r.salt)
 	if err != nil {
 		return false, fmt.Errorf("failed to hash secret: %w", err)
 	}
@@ -87,7 +87,7 @@ func (r *Repo) GenerateToken(ctx context.Context, keyID string, ttl time.Duratio
 			return nil, err
 		}
 
-		secretHash, err := r.hashSecret(t.Secret)
+		secretHash, err := hashSecret(t.Secret, r.salt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encrypt secret: %w", err)
 		}
@@ -114,10 +114,11 @@ func (r *Repo) Close() error {
 	return r.db.Close()
 }
 
-// hashSecret hashes the given secret using the scrypt key derivation function with the Repo's salt.
-// It returns the hashed secret as a base64-encoded string or an error if the hashing process fails.
-func (r *Repo) hashSecret(secret string) (string, error) {
-	dk, err := scrypt.Key([]byte(secret), r.salt, 1<<15, 8, 1, 32)
+// hashSecret hashes the secret using the scrypt key derivation function with the provided salt and returns the result.
+// It prefixes the result with a constant identifier for scrypt-hashed values.
+// Returns the hashed secret as a string and an error if the hashing process fails.
+func hashSecret(secret string, salt []byte) (string, error) {
+	dk, err := scrypt.Key([]byte(secret), salt, 1<<15, 8, 1, 32)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash secret: %w", err)
 	}

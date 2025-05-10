@@ -1,0 +1,72 @@
+version: 2
+
+project_name: make-it-public
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: cmd/mit/main.go
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+checksum:
+  name_template: "checksums.txt"
+changelog:
+  sort: asc
+release:
+  draft: true
+  github:
+    owner: ksysoev
+    name: make-it-public
+  name_template: "{{ .Tag }}"
+  prerelease: auto
+       
+brews:
+  - name: make-it-public
+    repository:
+      owner: ksysoev
+      name: homebrew-make-it-public
+    skip_upload: auto
+    directory: Formula
+    homepage: "https://gihub.com/ksysoev/make-it-public"
+    description: "make-it-public binary"
+    test: |
+      system "#{bin}/mit"
+    install: |
+    bin.install 'mit'
+
+nfpms:
+  - id: make-it-public
+    vendor: "ksysoev"
+    homepage: "https://github.com/ksysoev/make-it-public"
+    maintainer: "Kirill Sysoev <k.sysoev@me.com>"
+    description: "Service for publishing services that are hidden behind NAT"
+    license: "{{ .ProjectLicense }}"
+    bindir: "/usr/bin"
+    formats:
+      - apk
+      - deb
+      - rpm
+
+snapcrafts:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    summary: "Service for publishing services that are hidden behind NAT"
+    description: "Make It Public is a service designed to expose services that are hidden behind NAT (Network Address Translation)."
+    license: MIT
+    base: "core18"
+    grade: devel
+    confinement: strict
+    apps:
+      make-it-public:
+        plugs: ["network", "network-bind"]

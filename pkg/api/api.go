@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"time"
 
 	"log/slog"
@@ -23,6 +24,7 @@ const (
 type Config struct {
 	Scheme             string `mapstructure:"scheme"`
 	Listen             string `mapstructure:"listen"`
+	SwaggerFilePath    string `mapstructure:"swagger_file_path"`
 	DefaultTokenExpiry int64  `mapstructure:"default_token_expiry"`
 }
 
@@ -190,7 +192,5 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 // a simple handler to serve the swagger spec as json file
 func (api *API) swaggerDataHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	http.ServeFile(w, r, "/docs/swagger.json")
+	http.ServeFile(w, r, os.Getenv("SWAGGER_FILE_PATH"))
 }

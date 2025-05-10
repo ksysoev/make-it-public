@@ -10,6 +10,10 @@ import (
 )
 
 func RunClientCommand(ctx context.Context, args *args) error {
+	if err := initLogger(args); err != nil {
+		return fmt.Errorf("failed to init logger: %w", err)
+	}
+
 	tkn, err := token.Decode(args.Token)
 	if err != nil {
 		return fmt.Errorf("invalid token: %w", err)

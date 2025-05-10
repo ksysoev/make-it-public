@@ -25,6 +25,7 @@ services:
       - API_LISTEN=:8082
       - API_DEFAULT_TOKEN_EXPIRY=3600
       - LOG_LEVEL=info
+      - LOG_TEXT=false
     command: ["server", "run", "all" ]
     depends_on:
       - redis

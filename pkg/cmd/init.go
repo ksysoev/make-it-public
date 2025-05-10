@@ -40,7 +40,7 @@ func InitCommand() cobra.Command {
 	cmd.Flags().StringVar(&arg.Token, "token", "", "token")
 
 	cmd.PersistentFlags().StringVar(&arg.LogLevel, "log-level", "info", "log level (debug, info, warn, error)")
-	cmd.PersistentFlags().BoolVar(&arg.TextFormat, "log-text", false, "log in text format, otherwise JSON")
+	cmd.PersistentFlags().BoolVar(&arg.TextFormat, "log-text", true, "log in text format, otherwise JSON")
 
 	cmd.AddCommand(initServerCommand(&arg))
 

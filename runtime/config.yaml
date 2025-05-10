@@ -11,4 +11,5 @@ auth:
   redis_addr: "localhost:6379"
   redis_password: ""
   key_prefix: "MIT::AUTH::"
+  salt: "someRandomSalt"
 

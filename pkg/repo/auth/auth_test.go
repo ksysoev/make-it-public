@@ -25,7 +25,9 @@ func TestRepo_Verify(t *testing.T) {
 			keyID:  "key123",
 			secret: "secret123",
 			mockSetup: func(m redismock.ClientMock) {
-				m.ExpectGet("prefixkey123").SetVal("secret123")
+				val, err := hashSecret("secret123", []byte(""))
+				assert.NoError(t, err)
+				m.ExpectGet("prefixkey123").SetVal(val)
 			},
 			want:    true,
 			wantErr: nil,
@@ -157,4 +159,65 @@ func TestRepo_Close(t *testing.T) {
 
 	err := r.Close()
 	require.NoError(t, err)
+}
+
+func TestHashSecret(t *testing.T) {
+	tests := []struct {
+		wantErr   error
+		name      string
+		secret    string
+		salt      []byte
+		expectErr bool
+	}{
+		{
+			name:      "valid secret and empty salt",
+			secret:    "password123",
+			salt:      []byte(""),
+			wantErr:   nil,
+			expectErr: false,
+		},
+		{
+			name:      "valid secret and non-empty salt",
+			secret:    "mypassword",
+			salt:      []byte("somesalt"),
+			wantErr:   nil,
+			expectErr: false,
+		},
+		{
+			name:      "empty secret",
+			secret:    "",
+			salt:      []byte("somesalt"),
+			wantErr:   nil,
+			expectErr: false,
+		},
+		{
+			name:      "large salt value",
+			secret:    "password123",
+			salt:      []byte("verylargesaltvalueusedforhashing"),
+			wantErr:   nil,
+			expectErr: false,
+		},
+		{
+			name:      "nil salt",
+			secret:    "password123",
+			salt:      nil,
+			wantErr:   nil,
+			expectErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := hashSecret(tt.secret, tt.salt)
+
+			if tt.expectErr {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+				assert.NotEmpty(t, got)
+				assert.Contains(t, got, scryptPrefix)
+			}
+		})
+	}
 }

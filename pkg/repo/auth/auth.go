@@ -2,11 +2,17 @@ package auth
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"time"
 
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/scrypt"
+)
+
+const (
+	scryptPrefix = "sc:"
 )
 
 var (
@@ -17,6 +23,7 @@ type Config struct {
 	RedisAddr string `mapstructure:"redis_addr"`
 	Password  string `mapstructure:"redis_password"`
 	KeyPrefix string `mapstructure:"key_prefix"`
+	Salt      string `mapstructure:"salt"`
 }
 
 type Redis interface {
@@ -28,6 +35,7 @@ type Redis interface {
 type Repo struct {
 	db        Redis
 	keyPrefix string
+	salt      []byte
 }
 
 // New creates and initializes a new Repo instance with the provided configuration.
@@ -42,6 +50,7 @@ func New(cfg *Config) *Repo {
 	return &Repo{
 		db:        rdb,
 		keyPrefix: cfg.KeyPrefix,
+		salt:      []byte(cfg.Salt),
 	}
 }
 
@@ -49,11 +58,16 @@ func New(cfg *Config) *Repo {
 // It retrieves the value from the database using the keyID and keyPrefix.
 // Returns true if the secret matches, false if not found or mismatched, and error if a database operation fails.
 func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
+	secretHash, err := hashSecret(secret, r.salt)
+	if err != nil {
+		return false, fmt.Errorf("failed to hash secret: %w", err)
+	}
+
 	res := r.db.Get(ctx, r.keyPrefix+keyID)
 
 	switch res.Err() {
 	case nil:
-		return res.Val() == secret, nil
+		return res.Val() == secretHash, nil
 	case redis.Nil:
 		return false, nil
 	default:
@@ -61,9 +75,10 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
 	}
 }
 
-// GenerateToken generates a new token, stores its secret in the database with a specified TTL, and returns the token.
-// It attempts up to 3 times to store the token, ensuring the operation completes successfully.
-// Returns the generated token on success or an error if all attempts fail due to database issues or conflicts.
+// GenerateToken creates and stores a unique authentication token in the database with a specified time-to-live (TTL).
+// It attempts to save the token up to three times in case of collisions and encrypts the token secret before storage.
+// Accepts ctx for request scoping, keyID as the identifier for the token, and ttl as the token's lifespan duration.
+// Returns the generated token or an error if token generation, encryption, or database storage fails.
 func (r *Repo) GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error) {
 	for i := 0; i < 3; i++ {
 		t, err := token.GenerateToken(keyID)
@@ -72,8 +87,12 @@ func (r *Repo) GenerateToken(ctx context.Context, keyID string, ttl time.Duratio
 			return nil, err
 		}
 
-		// TODO: we should store hash of the token instead of the token itself
-		res := r.db.SetNX(ctx, r.keyPrefix+t.ID, t.Secret, ttl)
+		secretHash, err := hashSecret(t.Secret, r.salt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt secret: %w", err)
+		}
+
+		res := r.db.SetNX(ctx, r.keyPrefix+t.ID, secretHash, ttl)
 
 		if res.Err() != nil {
 			return nil, fmt.Errorf("failed to save token: %w", res.Err())
@@ -93,4 +112,16 @@ func (r *Repo) GenerateToken(ctx context.Context, keyID string, ttl time.Duratio
 // Returns an error if the connection fails to close.
 func (r *Repo) Close() error {
 	return r.db.Close()
+}
+
+// hashSecret hashes the secret using the scrypt key derivation function with the provided salt and returns the result.
+// It prefixes the result with a constant identifier for scrypt-hashed values.
+// Returns the hashed secret as a string and an error if the hashing process fails.
+func hashSecret(secret string, salt []byte) (string, error) {
+	dk, err := scrypt.Key([]byte(secret), salt, 1<<15, 8, 1, 32)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash secret: %w", err)
+	}
+
+	return scryptPrefix + base64.StdEncoding.EncodeToString(dk), nil
 }

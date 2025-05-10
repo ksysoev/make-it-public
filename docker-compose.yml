@@ -23,6 +23,7 @@ services:
       - ./docs/swagger.json:/docs/swagger.json
     environment:
       - AUTH_REDIS_ADDR=redis:6379
+      - AUTH_SALT=${AUTH_SALT}
       - HTTP_PUBLIC_SCHEMA=https
       - HTTP_PUBLIC_DOMAIN=${DOMAIN_NAME}
       - HTTP_LISTEN=:8080

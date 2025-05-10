@@ -88,7 +88,7 @@ api:
 			}
 
 			arg := &args{
-				configPath: configPath,
+				ConfigPath: configPath,
 			}
 
 			cfg, err := loadConfig(arg)

@@ -15,27 +15,27 @@ func TestInitLogger(t *testing.T) {
 		{
 			name: "Valid log level with text format",
 			arg: args{
-				logLevel:   "info",
-				textFormat: true,
-				version:    "1.0.0",
+				LogLevel:   "info",
+				TextFormat: true,
+				Version:    "1.0.0",
 			},
 			wantErr: false,
 		},
 		{
 			name: "Valid log level with JSON format",
 			arg: args{
-				logLevel:   "debug",
-				textFormat: false,
-				version:    "1.0.0",
+				LogLevel:   "debug",
+				TextFormat: false,
+				Version:    "1.0.0",
 			},
 			wantErr: false,
 		},
 		{
 			name: "Invalid log level",
 			arg: args{
-				logLevel:   "invalid",
-				textFormat: true,
-				version:    "1.0.0",
+				LogLevel:   "invalid",
+				TextFormat: true,
+				Version:    "1.0.0",
 			},
 			wantErr: true,
 		},

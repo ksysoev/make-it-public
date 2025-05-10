@@ -117,8 +117,10 @@ func initTokenCommand(arg *args) *cobra.Command {
 		Long:  "Token management commands for the server.",
 	}
 
-	keyID := ""
-	var keyTTL int
+	var (
+		keyID  string
+		keyTTL int
+	)
 
 	cmdGenerateToken := &cobra.Command{
 		Use:   "generate",

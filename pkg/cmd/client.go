@@ -10,14 +10,14 @@ import (
 )
 
 func RunClientCommand(ctx context.Context, args *args) error {
-	tkn, err := token.Decode(args.token)
+	tkn, err := token.Decode(args.Token)
 	if err != nil {
 		return fmt.Errorf("invalid token: %w", err)
 	}
 
-	revcli := revclient.NewClientServer(args.server, args.expose, tkn)
+	revcli := revclient.NewClientServer(args.Server, args.Expose, tkn)
 
-	slog.InfoContext(ctx, "revclient started", "server", args.server)
+	slog.InfoContext(ctx, "revclient started", "server", args.Server)
 
 	return revcli.Run(ctx)
 }

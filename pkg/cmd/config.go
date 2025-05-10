@@ -28,8 +28,8 @@ type revProxyConfig struct {
 func loadConfig(arg *args) (*appConfig, error) {
 	v := viper.NewWithOptions(viper.ExperimentalBindStruct())
 
-	if arg.configPath != "" {
-		v.SetConfigFile(arg.configPath)
+	if arg.ConfigPath != "" {
+		v.SetConfigFile(arg.ConfigPath)
 
 		if err := v.ReadInConfig(); err != nil {
 			return nil, fmt.Errorf("failed to read config: %w", err)

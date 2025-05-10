@@ -1,20 +1,23 @@
 package cmd
 
 import (
+	"log/slog"
+
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type args struct {
 	// client args
-	server string
-	expose string
-	token  string
+	Server string `mapstructure:"server"`
+	Expose string `mapstructure:"expose"`
+	Token  string `mapstructure:"token"`
 
 	// server args
-	configPath string
-	logLevel   string
-	version    string
-	textFormat bool
+	ConfigPath string `mapstructure:"config"`
+	LogLevel   string `mapstructure:"log_level"`
+	Version    string
+	TextFormat bool `mapstructure:"log_text"`
 }
 
 // InitCommand initializes the root command of the CLI application with its subcommands and flags.
@@ -32,11 +35,26 @@ func InitCommand() cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&arg.server, "server", "localhost:8081", "server address")
-	cmd.Flags().StringVar(&arg.expose, "expose", "localhost:80", "expose service")
-	cmd.Flags().StringVar(&arg.token, "token", "", "token")
+	cmd.Flags().StringVar(&arg.Server, "server", "test.com", "server address")
+	cmd.Flags().StringVar(&arg.Expose, "expose", "localhost:80", "expose service")
+	cmd.Flags().StringVar(&arg.Token, "token", "", "token")
+
+	cmd.PersistentFlags().StringVar(&arg.LogLevel, "log-level", "info", "log level (debug, info, warn, error)")
+	cmd.PersistentFlags().BoolVar(&arg.TextFormat, "log-text", true, "log in text format, otherwise JSON")
 
 	cmd.AddCommand(initServerCommand(&arg))
+
+	for _, name := range []string{"server", "expose", "token", "log_level", "log_text"} {
+		if err := viper.BindEnv(name); err != nil {
+			slog.Error("failed to bind env var", "name", name, "error", err)
+		}
+	}
+
+	viper.AutomaticEnv()
+
+	if err := viper.Unmarshal(&arg); err != nil {
+		slog.Error("failed to unmarshal env vars", "error", err)
+	}
 
 	return cmd
 }
@@ -52,9 +70,11 @@ func initServerCommand(arg *args) *cobra.Command {
 		Long:  "Make It Public Reverse Connect Proxy Server is a service for exposing local services to the internet.",
 	}
 
-	cmd.PersistentFlags().StringVar(&arg.configPath, "config", "runtime/config.yaml", "config path")
-	cmd.PersistentFlags().StringVar(&arg.logLevel, "log-level", "info", "log level (debug, info, warn, error)")
-	cmd.PersistentFlags().BoolVar(&arg.textFormat, "log-text", false, "log in text format, otherwise JSON")
+	cmd.PersistentFlags().StringVar(&arg.ConfigPath, "config", "", "config path")
+
+	if err := viper.BindEnv("config"); err != nil {
+		slog.Error("failed to bind env var", "name", "config", "error", err)
+	}
 
 	cmd.AddCommand(initRunCommand(arg))
 	cmd.AddCommand(initTokenCommand(arg))
@@ -97,18 +117,22 @@ func initTokenCommand(arg *args) *cobra.Command {
 		Long:  "Token management commands for the server.",
 	}
 
-	keyID := ""
+	var (
+		keyID  string
+		keyTTL int
+	)
 
 	cmdGenerateToken := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a new token",
 		Long:  "Generate a new token for authentication.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return RunGenerateToken(cmd.Context(), arg, keyID)
+			return RunGenerateToken(cmd.Context(), arg, keyID, keyTTL)
 		},
 	}
 
 	cmdGenerateToken.Flags().StringVar(&keyID, "key-id", "", "Key ID for the token")
+	cmdGenerateToken.Flags().IntVar(&keyTTL, "ttl", 1, "Token time to live in hours")
 
 	cmd.AddCommand(cmdGenerateToken)
 

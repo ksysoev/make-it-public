@@ -40,6 +40,18 @@ func TestInitTokenCommand(t *testing.T) {
 	assert.Contains(t, cmd.Long, "commands for the server")
 
 	require.Len(t, cmd.Commands(), 1)
-	assert.Equal(t, "generate", cmd.Commands()[0].Use)
-	assert.Contains(t, cmd.Commands()[0].Short, "Generate a new token")
+	generateCmd := cmd.Commands()[0]
+	assert.Equal(t, "generate", generateCmd.Use)
+	assert.Contains(t, generateCmd.Short, "Generate a new token")
+
+	// Validate flags of the generate subcommand
+	keyIDFlag := generateCmd.Flags().Lookup("key-id")
+	require.NotNil(t, keyIDFlag)
+	assert.Equal(t, "", keyIDFlag.DefValue)
+	assert.Contains(t, keyIDFlag.Usage, "Key ID for the token")
+
+	ttlFlag := generateCmd.Flags().Lookup("ttl")
+	require.NotNil(t, ttlFlag)
+	assert.Equal(t, "1", ttlFlag.DefValue)
+	assert.Contains(t, ttlFlag.Usage, "Token time to live in hours")
 }

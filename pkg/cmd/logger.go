@@ -34,7 +34,7 @@ func (h ContextHandler) Handle(ctx context.Context, r slog.Record) error {
 // It returns an error if the logger initialization fails, although in this implementation, it always returns nil.
 func initLogger(arg *args) error {
 	var logLevel slog.Level
-	if err := logLevel.UnmarshalText([]byte(arg.logLevel)); err != nil {
+	if err := logLevel.UnmarshalText([]byte(arg.LogLevel)); err != nil {
 		return err
 	}
 
@@ -43,7 +43,7 @@ func initLogger(arg *args) error {
 	}
 
 	var logHandler slog.Handler
-	if arg.textFormat {
+	if arg.TextFormat {
 		logHandler = slog.NewTextHandler(os.Stdout, options)
 	} else {
 		logHandler = slog.NewJSONHandler(os.Stdout, options)
@@ -51,7 +51,7 @@ func initLogger(arg *args) error {
 
 	ctxHandler := &ContextHandler{
 		Handler: logHandler,
-		ver:     arg.version,
+		ver:     arg.Version,
 		app:     "make-it-public",
 	}
 

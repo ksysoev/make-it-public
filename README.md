@@ -1,4 +1,12 @@
-# make-it-public
+# Make It Public
+
+[![Tests](https://github.com/ksysoev/make-it-public/actions/workflows/main.yml/badge.svg)](https://github.com/ksysoev/make-it-public/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/ksysoev/make-it-public/graph/badge.svg?token=NVH74H0R79)](https://codecov.io/gh/ksysoev/make-it-public)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ksysoev/make-it-public)](https://goreportcard.com/report/github.com/ksysoev/make-it-public)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ksysoev/make-it-public.svg)](https://pkg.go.dev/github.com/ksysoev/make-it-public)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+
 Service for publishing services that are hidden behind NAT
 
 **make-it-public** is a service designed to expose services that are hidden behind NAT (Network Address Translation). It allows users to securely and efficiently publish services that are otherwise inaccessible from the public internet. This project achieves this by implementing a reverse proxy and client-server architecture, enabling seamless communication between clients and servers.

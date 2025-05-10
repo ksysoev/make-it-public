@@ -1,8 +1,6 @@
 http:
   public:
     schema: "http"
-    domain: "makeitpublic.com"
-    port: 8080
   listen: ":8080"
 reverse_proxy:
   listen: ":8081"

@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
 	"time"
 
 	"log/slog"
@@ -192,5 +191,5 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 // a simple handler to serve the swagger spec as json file
 func (api *API) swaggerDataHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, os.Getenv("SWAGGER_FILE_PATH"))
+	http.ServeFile(w, r, api.config.SwaggerFilePath)
 }

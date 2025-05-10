@@ -11,6 +11,6 @@ FROM scratch
 
 COPY --from=builder /app/mit .
 
-EXPOSE 8080 8081 8082
+EXPOSE 8080 8081 8082 9009
 
 ENTRYPOINT ["/mit"]

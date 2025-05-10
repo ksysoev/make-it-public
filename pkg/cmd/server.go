@@ -8,6 +8,7 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/api"
 	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/edge"
+	"github.com/ksysoev/make-it-public/pkg/metric"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/ksysoev/make-it-public/pkg/repo/connmng"
 	"github.com/ksysoev/make-it-public/pkg/revproxy"
@@ -33,6 +34,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 
 	revServ := revproxy.New(cfg.RevProxy.Listen, connService)
 	apiServ := api.New(cfg.API, authRepo)
+	metricServ := metric.New(cfg.Metrics)
 
 	httpServ, err := edge.New(cfg.HTTP, connService)
 	if err != nil {
@@ -46,6 +48,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 	eg.Go(func() error { return revServ.Run(ctx) })
 	eg.Go(func() error { return httpServ.Run(ctx) })
 	eg.Go(func() error { return apiServ.Run(ctx) })
+	eg.Go(func() error { return metricServ.Run(ctx) })
 
 	return eg.Wait()
 }

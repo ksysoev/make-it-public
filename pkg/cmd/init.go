@@ -118,17 +118,19 @@ func initTokenCommand(arg *args) *cobra.Command {
 	}
 
 	keyID := ""
+	var keyTTL int
 
 	cmdGenerateToken := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a new token",
 		Long:  "Generate a new token for authentication.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return RunGenerateToken(cmd.Context(), arg, keyID)
+			return RunGenerateToken(cmd.Context(), arg, keyID, keyTTL)
 		},
 	}
 
 	cmdGenerateToken.Flags().StringVar(&keyID, "key-id", "", "Key ID for the token")
+	cmdGenerateToken.Flags().IntVar(&keyTTL, "ttl", 1, "Token time to live in hours")
 
 	cmd.AddCommand(cmdGenerateToken)
 

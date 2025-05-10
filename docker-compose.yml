@@ -9,6 +9,9 @@ services:
   mitserver:
     build:
       context: .
+      # uncomment the next line to use local build
+      # dockerfile: Dockerfile
+    # comment the next line to use local build
     image: "ghcr.io/ksysoev/make-it-public:main"
     restart: unless-stopped
     container_name: mitserver
@@ -16,6 +19,8 @@ services:
       - "8080" # HTTP server
       - "8081:8081" # Reverse proxy
       - "8082:8082" # API server
+    volumes:
+      - ./docs/swagger.json:/docs/swagger.json
     environment:
       - AUTH_REDIS_ADDR=redis:6379
       - AUTH_SALT=${AUTH_SALT}
@@ -25,6 +30,8 @@ services:
       - REVERSE_PROXY_LISTEN=:8081
       - API_LISTEN=:8082
       - API_DEFAULT_TOKEN_EXPIRY=3600
+      - API_HTTP_SCHEME=http
+      - API_SWAGGER_PATH=/docs/swagger.json
       - LOG_LEVEL=info
       - LOG_TEXT=false
     command: ["server", "run", "all" ]

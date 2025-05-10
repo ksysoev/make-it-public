@@ -11,7 +11,8 @@ const (
 	defaultIDLength     = 8
 	maxIDLength         = 15
 	defaultSecretLength = 33
-	alphabet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	lowerCase           = "abcdefghijklmnopqrstuvwxyz"
+	upperCase           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	numbers             = "0123456789"
 	base64Modulo        = 3
 )
@@ -21,9 +22,9 @@ type Token struct {
 	Secret string
 }
 
-// GenerateToken creates a new Token instance with a unique ID and a secure Secret.
-// It ensures both the ID and Secret are random strings suitable for use in URLs and secure contexts.
-// Returns a pointer to the generated Token containing the ID and Secret.
+// GenerateToken creates a new token with a unique ID and secret.
+// If keyID is empty, a new ID is generated. The function ensures the keyID does not exceed the maximum allowed length.
+// Returns a Token containing the keyID and a generated secret, or an error if keyID validation or secret generation fails.
 func GenerateToken(keyID string) (*Token, error) {
 	if len(keyID) > maxIDLength {
 		return nil, fmt.Errorf("keyID length exceeds maximum limit of %d characters", maxIDLength)
@@ -74,7 +75,7 @@ func Decode(encoded string) (*Token, error) {
 
 // TODO: send and cross-verify the ID in to redis and check for duplicates
 func generateID() (string, error) {
-	indices, err := randomIntSlice(len(alphabet), defaultIDLength)
+	indices, err := randomIntSlice(len(lowerCase+numbers), defaultIDLength)
 
 	if err != nil {
 		return "", err
@@ -83,14 +84,14 @@ func generateID() (string, error) {
 	b := make([]byte, defaultIDLength)
 
 	for i, idx := range indices {
-		b[i] = alphabet[idx]
+		b[i] = (lowerCase + numbers)[idx]
 	}
 
 	return string(b), nil
 }
 
 func generateSecret(bufferLen int) (string, error) {
-	indices, err := randomIntSlice(len(alphabet+numbers), bufferLen)
+	indices, err := randomIntSlice(len(lowerCase+upperCase+numbers), bufferLen)
 
 	if err != nil {
 		return "", err
@@ -99,7 +100,7 @@ func generateSecret(bufferLen int) (string, error) {
 	b := make([]byte, bufferLen)
 
 	for i, idx := range indices {
-		b[i] = (alphabet + numbers)[idx]
+		b[i] = (lowerCase + upperCase + numbers)[idx]
 	}
 
 	return string(b), nil

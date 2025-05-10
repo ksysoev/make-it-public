@@ -78,7 +78,7 @@ func (r *Repo) GenerateToken(ctx context.Context, keyID string, ttl time.Duratio
 			return nil, err
 		}
 
-		secretHash, err := r.encryptSecret(t.Secret)
+		secretHash, err := r.hashSecret(t.Secret)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encrypt secret: %w", err)
 		}

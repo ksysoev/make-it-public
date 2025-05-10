@@ -9,7 +9,10 @@ services:
   mitserver:
     build:
       context: .
-    image: "ghcr.io/ksysoev/make-it-public:main"
+      # uncomment the next line to use local build
+      dockerfile: Dockerfile
+    # comment the next line to use local build
+    # image: "ghcr.io/ksysoev/make-it-public:main"
     restart: unless-stopped
     container_name: mitserver
     ports:

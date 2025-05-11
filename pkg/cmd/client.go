@@ -19,7 +19,14 @@ func RunClientCommand(ctx context.Context, args *args) error {
 		return fmt.Errorf("invalid token: %w", err)
 	}
 
-	revcli := revclient.NewClientServer(args.Server, args.Expose, tkn)
+	cfg := revclient.Config{
+		ServerAddr: args.Server,
+		DestAddr:   args.Expose,
+		NoTLS:      args.NoTLS,
+		Insecure:   args.Insecure,
+	}
+
+	revcli := revclient.NewClientServer(cfg, tkn)
 
 	slog.InfoContext(ctx, "revclient started", "server", args.Server)
 

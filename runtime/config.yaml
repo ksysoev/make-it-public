@@ -6,6 +6,8 @@ http:
   listen: ":8080"
 reverse_proxy:
   listen: ":8081"
+  cert: "../my.crt"
+  key: "../my.key"
 api:
   listen: ":8082"
   default_token_expiry: 3600

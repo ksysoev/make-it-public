@@ -194,18 +194,3 @@ func TestAPIRun(t *testing.T) {
 	defer resp.Body.Close()
 	cancel()
 }
-
-func TestSwaggerDataHandler(t *testing.T) {
-	api := New(Config{Listen: ":8082", SwaggerFilePath: "../../docs/swagger.json"}, nil)
-
-	t.Run("Swagger Data Handler serves swagger.json", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/swaggerData/", http.NoBody)
-		rec := httptest.NewRecorder()
-
-		api.swaggerDataHandler(rec, req)
-
-		assert.Equal(t, http.StatusOK, rec.Code, "Expected status code 200")
-		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"), "correct content type")
-		assert.NotEmpty(t, rec.Body.String(), "Response body should not be empty")
-	})
-}

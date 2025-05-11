@@ -11,7 +11,7 @@ import (
 
 	"log/slog"
 
-	"github.com/ksysoev/make-it-public/docs"
+	_ "github.com/ksysoev/make-it-public/pkg/api/docs"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
@@ -21,9 +21,7 @@ const (
 )
 
 type Config struct {
-	Scheme             string `mapstructure:"scheme"`
 	Listen             string `mapstructure:"listen"`
-	SwaggerFilePath    string `mapstructure:"swagger_file_path"`
 	DefaultTokenExpiry int64  `mapstructure:"default_token_expiry"`
 }
 
@@ -42,7 +40,6 @@ const (
 	HealthCheckEndpoint   Endpoint = "GET /health"
 	GenerateTokenEndpoint Endpoint = "POST /generateToken"
 	SwaggerEndpoint       Endpoint = "/swagger/"
-	SwaggerDataEndpoint   Endpoint = "/swaggerData/"
 )
 
 func New(cfg Config, auth AuthRepo) *API {
@@ -64,10 +61,7 @@ func (api *API) Run(ctx context.Context) error {
 
 	router.HandleFunc((string(HealthCheckEndpoint)), api.healthCheckHandler)
 	router.HandleFunc((string(GenerateTokenEndpoint)), api.generateTokenHandler)
-	router.HandleFunc((string(SwaggerDataEndpoint)), api.swaggerDataHandler)
-
-	httpScheme := cmp.Or(api.config.Scheme, "http")
-	router.HandleFunc((string(SwaggerEndpoint)), httpSwagger.Handler(httpSwagger.URL(httpScheme+"://"+docs.SwaggerInfo.Host+string(SwaggerDataEndpoint))))
+	router.HandleFunc((string(SwaggerEndpoint)), httpSwagger.WrapHandler)
 
 	server := &http.Server{
 		Addr:              api.config.Listen,
@@ -187,9 +181,4 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	slog.Info("Token generated successfully", "key_id", keyID, "ttl", ttl)
-}
-
-// a simple handler to serve the swagger spec as json file
-func (api *API) swaggerDataHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, api.config.SwaggerFilePath)
 }

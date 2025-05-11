@@ -1,6 +1,8 @@
 http:
   public:
     schema: "http"
+    domain: "make-it-public.dev"
+    port: 8080
   listen: ":8080"
 reverse_proxy:
   listen: ":8081"

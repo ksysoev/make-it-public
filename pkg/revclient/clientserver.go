@@ -2,6 +2,7 @@ package revclient
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -51,7 +52,12 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to create event handler: %w", err)
 	}
 
-	listener, err := revdial.Listen(ctx, s.serverAddr, authOpt, onConnect)
+	tlsConf := revdial.WithListenerTLSConfig(&tls.Config{
+		ServerName:         "make-it-public.dev",
+		InsecureSkipVerify: true,
+	})
+
+	listener, err := revdial.Listen(ctx, s.serverAddr, authOpt, onConnect, tlsConf)
 	if err != nil {
 		return err
 	}

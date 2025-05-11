@@ -26,9 +26,9 @@ func (_m *MockAuthRepo) EXPECT() *MockAuthRepo_Expecter {
 	return &MockAuthRepo_Expecter{mock: &_m.Mock}
 }
 
-// GenerateToken provides a mock function with given fields: ctx, keyId, ttl
-func (_m *MockAuthRepo) GenerateToken(ctx context.Context, keyId string, ttl time.Duration) (*token.Token, error) {
-	ret := _m.Called(ctx, keyId, ttl)
+// GenerateToken provides a mock function with given fields: ctx, keyID, ttl
+func (_m *MockAuthRepo) GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error) {
+	ret := _m.Called(ctx, keyID, ttl)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GenerateToken")
@@ -37,10 +37,10 @@ func (_m *MockAuthRepo) GenerateToken(ctx context.Context, keyId string, ttl tim
 	var r0 *token.Token
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, time.Duration) (*token.Token, error)); ok {
-		return rf(ctx, keyId, ttl)
+		return rf(ctx, keyID, ttl)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, time.Duration) *token.Token); ok {
-		r0 = rf(ctx, keyId, ttl)
+		r0 = rf(ctx, keyID, ttl)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*token.Token)
@@ -48,7 +48,7 @@ func (_m *MockAuthRepo) GenerateToken(ctx context.Context, keyId string, ttl tim
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, time.Duration) error); ok {
-		r1 = rf(ctx, keyId, ttl)
+		r1 = rf(ctx, keyID, ttl)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -63,13 +63,13 @@ type MockAuthRepo_GenerateToken_Call struct {
 
 // GenerateToken is a helper method to define mock.On call
 //   - ctx context.Context
-//   - keyId string
+//   - keyID string
 //   - ttl time.Duration
-func (_e *MockAuthRepo_Expecter) GenerateToken(ctx interface{}, keyId interface{}, ttl interface{}) *MockAuthRepo_GenerateToken_Call {
-	return &MockAuthRepo_GenerateToken_Call{Call: _e.mock.On("GenerateToken", ctx, keyId, ttl)}
+func (_e *MockAuthRepo_Expecter) GenerateToken(ctx interface{}, keyID interface{}, ttl interface{}) *MockAuthRepo_GenerateToken_Call {
+	return &MockAuthRepo_GenerateToken_Call{Call: _e.mock.On("GenerateToken", ctx, keyID, ttl)}
 }
 
-func (_c *MockAuthRepo_GenerateToken_Call) Run(run func(ctx context.Context, keyId string, ttl time.Duration)) *MockAuthRepo_GenerateToken_Call {
+func (_c *MockAuthRepo_GenerateToken_Call) Run(run func(ctx context.Context, keyID string, ttl time.Duration)) *MockAuthRepo_GenerateToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(time.Duration))
 	})

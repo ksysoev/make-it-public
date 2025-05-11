@@ -27,7 +27,6 @@ var (
 	once     sync.Once
 )
 
-
 func GetMetricService() MetricService {
 	once.Do(func() {
 		instance = &metricService{
@@ -36,7 +35,7 @@ func GetMetricService() MetricService {
 		}
 	})
 
-	return instance;
+	return instance
 }
 
 func (m *metricService) IncrementCounter(metricName string, by uint, tags map[string]string) {

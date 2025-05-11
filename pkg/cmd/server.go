@@ -41,7 +41,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 		return fmt.Errorf("failed to create http server: %w", err)
 	}
 
-	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen, "api", cfg.API.Listen)
+	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen, "api", cfg.API.Listen, "metrics", cfg.Metrics.Listen)
 
 	eg, ctx := errgroup.WithContext(ctx)
 

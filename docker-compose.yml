@@ -19,8 +19,6 @@ services:
       - "8080" # HTTP server
       - "8081:8081" # Reverse proxy
       - "8082:8082" # API server
-    volumes:
-      - ./pkg/api/docs/swagger.json:/doc.json
     environment:
       - AUTH_REDIS_ADDR=redis:6379
       - AUTH_SALT=${AUTH_SALT}

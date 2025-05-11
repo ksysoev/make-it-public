@@ -36,22 +36,21 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 		return nil, fmt.Errorf("both cert and key are required for TLS")
 	}
 
+	var cert *tls.Certificate
+
 	if cfg.Cert != "" {
-		cer, err := tls.LoadX509KeyPair(cfg.Cert, cfg.Key)
+		c, err := tls.LoadX509KeyPair(cfg.Cert, cfg.Key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
 		}
 
-		return &RevServer{
-			connService: connService,
-			listen:      cfg.Listen,
-			cert:        &cer,
-		}, nil
+		cert = &c
 	}
 
 	return &RevServer{
 		connService: connService,
 		listen:      cfg.Listen,
+		cert:        cert,
 	}, nil
 }
 
@@ -111,12 +110,4 @@ func (r *RevServer) Run(ctx context.Context) error {
 			}
 		}()
 	}
-}
-
-func loadCert(cfg *Config) (string, string, error) {
-	if cfg.Cert == "" || cfg.Key == "" {
-		return "", "", fmt.Errorf("cert and key are required for TLS")
-	}
-
-	return cfg.Cert, cfg.Key, nil
 }

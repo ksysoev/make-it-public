@@ -2,6 +2,7 @@ package revproxy
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net"
@@ -10,6 +11,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type Config struct {
+	Listen string `mapstructure:"listen"`
+	Cert   string `mapstructure:"cert"`
+	Key    string `mapstructure:"key"`
+}
+
 type ConnService interface {
 	HandleReverseConn(ctx context.Context, conn net.Conn) error
 }
@@ -17,20 +24,54 @@ type ConnService interface {
 type RevServer struct {
 	connService ConnService
 	listen      string
+	cert        *tls.Certificate
 }
 
-func New(listen string, connService ConnService) *RevServer {
-	return &RevServer{
-		listen:      listen,
-		connService: connService,
+func New(cfg *Config, connService ConnService) (*RevServer, error) {
+	if cfg.Listen == "" {
+		return nil, fmt.Errorf("listen address is required")
 	}
+
+	if (cfg.Cert != "" && cfg.Key == "") || (cfg.Cert == "" && cfg.Key != "") {
+		return nil, fmt.Errorf("both cert and key are required for TLS")
+	}
+
+	if cfg.Cert != "" {
+		cer, err := tls.LoadX509KeyPair(cfg.Cert, cfg.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+		}
+
+		return &RevServer{
+			connService: connService,
+			listen:      cfg.Listen,
+			cert:        &cer,
+		}, nil
+	}
+
+	return &RevServer{
+		connService: connService,
+		listen:      cfg.Listen,
+	}, nil
 }
 
 func (r *RevServer) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	l, err := net.Listen("tcp", r.listen)
+	var (
+		l   net.Listener
+		err error
+	)
+
+	if r.cert != nil {
+		l, err = tls.Listen("tcp", r.listen, &tls.Config{
+			Certificates: []tls.Certificate{*r.cert},
+		})
+	} else {
+		l, err = net.Listen("tcp", r.listen)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
@@ -70,4 +111,12 @@ func (r *RevServer) Run(ctx context.Context) error {
 			}
 		}()
 	}
+}
+
+func loadCert(cfg *Config) (string, string, error) {
+	if cfg.Cert == "" || cfg.Key == "" {
+		return "", "", fmt.Errorf("cert and key are required for TLS")
+	}
+
+	return cfg.Cert, cfg.Key, nil
 }

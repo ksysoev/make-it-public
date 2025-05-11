@@ -9,8 +9,7 @@ services:
   mitserver:
     build:
       context: .
-      dockerfile: Dockerfile
-    # image: "ghcr.io/ksysoev/make-it-public:main"
+    image: "ghcr.io/ksysoev/make-it-public:main"
     restart: unless-stopped
     container_name: mitserver
     ports:
@@ -22,7 +21,7 @@ services:
       - AUTH_REDIS_ADDR=redis:6379
       - AUTH_SALT=${AUTH_SALT}
       - HTTP_PUBLIC_SCHEMA=https
-      - HTTP_PUBLIC_DOMAIN=test
+      - HTTP_PUBLIC_DOMAIN=${DOMAIN_NAME}
       - HTTP_LISTEN=:8080
       - REVERSE_PROXY_LISTEN=:8081
       - METRICS_LISTEN=:9009

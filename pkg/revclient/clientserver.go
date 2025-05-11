@@ -70,7 +70,8 @@ func (s *ClientServer) Run(ctx context.Context) error {
 
 		tlsConf := revdial.WithListenerTLSConfig(&tls.Config{
 			ServerName:         host,
-			InsecureSkipVerify: s.cfg.Insecure,
+			InsecureSkipVerify: s.cfg.Insecure, //nolint:gosec // default value is false but for testing we can skip it
+			MinVersion:         tls.VersionTLS13,
 		})
 
 		opts = append(opts, tlsConf)

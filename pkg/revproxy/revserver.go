@@ -23,8 +23,8 @@ type ConnService interface {
 
 type RevServer struct {
 	connService ConnService
-	listen      string
 	cert        *tls.Certificate
+	listen      string
 }
 
 func New(cfg *Config, connService ConnService) (*RevServer, error) {
@@ -66,6 +66,7 @@ func (r *RevServer) Run(ctx context.Context) error {
 	if r.cert != nil {
 		l, err = tls.Listen("tcp", r.listen, &tls.Config{
 			Certificates: []tls.Certificate{*r.cert},
+			MinVersion:   tls.VersionTLS13,
 		})
 	} else {
 		l, err = net.Listen("tcp", r.listen)

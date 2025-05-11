@@ -8,17 +8,14 @@ import (
 )
 
 type args struct {
-	// client args
-	Server   string `mapstructure:"server"`
-	Expose   string `mapstructure:"expose"`
-	Token    string `mapstructure:"token"`
-	NoTLS    bool   `mapstructure:"no_tls"`
-	Insecure bool   `mapstructure:"insecure"`
-
-	// server args
+	Server     string `mapstructure:"server"`
+	Expose     string `mapstructure:"expose"`
+	Token      string `mapstructure:"token"`
 	ConfigPath string `mapstructure:"config"`
 	LogLevel   string `mapstructure:"log_level"`
 	Version    string
+	NoTLS      bool `mapstructure:"no_tls"`
+	Insecure   bool `mapstructure:"insecure"`
 	TextFormat bool `mapstructure:"log_text"`
 }
 

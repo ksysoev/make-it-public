@@ -11,7 +11,7 @@ import (
 
 	"log/slog"
 
-	_ "github.com/ksysoev/make-it-public/pkg/api/docs"
+	_ "github.com/ksysoev/make-it-public/pkg/api/docs" // needed for swagger
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )

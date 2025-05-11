@@ -20,20 +20,22 @@ func TestMetricService_IncrementCounter(t *testing.T) {
 
 	// Test incrementing a counter with no tags
 	service.IncrementCounter("test_counter_no_tags", 1, nil)
-	counter := service.(*metricService).counters["test_counter_no_tags"]
+	counter, found := service.GetMetricByName("test_counter_no_tags")
+	assert.True(t, found, "Counter should be found")
 	assert.NotNil(t, counter, "Counter should be created")
-	assert.Equal(t, 1.0, testutil.ToFloat64(counter.With(nil)), "Counter value should be incremented by 1")
+	assert.Equal(t, 1.0, testutil.ToFloat64(counter), "Counter value should be incremented by 1")
 
 	// Test incrementing a counter with tags
 	tags := map[string]string{"label1": "value1", "label2": "value2"}
 	service.IncrementCounter("test_counter_with_tags", 3, tags)
-	counterWithTags := service.(*metricService).counters["test_counter_with_tags"]
+	counterWithTags, found := service.GetMetricByName("test_counter_with_tags")
+	assert.True(t, found, "Counter with tags should be found")
 	assert.NotNil(t, counterWithTags, "Counter with tags should be created")
-	assert.Equal(t, 3.0, testutil.ToFloat64(counterWithTags.With(tags)), "Counter value should be incremented by 3")
+	assert.Equal(t, 3.0, testutil.ToFloat64(counterWithTags), "Counter value should be incremented by 3")
 
 	// Test incrementing an existing counter
 	service.IncrementCounter("test_counter_with_tags", 2, tags)
-	assert.Equal(t, 5.0, testutil.ToFloat64(counterWithTags.With(tags)), "Counter value should be incremented to 5")
+	assert.Equal(t, 5.0, testutil.ToFloat64(counterWithTags), "Counter value should be incremented to 5")
 }
 
 func TestMetricService_RecordDuration(t *testing.T) {
@@ -43,30 +45,35 @@ func TestMetricService_RecordDuration(t *testing.T) {
 	service.RecordDuration("test_duration_no_tags", nil, func() {
 		time.Sleep(10 * time.Millisecond)
 	})
-	duration := service.(*metricService).durations["test_duration_no_tags"]
+
+	duration, found := service.GetMetricByName("test_duration_no_tags")
+
+	assert.True(t, found, "Duration metric should be found")
 	assert.NotNil(t, duration, "Duration metric should be created")
-	assert.Equal(t, 1, testutil.CollectAndCount(duration.Observer), "Histogram should have one entry")
+	assert.Equal(t, 1, testutil.CollectAndCount(duration), "Histogram should have one entry")
 
 	// Test recording duration with tags
 	tags := map[string]string{"label1": "value1", "label2": "value2"}
 	service.RecordDuration("test_duration_with_tags", tags, func() {
 		time.Sleep(20 * time.Millisecond)
 	})
-	durationWithTags := service.(*metricService).durations["test_duration_with_tags"]
+
+	durationWithTags, found := service.GetMetricByName("test_duration_no_tags")
+	assert.True(t, found, "Duration metric with tags should be found")
 	assert.NotNil(t, durationWithTags, "Duration metric with tags should be created")
-	assert.Equal(t, 1, testutil.CollectAndCount(durationWithTags.Observer), "Histogram should have recorded at least one observation")
+	assert.Equal(t, 1, testutil.CollectAndCount(durationWithTags), "Histogram should have recorded at least one observation")
 }
 
 func TestMetricService_getKeys(t *testing.T) {
-	service := GetMetricService()
+	service := &metricService{}
 
 	// Test with no tags
 	tags := map[string]string{}
-	keys := service.(*metricService).getKeys(tags)
+	keys := service.getKeys(tags)
 	assert.Equal(t, 0, len(keys), "Keys should be empty for no tags")
 
 	// Test with multiple tags
 	tags = map[string]string{"label1": "value1", "label2": "value2"}
-	keys = service.(*metricService).getKeys(tags)
+	keys = service.getKeys(tags)
 	assert.ElementsMatch(t, []string{"label1", "label2"}, keys, "Keys should match the tag keys")
 }

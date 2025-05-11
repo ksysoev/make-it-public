@@ -7,9 +7,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-type MetricService interface {
+type MeasurementService interface {
+	// IncrementCounter increments a counter metric by the specified value. It accepts metric name and its labels.
 	IncrementCounter(metricName string, by uint, tags map[string]string)
+
+	// RecordDuration records the elapsed duration of a function execution. It accepts metric name, its labels, and the function to be executed
 	RecordDuration(metricName string, tags map[string]string, fn func())
+
+	// GetMetricByName retrieves a metric if exists. It is specifically meant for testing purposes.
+	GetMetricByName(metricName string) (prometheus.Collector, bool)
 }
 
 type metricService struct {
@@ -23,11 +29,11 @@ type Duration struct {
 }
 
 var (
-	instance MetricService
+	instance MeasurementService
 	once     sync.Once
 )
 
-func GetMetricService() MetricService {
+func GetMetricService() MeasurementService {
 	once.Do(func() {
 		instance = &metricService{
 			counters:  make(map[string]*prometheus.CounterVec),
@@ -60,6 +66,7 @@ func (m *metricService) getOrCreateCounterVec(metricName string, tagKeys []strin
 	}, tagKeys)
 
 	m.counters[metricName] = counter
+
 	return counter
 }
 
@@ -80,6 +87,7 @@ func (m *metricService) getOrCreateDuration(durations map[string]*Duration, tags
 	}
 
 	durations[metricName] = duration
+
 	return duration
 }
 
@@ -90,4 +98,16 @@ func (m *metricService) getKeys(tags map[string]string) []string {
 	}
 
 	return keys
+}
+
+func (m *metricService) GetMetricByName(metricName string) (prometheus.Collector, bool) {
+	if counter, exists := m.counters[metricName]; exists {
+		return counter, true
+	}
+
+	if duration, exists := m.durations[metricName]; exists {
+		return duration.Observer, true
+	}
+
+	return nil, false
 }

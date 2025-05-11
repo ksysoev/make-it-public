@@ -15,9 +15,9 @@ import (
 type appConfig struct {
 	Auth     auth.Config    `mapstructure:"auth"`
 	API      api.Config     `mapstructure:"api"`
+	Metrics  metric.Config  `mapstructure:"metrics"`
 	RevProxy revProxyConfig `mapstructure:"reverse_proxy"`
 	HTTP     edge.Config    `mapstructure:"http"`
-	Metrics  metric.Config  `mapstructure:"metrics"`
 }
 
 type revProxyConfig struct {

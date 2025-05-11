@@ -28,7 +28,6 @@ services:
       - REVERSE_PROXY_LISTEN=:8081
       - API_LISTEN=:8082
       - API_DEFAULT_TOKEN_EXPIRY=3600
-      - API_HTTP_SCHEME=http
       - LOG_LEVEL=info
       - LOG_TEXT=false
     command: ["server", "run", "all" ]

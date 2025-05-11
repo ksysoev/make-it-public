@@ -17,10 +17,10 @@ func TestNew(t *testing.T) {
 	mockConnService := NewMockConnService(t)
 
 	tests := []struct {
-		name        string
 		cfg         *Config
-		expectError bool
+		name        string
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid config without TLS",
@@ -86,10 +86,10 @@ func TestNewWithTLS(t *testing.T) {
 	cert, key, err := generateSelfSignedCert()
 	require.NoError(t, err)
 
-	err = os.WriteFile(certPath, cert, 0600)
+	err = os.WriteFile(certPath, cert, 0o600)
 	require.NoError(t, err)
 
-	err = os.WriteFile(keyPath, key, 0600)
+	err = os.WriteFile(keyPath, key, 0o600)
 	require.NoError(t, err)
 
 	mockConnService := NewMockConnService(t)
@@ -108,7 +108,7 @@ func TestNewWithTLS(t *testing.T) {
 
 	// Test with invalid certificate
 	invalidCertPath := filepath.Join(tmpDir, "invalid_cert.pem")
-	err = os.WriteFile(invalidCertPath, []byte("invalid cert"), 0600)
+	err = os.WriteFile(invalidCertPath, []byte("invalid cert"), 0o600)
 	require.NoError(t, err)
 
 	cfg = &Config{
@@ -182,7 +182,9 @@ func TestRunWithError(t *testing.T) {
 }
 
 // Helper function to generate a self-signed certificate for testing
-func generateSelfSignedCert() ([]byte, []byte, error) {
+//
+//nolint:unparam // err is always nil in this test implementation, but would be used in a real implementation
+func generateSelfSignedCert() (cert, key []byte, err error) {
 	// This is a placeholder. In a real implementation, you would generate
 	// a self-signed certificate here. For the purpose of this test, we'll
 	// return dummy values that will cause the test to fail in a controlled way.

@@ -1,6 +1,8 @@
 package metric
 
 import (
+	"sync"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -20,11 +22,21 @@ type Duration struct {
 	Timer    *prometheus.Timer
 }
 
-func NewMetricService() MetricService {
-	return &metricService{
-		counters:  make(map[string]*prometheus.CounterVec),
-		durations: make(map[string]*Duration),
-	}
+var (
+	instance MetricService
+	once     sync.Once
+)
+
+
+func GetMetricService() MetricService {
+	once.Do(func() {
+		instance = &metricService{
+			counters:  make(map[string]*prometheus.CounterVec),
+			durations: make(map[string]*Duration),
+		}
+	})
+
+	return instance;
 }
 
 func (m *metricService) IncrementCounter(metricName string, by uint, tags map[string]string) {

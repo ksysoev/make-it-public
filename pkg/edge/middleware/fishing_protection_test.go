@@ -251,3 +251,49 @@ func getCSRFToken(t *testing.T, handler http.Handler) string {
 
 	return csrfCookie.Value
 }
+
+func TestRenderConsentForm_CSRFTokenNotRegenerated(t *testing.T) {
+	// Setup
+	handler := setupTestHandler()
+
+	// First get a CSRF token
+	initialToken := getCSRFToken(t, handler)
+
+	// Create a new request with the CSRF token cookie already set
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	req.Host = "example.com"
+
+	// Add the CSRF token cookie
+	req.AddCookie(&http.Cookie{
+		Name:  csrfTokenName,
+		Value: initialToken,
+	})
+
+	resp := httptest.NewRecorder()
+
+	// Execute
+	handler.ServeHTTP(resp, req)
+
+	// Assert
+	// Check the status code first
+	if resp.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, resp.Code)
+	}
+
+	// Check that the response body contains the consent form
+	body := resp.Body.String()
+	if !strings.Contains(body, "Consent Required") {
+		t.Errorf("Expected consent form in the body, got: %s", body)
+	}
+
+	// Check that the CSRF token cookie has the same value
+	csrfCookie := getCookie(resp, csrfTokenName)
+	if csrfCookie == nil {
+		t.Error("Expected CSRF token cookie to be set")
+	}
+
+	if csrfCookie != nil && csrfCookie.Value != initialToken {
+		t.Errorf("Expected CSRF token cookie value to be %s, got %s", initialToken, csrfCookie.Value)
+	}
+}

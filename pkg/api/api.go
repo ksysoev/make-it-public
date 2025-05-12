@@ -11,7 +11,9 @@ import (
 
 	"log/slog"
 
+	_ "github.com/ksysoev/make-it-public/pkg/api/docs" // needed for swagger
 	"github.com/ksysoev/make-it-public/pkg/core/token"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 const (
@@ -37,6 +39,7 @@ type Endpoint string
 const (
 	HealthCheckEndpoint   Endpoint = "GET /health"
 	GenerateTokenEndpoint Endpoint = "POST /generateToken"
+	SwaggerEndpoint       Endpoint = "/swagger/"
 )
 
 func New(cfg Config, auth AuthRepo) *API {
@@ -46,12 +49,19 @@ func New(cfg Config, auth AuthRepo) *API {
 	}
 }
 
+// @title MIT Server Management API
+// @version 1.0
+// @description This is the API for managing MIT server resources.
+// @host localhost:8082
+// @BasePath /
+
 // Runs the API management server
 func (api *API) Run(ctx context.Context) error {
 	router := http.NewServeMux()
 
 	router.HandleFunc((string(HealthCheckEndpoint)), api.healthCheckHandler)
 	router.HandleFunc((string(GenerateTokenEndpoint)), api.generateTokenHandler)
+	router.HandleFunc((string(SwaggerEndpoint)), httpSwagger.WrapHandler)
 
 	server := &http.Server{
 		Addr:              api.config.Listen,
@@ -74,7 +84,14 @@ func (api *API) Run(ctx context.Context) error {
 }
 
 // healthCheckHandler returns the API status.
-// This handler can be later modified to cross check required resources
+// @Summary Health Check
+// @Description Returns the health status of the API.
+// @Tags Health
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /health [get]
 func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{"status": "healthy"}
 
@@ -94,6 +111,18 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // It optionally accepts a key ID, which is automatically generated if not provided.
 // It also optionally accepts a TTL for API token, which is set to a default value if not provided.
 // As a part of response, it returns the key ID, generated token, and the TTL in seconds.
+
+// generateTokenHandler is an endpoint to create API token.
+// @Summary Generate Token
+// @Description Generates an API token with an optional key ID and TTL.
+// @Tags Token
+// @Accept json
+// @Produce json
+// @Param request body GenerateTokenRequest true "Generate Token Request"
+// @Success 200 {object} GenerateTokenResponse
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /generateToken [post]
 func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var generateTokenRequest GenerateTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&generateTokenRequest); err != nil {

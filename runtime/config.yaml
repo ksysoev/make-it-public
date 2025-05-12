@@ -11,6 +11,9 @@ reverse_proxy:
 api:
   listen: ":8082"
   default_token_expiry: 3600
+  swagger_file_path: "/docs/swagger.json"
+  scheme: "http"
+
 auth:
   redis_addr: "localhost:6379"
   redis_password: ""

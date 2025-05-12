@@ -7,6 +7,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+type BuildInfo struct {
+	DefaultServer string
+}
 type args struct {
 	Server     string `mapstructure:"server"`
 	Expose     string `mapstructure:"expose"`
@@ -22,7 +25,7 @@ type args struct {
 // InitCommand initializes the root command of the CLI application with its subcommands and flags.
 // It sets up the "mit" command with pre-defined subcommands, including the "server" command.
 // Returns a cobra.Command configured with flags for setting server address, service exposure, and token authentication.
-func InitCommand() cobra.Command {
+func InitCommand(build BuildInfo) cobra.Command {
 	arg := args{}
 
 	cmd := cobra.Command{
@@ -34,8 +37,8 @@ func InitCommand() cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&arg.Server, "server", "test.com", "server address")
-	cmd.Flags().StringVar(&arg.Expose, "expose", "localhost:80", "expose service")
+	cmd.Flags().StringVar(&arg.Server, "server", build.DefaultServer, "server address")
+	cmd.Flags().StringVar(&arg.Expose, "expose", "", "expose service")
 	cmd.Flags().StringVar(&arg.Token, "token", "", "token")
 	cmd.Flags().BoolVar(&arg.NoTLS, "no-tls", false, "disable TLS")
 	cmd.Flags().BoolVar(&arg.Insecure, "insecure", false, "skip TLS verification")

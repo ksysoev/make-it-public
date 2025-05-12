@@ -10,6 +10,8 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/cmd"
 )
 
+var defaultServer = "loalhost:8081"
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 

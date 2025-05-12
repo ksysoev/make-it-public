@@ -11,8 +11,8 @@ import (
 func TestRunClientCommand(t *testing.T) {
 	tests := []struct {
 		name    string
-		args    args
 		wantErr string
+		args    args
 	}{
 		{
 			name: "Invalid log level",

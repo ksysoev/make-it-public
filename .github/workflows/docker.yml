@@ -50,5 +50,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ env.VERSION }}
-            BUILD=${{ github.sha }}
+            MIT_SERVER=${{ secrets.MIT_SERVER }}

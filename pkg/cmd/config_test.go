@@ -7,6 +7,7 @@ import (
 
 	"github.com/ksysoev/make-it-public/pkg/api"
 	"github.com/ksysoev/make-it-public/pkg/edge"
+	"github.com/ksysoev/make-it-public/pkg/revproxy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +36,7 @@ api:
 			configData:  validConfig,
 			expectConfig: &appConfig{
 				HTTP:     edge.Config{Listen: ":8080"},
-				RevProxy: revProxyConfig{Listen: ":8081"},
+				RevProxy: revproxy.Config{Listen: ":8081"},
 				API:      api.Config{Listen: ":8082"},
 			},
 		},
@@ -59,7 +60,7 @@ api:
 			configData:  validConfig,
 			expectConfig: &appConfig{
 				HTTP:     edge.Config{Listen: ":8083"},
-				RevProxy: revProxyConfig{Listen: ":8081"},
+				RevProxy: revproxy.Config{Listen: ":8081"},
 				API:      api.Config{Listen: ":8082"},
 			},
 		},

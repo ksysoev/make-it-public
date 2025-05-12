@@ -8,15 +8,14 @@ import (
 )
 
 type args struct {
-	// client args
-	Server string `mapstructure:"server"`
-	Expose string `mapstructure:"expose"`
-	Token  string `mapstructure:"token"`
-
-	// server args
+	Server     string `mapstructure:"server"`
+	Expose     string `mapstructure:"expose"`
+	Token      string `mapstructure:"token"`
 	ConfigPath string `mapstructure:"config"`
 	LogLevel   string `mapstructure:"log_level"`
 	Version    string
+	NoTLS      bool `mapstructure:"no_tls"`
+	Insecure   bool `mapstructure:"insecure"`
 	TextFormat bool `mapstructure:"log_text"`
 }
 
@@ -38,6 +37,8 @@ func InitCommand() cobra.Command {
 	cmd.Flags().StringVar(&arg.Server, "server", "test.com", "server address")
 	cmd.Flags().StringVar(&arg.Expose, "expose", "localhost:80", "expose service")
 	cmd.Flags().StringVar(&arg.Token, "token", "", "token")
+	cmd.Flags().BoolVar(&arg.NoTLS, "no-tls", false, "disable TLS")
+	cmd.Flags().BoolVar(&arg.Insecure, "insecure", false, "skip TLS verification")
 
 	cmd.PersistentFlags().StringVar(&arg.LogLevel, "log-level", "info", "log level (debug, info, warn, error)")
 	cmd.PersistentFlags().BoolVar(&arg.TextFormat, "log-text", true, "log in text format, otherwise JSON")

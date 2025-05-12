@@ -9,9 +9,6 @@ services:
   mitserver:
     build:
       context: .
-      # uncomment the next line to use local build
-      # dockerfile: Dockerfile
-    # comment the next line to use local build
     image: "ghcr.io/ksysoev/make-it-public:main"
     restart: unless-stopped
     container_name: mitserver
@@ -26,11 +23,15 @@ services:
       - HTTP_PUBLIC_DOMAIN=${DOMAIN_NAME}
       - HTTP_LISTEN=:8080
       - REVERSE_PROXY_LISTEN=:8081
+      - REVERSE_PROXY_CERT=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.crt
+      - REVERSE_PROXY_KEY=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.key
       - API_LISTEN=:8082
       - API_DEFAULT_TOKEN_EXPIRY=3600
       - LOG_LEVEL=info
       - LOG_TEXT=false
     command: ["server", "run", "all" ]
+    volumes:
+      - caddy_data:/data:ro
     depends_on:
       - redis
 

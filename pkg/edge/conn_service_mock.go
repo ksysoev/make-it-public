@@ -74,6 +74,39 @@ func (_c *MockConnService_HandleHTTPConnection_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// SetEndpointGenerator provides a mock function with given fields: generator
+func (_m *MockConnService) SetEndpointGenerator(generator func(string) (string, error)) {
+	_m.Called(generator)
+}
+
+// MockConnService_SetEndpointGenerator_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetEndpointGenerator'
+type MockConnService_SetEndpointGenerator_Call struct {
+	*mock.Call
+}
+
+// SetEndpointGenerator is a helper method to define mock.On call
+//   - generator func(string)(string , error)
+func (_e *MockConnService_Expecter) SetEndpointGenerator(generator interface{}) *MockConnService_SetEndpointGenerator_Call {
+	return &MockConnService_SetEndpointGenerator_Call{Call: _e.mock.On("SetEndpointGenerator", generator)}
+}
+
+func (_c *MockConnService_SetEndpointGenerator_Call) Run(run func(generator func(string) (string, error))) *MockConnService_SetEndpointGenerator_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(func(string) (string, error)))
+	})
+	return _c
+}
+
+func (_c *MockConnService_SetEndpointGenerator_Call) Return() *MockConnService_SetEndpointGenerator_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockConnService_SetEndpointGenerator_Call) RunAndReturn(run func(func(string) (string, error))) *MockConnService_SetEndpointGenerator_Call {
+	_c.Run(run)
+	return _c
+}
+
 // NewMockConnService creates a new instance of MockConnService. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockConnService(t interface {

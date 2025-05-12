@@ -177,7 +177,6 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 	csrfCookie := http.Cookie{
 		Name:     csrfTokenName,
 		Value:    csrfToken,
-		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	}
@@ -190,6 +189,9 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.WriteHeader(http.StatusOK)
 
 	if err = tmpl.Execute(w, data); err != nil {
@@ -221,7 +223,6 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     csrfTokenName,
 		Value:    "",
-		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -246,7 +247,6 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{
 		Name:     consentCookieName,
 		Value:    consentValue,
-		Path:     "/",
 		MaxAge:   3600 * 24, // 24 hours
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,

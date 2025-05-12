@@ -25,6 +25,7 @@ var consentFormTemplate = `
 <head>
     <title>Access Request</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="data:image/png;base64,iVBORw0KGgo=">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -166,11 +167,18 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 	host := r.Host
 	absoluteURL := fmt.Sprintf("%s://%s%s", scheme, host, currentPath)
 
-	// Generate CSRF token
-	csrfToken, err := generateCSRFToken()
+	// Get CSRF token from cookie or generate a new one
+	var csrfToken string
+
+	csrfTokenCookie, err := r.Cookie(csrfTokenName)
 	if err != nil {
-		http.Error(w, "Server error", http.StatusInternalServerError)
-		return
+		csrfToken, err = generateCSRFToken()
+		if err != nil {
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		csrfToken = csrfTokenCookie.Value
 	}
 
 	// Set CSRF token cookie

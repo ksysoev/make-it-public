@@ -33,3 +33,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          MIT_SERVER: ${{ secrets.MIT_SERVER }}

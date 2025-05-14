@@ -13,6 +13,7 @@ builds:
       - darwin
     ldflags:
       - -s -w -X main.version={{.Version}}
+      - -s -w -X main.defaultServer={{.Env.MIT_SERVER}}
 archives:
   - name_template: >-
       {{ .ProjectName }}_
@@ -44,7 +45,7 @@ brews:
     test: |
       system "#{bin}/mit"
     install: |
-    bin.install 'mit'
+      bin.install 'mit'
 
 nfpms:
   - id: make-it-public
@@ -70,3 +71,4 @@ snapcrafts:
     apps:
       make-it-public:
         plugs: ["network", "network-bind"]
+        command: "mit"

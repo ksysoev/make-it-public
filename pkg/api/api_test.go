@@ -87,7 +87,6 @@ func TestGenerateTokenHandler(t *testing.T) {
 		var response GenerateTokenResponse
 		err := json.Unmarshal(rec.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.True(t, response.Success)
 		assert.NotEmpty(t, response.KeyID)
 		assert.NotEmpty(t, response.Token)
 		assert.Equal(t, int64(3600), response.TTL)
@@ -114,7 +113,6 @@ func TestGenerateTokenHandler(t *testing.T) {
 		var response GenerateTokenResponse
 		err := json.Unmarshal(rec.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.True(t, response.Success)
 		assert.Equal(t, "test-key-id", response.KeyID)
 		assert.NotEmpty(t, response.Token)
 		assert.Equal(t, int64(3600), response.TTL)
@@ -141,8 +139,9 @@ func TestGenerateTokenHandler(t *testing.T) {
 		var response GenerateTokenResponse
 		err := json.Unmarshal(rec.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.True(t, response.Success)
-		assert.Contains(t, response.Message, "Token generated successfully")
+		assert.Equal(t, "test-key-id", response.KeyID)
+		assert.NotEmpty(t, response.Token)
+		assert.Equal(t, int64(3600), response.TTL)
 	})
 
 	t.Run("Token Generation Error", func(t *testing.T) {
@@ -157,14 +156,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		api.generateTokenHandler(rec, req)
-		assert.Equal(t, http.StatusOK, rec.Code)
-
-		var response GenerateTokenResponse
-		err := json.Unmarshal(rec.Body.Bytes(), &response)
-
-		assert.NoError(t, err)
-		assert.False(t, response.Success)
-		assert.Equal(t, response.Message, "Failed to generate token")
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
 }
 
@@ -191,6 +183,6 @@ func TestAPIRun(t *testing.T) {
 	assert.NoError(t, err, "Response body should be valid JSON")
 	assert.Equal(t, response["status"], "healthy", "Response body should contain status 'healthy'")
 
-	defer resp.Body.Close()
+	_ = resp.Body.Close()
 	cancel()
 }

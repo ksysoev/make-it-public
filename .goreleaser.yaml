@@ -71,4 +71,3 @@ snapcrafts:
     apps:
       make-it-public:
         plugs: ["network", "network-bind"]
-        command: "mit"

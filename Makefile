@@ -14,7 +14,7 @@ fmt:
 	gofmt -w .
 
 api-doc:
-	rm -rf ./pkg/api/docs && swag init -g ./pkg/api/api.go -o ./pkg/api/docs -ot json,go
+	rm -rf ./pkg/api/docs && swag init -g ./pkg/api/api.go -o ./pkg/api/docs -ot go
 
 docker-up:
 	docker-compose up --build

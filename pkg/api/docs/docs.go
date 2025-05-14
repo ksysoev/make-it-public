@@ -112,12 +112,6 @@ const docTemplate = `{
                 "key_id": {
                     "type": "string"
                 },
-                "message": {
-                    "type": "string"
-                },
-                "success": {
-                    "type": "boolean"
-                },
                 "token": {
                     "type": "string"
                 },

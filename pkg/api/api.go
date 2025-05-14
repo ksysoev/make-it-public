@@ -138,35 +138,17 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	ttl = cmp.Or(ttl, DefaultTTLSeconds)
 
 	generatedToken, err := api.auth.GenerateToken(r.Context(), keyID, time.Second*time.Duration(ttl))
-
 	if err != nil {
 		slog.ErrorContext(r.Context(), "Failed to generate token", "error", err)
-
-		resp := GenerateTokenResponse{
-			Success: false,
-			Message: "Failed to generate token",
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(resp)
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-
-			return
-		}
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 		return
 	}
 
 	resp := GenerateTokenResponse{
-		Success: true,
-		Message: "Token generated successfully",
-		Token:   generatedToken.Encode(),
-		KeyID:   cmp.Or(keyID, generatedToken.ID),
-		TTL:     ttl,
+		Token: generatedToken.Encode(),
+		KeyID: cmp.Or(keyID, generatedToken.ID),
+		TTL:   ttl,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

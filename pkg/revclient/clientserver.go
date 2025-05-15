@@ -2,6 +2,7 @@ package revclient
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -17,26 +18,35 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type ClientServer struct {
-	token      *token.Token
-	serverAddr string
-	destAddr   string
-	wg         sync.WaitGroup
+type Config struct {
+	ServerAddr string
+	DestAddr   string
+	NoTLS      bool
+	Insecure   bool
 }
 
-func NewClientServer(serverAddr, destAddr string, tkn *token.Token) *ClientServer {
+type ClientServer struct {
+	token *token.Token
+	cfg   Config
+	wg    sync.WaitGroup
+}
+
+func NewClientServer(cfg Config, tkn *token.Token) *ClientServer {
 	return &ClientServer{
-		serverAddr: serverAddr,
-		destAddr:   destAddr,
-		token:      tkn,
+		cfg:   cfg,
+		token: tkn,
 	}
 }
 
 func (s *ClientServer) Run(ctx context.Context) error {
+	opts := []revdial.ListenerOption{}
+
 	authOpt, err := revdial.WithUserPass(s.token.ID, s.token.Secret)
 	if err != nil {
 		return fmt.Errorf("failed to create auth option: %w", err)
 	}
+
+	opts = append(opts, authOpt)
 
 	onConnect, err := revdial.WithEventHandler("urlToConnectUpdated", func(event revdial.Event) {
 		var url string
@@ -46,12 +56,28 @@ func (s *ClientServer) Run(ctx context.Context) error {
 
 		slog.InfoContext(ctx, "Client url to connect", "url", url)
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to create event handler: %w", err)
 	}
 
-	listener, err := revdial.Listen(ctx, s.serverAddr, authOpt, onConnect)
+	opts = append(opts, onConnect)
+
+	if !s.cfg.NoTLS {
+		host, _, err := net.SplitHostPort(s.cfg.ServerAddr)
+		if err != nil {
+			return fmt.Errorf("failed to split host and port: %w", err)
+		}
+
+		tlsConf := revdial.WithListenerTLSConfig(&tls.Config{
+			ServerName:         host,
+			InsecureSkipVerify: s.cfg.Insecure, //nolint:gosec // default value is false but for testing we can skip it
+			MinVersion:         tls.VersionTLS13,
+		})
+
+		opts = append(opts, tlsConf)
+	}
+
+	listener, err := revdial.Listen(ctx, s.cfg.ServerAddr, opts...)
 	if err != nil {
 		return err
 	}
@@ -105,7 +131,7 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 		Timeout: 5 * time.Second,
 	}
 
-	destConn, err := d.DialContext(ctx, "tcp", s.destAddr)
+	destConn, err := d.DialContext(ctx, "tcp", s.cfg.DestAddr)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to dial", "err", err)
 		return

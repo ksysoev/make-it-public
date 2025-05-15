@@ -6,9 +6,7 @@ type GenerateTokenRequest struct {
 }
 
 type GenerateTokenResponse struct {
-	Message string `json:"message"`
-	Token   string `json:"token"`
-	KeyID   string `json:"key_id"`
-	TTL     int64  `json:"ttl"`
-	Success bool   `json:"success"`
+	Token string `json:"token"`
+	KeyID string `json:"key_id"`
+	TTL   int64  `json:"ttl"`
 }

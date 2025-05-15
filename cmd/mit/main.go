@@ -10,10 +10,14 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/cmd"
 )
 
+var defaultServer = "localhost:8081"
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-	command := cmd.InitCommand()
+	command := cmd.InitCommand(cmd.BuildInfo{
+		DefaultServer: defaultServer,
+	})
 
 	err := command.ExecuteContext(ctx)
 	if err != nil {

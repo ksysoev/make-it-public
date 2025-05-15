@@ -8,7 +8,7 @@ import (
 )
 
 func TestInitCommand(t *testing.T) {
-	cmd := InitCommand()
+	cmd := InitCommand(BuildInfo{})
 
 	assert.Equal(t, "mit", cmd.Use)
 	assert.Contains(t, cmd.Short, "Make It Public")

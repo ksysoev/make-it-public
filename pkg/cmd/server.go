@@ -31,10 +31,13 @@ func RunServerCommand(ctx context.Context, args *args) error {
 	authRepo := auth.New(&cfg.Auth)
 	connManager := connmng.New()
 	connService := core.New(connManager, authRepo)
-
-	revServ := revproxy.New(cfg.RevProxy.Listen, connService)
 	apiServ := api.New(cfg.API, authRepo)
 	metricServ := metric.New(cfg.Metrics)
+
+	revServ, err := revproxy.New(&cfg.RevProxy, connService)
+	if err != nil {
+		return fmt.Errorf("failed to create reverse proxy server: %w", err)
+	}
 
 	httpServ, err := edge.New(cfg.HTTP, connService)
 	if err != nil {

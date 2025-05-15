@@ -9,19 +9,16 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/edge"
 	"github.com/ksysoev/make-it-public/pkg/metric"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
+	"github.com/ksysoev/make-it-public/pkg/revproxy"
 	"github.com/spf13/viper"
 )
 
 type appConfig struct {
-	Auth     auth.Config    `mapstructure:"auth"`
-	API      api.Config     `mapstructure:"api"`
-	Metrics  metric.Config  `mapstructure:"metrics"`
-	RevProxy revProxyConfig `mapstructure:"reverse_proxy"`
-	HTTP     edge.Config    `mapstructure:"http"`
-}
-
-type revProxyConfig struct {
-	Listen string `mapstructure:"listen"`
+	Auth     auth.Config     `mapstructure:"auth"`
+	API      api.Config      `mapstructure:"api"`
+	Metrics  metric.Config   `mapstructure:"metrics"`
+	RevProxy revproxy.Config `mapstructure:"reverse_proxy"`
+	HTTP     edge.Config     `mapstructure:"http"`
 }
 
 // loadConfig loads the application configuration from the specified file path and environment variables.

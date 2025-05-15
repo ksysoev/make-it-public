@@ -23,3 +23,6 @@ packages:
   github.com/ksysoev/make-it-public/pkg/api:
     interfaces:
       AuthRepo:
+  github.com/ksysoev/make-it-public/pkg/revproxy:
+    interfaces:
+      ConnService:

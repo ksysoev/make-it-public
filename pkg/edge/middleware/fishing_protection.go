@@ -25,6 +25,7 @@ var consentFormTemplate = `
 <head>
     <title>Access Request</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="data:image/png;base64,iVBORw0KGgo=">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -166,18 +167,24 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 	host := r.Host
 	absoluteURL := fmt.Sprintf("%s://%s%s", scheme, host, currentPath)
 
-	// Generate CSRF token
-	csrfToken, err := generateCSRFToken()
+	// Get CSRF token from cookie or generate a new one
+	var csrfToken string
+
+	csrfTokenCookie, err := r.Cookie(csrfTokenName)
 	if err != nil {
-		http.Error(w, "Server error", http.StatusInternalServerError)
-		return
+		csrfToken, err = generateCSRFToken()
+		if err != nil {
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		csrfToken = csrfTokenCookie.Value
 	}
 
 	// Set CSRF token cookie
 	csrfCookie := http.Cookie{
 		Name:     csrfTokenName,
 		Value:    csrfToken,
-		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	}
@@ -190,6 +197,9 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.WriteHeader(http.StatusOK)
 
 	if err = tmpl.Execute(w, data); err != nil {
@@ -221,7 +231,6 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     csrfTokenName,
 		Value:    "",
-		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -246,7 +255,6 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{
 		Name:     consentCookieName,
 		Value:    consentValue,
-		Path:     "/",
 		MaxAge:   3600 * 24, // 24 hours
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,

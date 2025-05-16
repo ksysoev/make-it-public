@@ -3,6 +3,8 @@ services:
     image: docker.io/bitnami/redis:7.4.2
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - redis_data:/bitnami/redis/data
     ports:
       - "6379"
 
@@ -18,9 +20,9 @@ services:
       - "8082:8082" # API server
     environment:
       - AUTH_REDIS_ADDR=redis:6379
-      - AUTH_SALT=${AUTH_SALT}
+      - AUTH_SALT=${AUTH_SALT:-someRandomSalt}
       - HTTP_PUBLIC_SCHEMA=https
-      - HTTP_PUBLIC_DOMAIN=${DOMAIN_NAME}
+      - HTTP_PUBLIC_DOMAIN=${DOMAIN_NAME:-make-it-public.dev}
       - HTTP_LISTEN=:8080
       - REVERSE_PROXY_LISTEN=:8081
       - REVERSE_PROXY_CERT=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.crt
@@ -60,3 +62,9 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  redis_data:
+
+networks:
+  default:
+    external: true
+    name: ${NETWORK_NAME:-mit-network}

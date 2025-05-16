@@ -3,6 +3,10 @@ services:
     image: docker.io/bitnami/redis:7.4.2
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - redis_data:/bitnami/redis/data
+    networks:
+      - mit-network
     ports:
       - "6379"
 
@@ -58,12 +62,15 @@ services:
       - caddy_config:/config
     depends_on:
       - mitserver
+    networks:
+      - mit-network
 
 volumes:
   caddy_data:
   caddy_config:
+  redis_data:
 
 networks:
-  public:
-    external:
-      name: mit-network
+  mit-network:
+    external: true
+    name: ${NETWORK_NAME:-mit-network}

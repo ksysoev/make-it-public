@@ -32,4 +32,5 @@ jobs:
             export EMAIL=${{ secrets.EMAIL }}
             export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
             export AUTH_SALT=${{ secrets.AUTH_SALT }}
+            export NETWORK_NAME=${{ env.MIT_NETWORK }}
             docker stack deploy -c docker-compose.yml makeitpublic

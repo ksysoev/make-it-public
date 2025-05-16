@@ -5,8 +5,6 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
     volumes:
       - redis_data:/bitnami/redis/data
-    networks:
-      - mit-network
     ports:
       - "6379"
 
@@ -36,8 +34,6 @@ services:
     command: ["server", "run", "all" ]
     volumes:
       - caddy_data:/data:ro
-    networks:
-      - mit-network
     depends_on:
       - redis
 
@@ -62,8 +58,6 @@ services:
       - caddy_config:/config
     depends_on:
       - mitserver
-    networks:
-      - mit-network
 
 volumes:
   caddy_data:
@@ -71,6 +65,6 @@ volumes:
   redis_data:
 
 networks:
-  mit-network:
+  default:
     external: true
     name: ${NETWORK_NAME:-mit-network}

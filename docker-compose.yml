@@ -18,6 +18,7 @@ services:
       - "8080" # HTTP server
       - "8081:8081" # Reverse proxy
       - "8082:8082" # API server
+      - "9009:9009" # Metrics server
     environment:
       - AUTH_REDIS_ADDR=redis:6379
       - AUTH_SALT=${AUTH_SALT:-someRandomSalt}
@@ -25,6 +26,7 @@ services:
       - HTTP_PUBLIC_DOMAIN=${DOMAIN_NAME:-make-it-public.dev}
       - HTTP_LISTEN=:8080
       - REVERSE_PROXY_LISTEN=:8081
+      - METRICS_LISTEN=:9009
       - REVERSE_PROXY_CERT=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.crt
       - REVERSE_PROXY_KEY=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.key
       - API_LISTEN=:8082

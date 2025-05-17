@@ -8,6 +8,7 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/api"
 	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/edge"
+	"github.com/ksysoev/make-it-public/pkg/metric"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/ksysoev/make-it-public/pkg/repo/connmng"
 	"github.com/ksysoev/make-it-public/pkg/revproxy"
@@ -31,6 +32,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 	connManager := connmng.New()
 	connService := core.New(connManager, authRepo)
 	apiServ := api.New(cfg.API, authRepo)
+	metricServ := metric.New(cfg.Metrics)
 
 	revServ, err := revproxy.New(&cfg.RevProxy, connService)
 	if err != nil {
@@ -42,13 +44,14 @@ func RunServerCommand(ctx context.Context, args *args) error {
 		return fmt.Errorf("failed to create http server: %w", err)
 	}
 
-	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen, "api", cfg.API.Listen)
+	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen, "api", cfg.API.Listen, "metrics", cfg.Metrics.Listen)
 
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error { return revServ.Run(ctx) })
 	eg.Go(func() error { return httpServ.Run(ctx) })
 	eg.Go(func() error { return apiServ.Run(ctx) })
+	eg.Go(func() error { return metricServ.Run(ctx) })
 
 	return eg.Wait()
 }

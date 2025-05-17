@@ -7,6 +7,7 @@ import (
 
 	"github.com/ksysoev/make-it-public/pkg/api"
 	"github.com/ksysoev/make-it-public/pkg/edge"
+	"github.com/ksysoev/make-it-public/pkg/metric"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/ksysoev/make-it-public/pkg/revproxy"
 	"github.com/spf13/viper"
@@ -15,6 +16,7 @@ import (
 type appConfig struct {
 	Auth     auth.Config     `mapstructure:"auth"`
 	API      api.Config      `mapstructure:"api"`
+	Metrics  metric.Config   `mapstructure:"metrics"`
 	RevProxy revproxy.Config `mapstructure:"reverse_proxy"`
 	HTTP     edge.Config     `mapstructure:"http"`
 }

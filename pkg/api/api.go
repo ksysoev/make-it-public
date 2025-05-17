@@ -13,6 +13,7 @@ import (
 
 	_ "github.com/ksysoev/make-it-public/pkg/api/docs" // needed for swagger
 	"github.com/ksysoev/make-it-public/pkg/core/token"
+	"github.com/ksysoev/make-it-public/pkg/metric"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
@@ -93,18 +94,20 @@ func (api *API) Run(ctx context.Context) error {
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /health [get]
 func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	resp := map[string]string{"status": "healthy"}
+	metric.GetMetricService().RecordDuration("mit_api_duration", map[string]string{"endpoint": string(HealthCheckEndpoint)}, func() {
+		resp := map[string]string{"status": "healthy"}
 
-	w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json")
 
-	err := json.NewEncoder(w).Encode(resp)
+		err := json.NewEncoder(w).Encode(resp)
 
-	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
-		return
-	}
+			return
+		}
+	})
 }
 
 // generateTokenHandler is an endpoint to create API token.
@@ -128,6 +131,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&generateTokenRequest); err != nil {
 		slog.ErrorContext(r.Context(), "Failed to decode request", "error", err)
 		http.Error(w, "Bad Request", http.StatusBadRequest)
+		metric.GetMetricService().IncrementCounter("mit_api_failure", 1, map[string]string{"endpoint": string(GenerateTokenEndpoint), "key_id": "null", "error": err.Error()})
 
 		return
 	}

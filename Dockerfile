@@ -14,6 +14,6 @@ FROM scratch
 COPY --from=builder /app/mit .
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-EXPOSE 8080 8081 8082
+EXPOSE 8080 8081 8082 9009
 
 ENTRYPOINT ["/mit"]

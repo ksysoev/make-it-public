@@ -6,6 +6,7 @@ before:
     - go mod tidy
 builds:
   - main: cmd/mit/main.go
+    binary: mit
     env:
       - CGO_ENABLED=0
     goos:
@@ -32,7 +33,7 @@ release:
     name: make-it-public
   name_template: "{{ .Tag }}"
   prerelease: auto
-       
+
 brews:
   - name: make-it-public
     repository:
@@ -69,5 +70,6 @@ snapcrafts:
     grade: devel
     confinement: strict
     apps:
-      make-it-public:
+      mit:
         plugs: ["network", "network-bind"]
+        command: "mit"

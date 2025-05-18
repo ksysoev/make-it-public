@@ -60,6 +60,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	mw = append(mw,
 		middleware.NewFishingProtection(),
 		middleware.ParseKeyID(s.config.Public.Domain),
+		middleware.Metrics(),
 		middleware.LimitConnections(cmp.Or(s.config.ConnLimit, defaultConnLimitPerKeyID)),
 		middleware.ClientIP(),
 	)

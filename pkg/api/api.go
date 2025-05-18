@@ -12,6 +12,7 @@ import (
 	"log/slog"
 
 	_ "github.com/ksysoev/make-it-public/pkg/api/docs" // needed for swagger
+	"github.com/ksysoev/make-it-public/pkg/api/middleware"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
@@ -34,12 +35,10 @@ type AuthRepo interface {
 	GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error)
 }
 
-type Endpoint string
-
 const (
-	HealthCheckEndpoint   Endpoint = "GET /health"
-	GenerateTokenEndpoint Endpoint = "POST /generateToken"
-	SwaggerEndpoint       Endpoint = "/swagger/"
+	HealthCheckEndpoint   = "GET /health"
+	GenerateTokenEndpoint = "POST /generateToken"
+	SwaggerEndpoint       = "/swagger/"
 )
 
 func New(cfg Config, auth AuthRepo) *API {
@@ -58,10 +57,11 @@ func New(cfg Config, auth AuthRepo) *API {
 // Runs the API management server
 func (api *API) Run(ctx context.Context) error {
 	router := http.NewServeMux()
+	genToken := middleware.Metrics()(http.HandlerFunc(api.generateTokenHandler))
 
-	router.HandleFunc((string(HealthCheckEndpoint)), api.healthCheckHandler)
-	router.HandleFunc((string(GenerateTokenEndpoint)), api.generateTokenHandler)
-	router.HandleFunc((string(SwaggerEndpoint)), httpSwagger.WrapHandler)
+	router.Handle(GenerateTokenEndpoint, genToken)
+	router.HandleFunc(HealthCheckEndpoint, api.healthCheckHandler)
+	router.HandleFunc(SwaggerEndpoint, httpSwagger.WrapHandler)
 
 	server := &http.Server{
 		Addr:              api.config.Listen,

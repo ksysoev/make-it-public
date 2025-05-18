@@ -35,6 +35,12 @@ The **Make It Public** (MIT) project is a reverse proxy solution that allows you
 1. **Server**: Acts as a reverse proxy, handling incoming connections and routing them to the appropriate client.
 2. **Client**: Establishes a connection to the server and forwards requests to the local service running behind NAT.
 
+### Key Benefits
+
+- **Secure TLS Connections**: All services exposed via Make It Public are secured with TLS connections and valid SSL certificates, ensuring encrypted communication.
+- **Instant Public Exposure**: Services can be easily exposed to the public internet in no time, without complex network configurations or public IP addresses.
+- **Perfect for Development**: It's an ideal tool for developers working on webhooks or sharing their projects for demo purposes.
+
 This architecture enables you to securely expose your local services without requiring complex network configurations or public IP addresses.
 
 ---

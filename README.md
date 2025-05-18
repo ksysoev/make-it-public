@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 
-**make-it-public** (MIT) is a service designed to expose services that are hidden behind NAT (Network Address Translation). It allows you to securely and efficiently publish services that are otherwise inaccessible from the public internet.
+**Make It Public** (MIT) is a service designed to expose services that are hidden behind NAT (Network Address Translation). It allows you to securely and efficiently publish services that are otherwise inaccessible from the public internet.
 
 ---
 
@@ -30,7 +30,7 @@
 
 ## Overview
 
-The **make-it-public** (MIT) project is a reverse proxy solution that allows you to expose services running on private networks to the public internet. It consists of two main components:
+The **Make It Public** (MIT) project is a reverse proxy solution that allows you to expose services running on private networks to the public internet. It consists of two main components:
 
 1. **Server**: Acts as a reverse proxy, handling incoming connections and routing them to the appropriate client.
 2. **Client**: Establishes a connection to the server and forwards requests to the local service running behind NAT.

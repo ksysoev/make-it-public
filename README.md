@@ -220,6 +220,31 @@ auth:
 
 ## How It Works
 
+```mermaid
+sequenceDiagram
+    participant User as Internet User
+    participant Server as MIT Server
+    participant Client as MIT Client
+    participant Service as Local Service
+
+    %% Initial setup
+    Client->>Server: Connect with secure token
+    Server->>Client: Authenticate and establish connection
+
+    %% Request flow
+    User->>Server: HTTP/TCP request to subdomain
+    Server->>Server: Identify target client by subdomain/user ID
+    Server->>Client: Forward request
+    Client->>Service: Forward to local service
+    Service->>Client: Response
+    Client->>Server: Forward response
+    Server->>User: Return response
+
+    %% Connection management
+    Note over Server,Client: Server maintains connection pool<br/>for each authenticated client
+    Note over Server,Client: Round-robin load balancing<br/>for multiple connections
+```
+
 1. **Client-Server Communication**:
    - The client connects to the server using a secure token for authentication.
    - The server listens for incoming requests and forwards them to the appropriate client based on the subdomain or user ID.

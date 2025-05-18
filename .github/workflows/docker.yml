@@ -1,4 +1,4 @@
-name: Build Docker image
+name: Build and Deploy
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     tags:
       - v*
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,6 +16,9 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_type == 'tag' && 'production' || '' }}
+    concurrency:
+      group: ${{ github.ref_type == 'tag' && 'production' || github.run_id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -59,3 +63,21 @@ jobs:
           build-args: |
             MIT_SERVER=${{ secrets.MIT_SERVER }}
             VERSION=${{ env.VERSION }}
+      - if: github.ref_type == 'tag'
+        name: Deploy to DigitalOcean Droplet
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f
+        with:
+          host: ${{secrets.HOST}}
+          username: ${{secrets.USERNAME}}
+          key: ${{secrets.SSH_KEY}}
+          port: ${{secrets.PORT}}
+          script: |
+            cd make-it-public
+            git pull
+            docker compose pull
+            export CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
+            export EMAIL=${{ secrets.EMAIL }}
+            export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+            export AUTH_SALT=${{ secrets.AUTH_SALT }}
+            export NETWORK_NAME=${{ env.MIT_NETWORK }}
+            docker stack deploy -c docker-compose.yml makeitpublic

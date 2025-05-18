@@ -74,6 +74,7 @@ jobs:
           script: |
             cd make-it-public
             git pull
+            export MIT_VERSION=${{ env.VERSION }}
             docker compose pull
             export CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
             export EMAIL=${{ secrets.EMAIL }}

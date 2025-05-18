@@ -74,6 +74,15 @@ docker pull ghcr.io/ksysoev/make-it-public:latest
 
 ---
 
+## Getting token for MIT Client
+
+To get a token for [make-it-public.dev](https://make-it-public.dev), you need to use the Telegram bot [@MakeItPublicBot](https://t.me/MakeItPublicBot). Follow these steps:
+
+1. Open Telegram and search for [@MakeItPublicBot](https://t.me/MakeItPublicBot) or click the link
+2. Start a conversation with the bot by clicking the "Start" button
+3. Follow the bot's instructions to generate a new token
+4. Copy this token and keep it secure - it will be used to authenticate your MIT client
+
 ## Running the MIT Client
 
 ### Running as a Binary
@@ -149,7 +158,7 @@ mit server run all --config path/to/config.yaml
 
 #### Generating Authentication Tokens
 
-To generate an authentication token for a client:
+To generate an authentication token for your deployment, use the following command:
 
 ```bash
 mit server token generate --key-id your-key-id --ttl 24

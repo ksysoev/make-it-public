@@ -95,7 +95,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 
 		defer s.connmng.RemoveConnection(connKeyID, srvConn.ID())
 
-		slog.DebugContext(ctx, "control connection established", slog.Any("remote", revConn.RemoteAddr()))
+		slog.InfoContext(ctx, "control conn established", slog.String("keyID", connKeyID))
 
 		for {
 			select {
@@ -114,7 +114,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 		notifier := conn.NewCloseNotifier(revConn)
 
 		s.connmng.ResolveRequest(servConn.ID(), notifier)
-		slog.DebugContext(ctx, "bound connection established", slog.Any("remote", revConn.RemoteAddr()), slog.Any("id", servConn.ID()))
+		slog.InfoContext(ctx, "rev conn established", slog.String("keyID", connKeyID))
 
 		notifier.WaitClose(ctx)
 

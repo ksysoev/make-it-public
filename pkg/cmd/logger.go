@@ -52,7 +52,7 @@ func initLogger(arg *args) error {
 	ctxHandler := &ContextHandler{
 		Handler: logHandler,
 		ver:     arg.Version,
-		app:     "make-it-public",
+		app:     "mit",
 	}
 
 	logger := slog.New(ctxHandler)

@@ -1,4 +1,4 @@
-name: Build Docker image
+name: Build and Deploy
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     tags:
       - v*
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,6 +16,9 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_type == 'tag' && 'production' || '' }}
+    concurrency:
+      group: ${{ github.ref_type == 'tag' && 'production' || github.run_id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,9 +42,16 @@ jobs:
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804
         with:
           images: ghcr.io/${{ github.repository }}
-      - name: Extract version from tag
+      - name: Set VERSION based on trigger type
         id: extract_version
-        run: echo "VERSION=$(echo ${{ steps.meta.outputs.tags }} | cut -d ':' -f 2)" >> $GITHUB_ENV
+        run: |
+          if [[ $GITHUB_REF_TYPE == "tag" ]]; then
+            # For tag triggers, use the tag name
+            echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          else
+            # For branch/commit triggers, use the commit hash
+            echo "VERSION=${GITHUB_SHA}" >> $GITHUB_ENV
+          fi
       - name: Build and push Docker image
         uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1
         with:
@@ -51,3 +62,23 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             MIT_SERVER=${{ secrets.MIT_SERVER }}
+            VERSION=${{ env.VERSION }}
+      - if: github.ref_type == 'tag'
+        name: Deploy to DigitalOcean Droplet
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f
+        with:
+          host: ${{secrets.HOST}}
+          username: ${{secrets.USERNAME}}
+          key: ${{secrets.SSH_KEY}}
+          port: ${{secrets.PORT}}
+          script: |
+            cd make-it-public
+            git pull
+            export MIT_VERSION=${{ env.VERSION }}
+            docker compose pull
+            export CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
+            export EMAIL=${{ secrets.EMAIL }}
+            export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+            export AUTH_SALT=${{ secrets.AUTH_SALT }}
+            export NETWORK_NAME=${{ env.MIT_NETWORK }}
+            docker stack deploy -c docker-compose.yml makeitpublic

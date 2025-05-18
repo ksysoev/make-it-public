@@ -11,12 +11,14 @@ import (
 )
 
 var defaultServer = "localhost:8081"
+var version = "dev"
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	command := cmd.InitCommand(cmd.BuildInfo{
 		DefaultServer: defaultServer,
+		Version:       version,
 	})
 
 	err := command.ExecuteContext(ctx)

@@ -9,6 +9,7 @@ import (
 
 type BuildInfo struct {
 	DefaultServer string
+	Version       string
 }
 type args struct {
 	Server     string `mapstructure:"server"`
@@ -26,7 +27,9 @@ type args struct {
 // It sets up the "mit" command with pre-defined subcommands, including the "server" command.
 // Returns a cobra.Command configured with flags for setting server address, service exposure, and token authentication.
 func InitCommand(build BuildInfo) cobra.Command {
-	arg := args{}
+	arg := args{
+		Version: build.Version,
+	}
 
 	cmd := cobra.Command{
 		Use:   "mit",

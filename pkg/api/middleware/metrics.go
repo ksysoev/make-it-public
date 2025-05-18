@@ -27,6 +27,7 @@ func Metrics() func(next http.Handler) http.Handler {
 
 			rw := &respWriter{
 				ResponseWriter: w,
+				status:         http.StatusOK, // Initialize with a default status.
 			}
 
 			next.ServeHTTP(rw, r)

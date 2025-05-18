@@ -36,9 +36,9 @@ type AuthRepo interface {
 }
 
 const (
-	HealthCheckEndpoint   string = "GET /health"
-	GenerateTokenEndpoint string = "POST /generateToken"
-	SwaggerEndpoint       string = "/swagger/"
+	HealthCheckEndpoint   = "GET /health"
+	GenerateTokenEndpoint = "POST /generateToken"
+	SwaggerEndpoint       = "/swagger/"
 )
 
 func New(cfg Config, auth AuthRepo) *API {

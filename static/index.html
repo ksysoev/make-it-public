@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Site Under Construction</title>
+    <title>Make It Public - Expose Local Services to the Internet</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -14,7 +14,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             text-align: center;
         }
         .container {
@@ -22,59 +22,171 @@
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             padding: 40px;
-            max-width: 600px;
+            max-width: 800px;
             width: 90%;
+            margin: 40px 0;
         }
         h1 {
             color: #2c3e50;
             margin-bottom: 20px;
             font-size: 2.5em;
         }
+        h2 {
+            color: #3498db;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
         p {
             font-size: 1.2em;
             line-height: 1.6;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            text-align: left;
         }
         .icon {
-            font-size: 5em;
             margin-bottom: 20px;
+        }
+        .icon img {
+            max-width: 150px;
+            height: auto;
+        }
+        .feature-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            margin: 30px 0;
+        }
+        .feature {
+            flex-basis: 45%;
+            margin-bottom: 30px;
+            text-align: left;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .feature-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
             color: #3498db;
         }
-        .progress-bar {
-            height: 20px;
-            background-color: #ecf0f1;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            overflow: hidden;
+        .feature h3 {
+            margin-top: 0;
+            color: #2c3e50;
         }
-        .progress {
-            height: 100%;
-            width: 70%;
+        .code-block {
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: monospace;
+            text-align: left;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        .steps {
+            text-align: left;
+            margin: 20px 0;
+        }
+        .steps ol {
+            padding-left: 20px;
+        }
+        .steps li {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        .button {
+            display: inline-block;
             background-color: #3498db;
-            animation: progress-animation 2s ease-in-out infinite alternate;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 20px 10px;
+            transition: background-color 0.3s;
         }
-        @keyframes progress-animation {
-            0% { width: 30%; }
-            100% { width: 70%; }
+        .button:hover {
+            background-color: #2980b9;
         }
         .footer {
             margin-top: 40px;
             font-size: 0.9em;
             color: #7f8c8d;
         }
+        @media (max-width: 768px) {
+            .feature {
+                flex-basis: 100%;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="icon">🚧</div>
-        <h1>Site Under Construction</h1>
-        <p>We're working hard to bring you an amazing new service. Please check back soon!</p>
-        <div class="progress-bar">
-            <div class="progress"></div>
+        <div class="icon"><img src="logo.png" alt="Make It Public Logo"></div>
+        <h1>Make It Public</h1>
+        <p>A service designed to expose your local services hidden behind NAT to the public internet, securely and efficiently.</p>
+
+        <div class="feature-grid">
+            <div class="feature">
+                <div class="feature-icon">🔒</div>
+                <h3>Secure Access</h3>
+                <p>Expose your local services without compromising security using token-based authentication.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔌</div>
+                <h3>Simple Setup</h3>
+                <p>Get started in minutes with minimal configuration required.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🌍</div>
+                <h3>Global Reach</h3>
+                <p>Make your services accessible from anywhere in the world.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚙️</div>
+                <h3>Flexible Deployment</h3>
+                <p>Run as a binary or in a container, whatever suits your environment.</p>
+            </div>
         </div>
-        <p>Our team is putting the finishing touches on something special. We appreciate your patience.</p>
+
+        <p>This architecture enables you to securely expose your local services without requiring complex network configurations or public IP addresses.</p>
+
+        <h2>Getting Started</h2>
+
+        <h3>1. Install the MIT Client</h3>
+        <div class="code-block">
+            # Using Homebrew<br>
+            brew tap ksysoev/make-it-public<br>
+            brew install make-it-public<br><br>
+            # Using Go<br>
+            go install github.com/ksysoev/make-it-public/cmd/mit@latest<br><br>
+            # Using Docker<br>
+            docker pull ghcr.io/ksysoev/make-it-public:latest
+        </div>
+
+        <h3>2. Get an Authentication Token</h3>
+        <div class="steps">
+            <ol>
+                <li>Open Telegram and search for <a href="https://t.me/MakeItPublicBot" target="_blank">@MakeItPublicBot</a></li>
+                <li>Start a conversation with the bot by clicking the "Start" button</li>
+                <li>Follow the bot's instructions to generate a new token</li>
+                <li>Copy the token and keep it secure - it will be used to authenticate your MIT client</li>
+            </ol>
+        </div>
+
+        <h3>3. Run the MIT Client</h3>
+        <div class="code-block">
+            mit --expose localhost:8080 --token your-auth-token
+        </div>
+
+        <p>That's it! Your local service running on localhost:8080 is now accessible through the Make It Public server.</p>
+
+        <div>
+            <a href="https://github.com/ksysoev/make-it-public" class="button" target="_blank">GitHub Repository</a>
+            <a href="https://t.me/MakeItPublicBot" class="button" target="_blank">Get Token</a>
+        </div>
+
         <div class="footer">
-            &copy; 2025 Make It Public - All rights reserved
+            &copy; 2023 Make It Public - All rights reserved
         </div>
     </div>
 </body>

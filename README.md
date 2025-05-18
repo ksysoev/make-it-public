@@ -239,10 +239,6 @@ sequenceDiagram
     Service->>Client: Response
     Client->>Server: Forward response
     Server->>User: Return response
-
-    %% Connection management
-    Note over Server,Client: Server maintains connection pool<br/>for each authenticated client
-    Note over Server,Client: Round-robin load balancing<br/>for multiple connections
 ```
 
 1. **Client-Server Communication**:
@@ -254,10 +250,6 @@ sequenceDiagram
 
 3. **Authentication**:
    - The server uses a token-based authentication mechanism to verify clients.
-
-4. **Connection Management**:
-   - The server manages connections using a pool of active connections for each user.
-   - Connections are established and maintained using a round-robin mechanism for load balancing.
 
 ---
 

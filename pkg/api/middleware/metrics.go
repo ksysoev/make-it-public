@@ -7,8 +7,8 @@ import (
 )
 
 type respWriter struct {
-	status int
 	http.ResponseWriter
+	status int
 }
 
 // WriteHeader sets the HTTP status code for the response and writes it to the underlying ResponseWriter.
@@ -29,9 +29,8 @@ func Metrics() func(next http.Handler) http.Handler {
 				ResponseWriter: w,
 			}
 
-			defer slog.InfoContext(r.Context(), "mng api request", slog.Duration("duration", time.Since(now)), slog.Int("status", rw.status), slog.String("path", r.URL.Path))
-
 			next.ServeHTTP(rw, r)
+			slog.InfoContext(r.Context(), "mng api request", slog.Duration("duration", time.Since(now)), slog.Int("status", rw.status), slog.String("path", r.URL.Path))
 		})
 	}
 }

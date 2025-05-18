@@ -11,7 +11,7 @@ services:
   mitserver:
     build:
       context: .
-    image: "ghcr.io/ksysoev/make-it-public:${VERSION:-main}"
+    image: "ghcr.io/ksysoev/make-it-public:${VERSION:-latest}"
     restart: unless-stopped
     container_name: mitserver
     ports:

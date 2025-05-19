@@ -75,7 +75,8 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	}))
 
 	if err := servConn.Process(); err != nil {
-		return fmt.Errorf("failed to process connection: %w", err)
+		slog.DebugContext(ctx, "failed to process connection", slog.Any("error", err))
+		return nil
 	}
 
 	switch servConn.State() {
@@ -107,7 +108,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 			err := srvConn.Ping()
 			if err != nil {
 				slog.DebugContext(ctx, "ping failed", slog.Any("error", err))
-				return fmt.Errorf("ping failed: %w", err)
+				return nil
 			}
 		}
 	case proto.StateBound:

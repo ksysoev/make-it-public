@@ -126,7 +126,6 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var generateTokenRequest GenerateTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&generateTokenRequest); err != nil {
-		slog.ErrorContext(r.Context(), "Failed to decode request", "error", err)
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 
 		return
@@ -162,5 +161,4 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	slog.Info("Token generated successfully", "key_id", keyID, "ttl", ttl)
 }

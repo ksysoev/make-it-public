@@ -12,8 +12,13 @@
 	file_server
 }
 
-*.{$DOMAIN_NAME} {
-    reverse_proxy http://mitserver:8080
+http://*.{$DOMAIN_NAME} {
+    reverse_proxy http://mitserver:8080 {
+        transport http {
+            proxy_protocol v2
+        }
+    }
+
     log {
         output stdout
         format console

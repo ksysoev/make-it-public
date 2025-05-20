@@ -12,7 +12,7 @@
 	file_server
 }
 
-http://*.{$DOMAIN_NAME} {
+*.{$DOMAIN_NAME} {
     reverse_proxy http://mitserver:8080 {
         transport http {
             proxy_protocol v2

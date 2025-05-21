@@ -41,6 +41,18 @@ type PublicEndpointConfig struct {
 	Port   int    `mapstructure:"port"`
 }
 
+const htmlErrorTemplate502 = `<!DOCTYPE html>
+<html>
+<head>
+	<title>502 Bad Gateway</title>
+</head>
+<body>
+	<h1>502 Bad Gateway</h1>
+	<p>The server received an invalid response from the upstream server.</p>
+	<p>Please try again later.</p>
+</body>
+</html>`
+
 func New(cfg Config, connService ConnService) (*HTTPServer, error) {
 	generator, err := url.NewEndpointGenerator(cfg.Public.Schema, cfg.Public.Domain, cfg.Public.Port)
 	if err != nil {
@@ -134,15 +146,20 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case errors.Is(err, core.ErrFailedToConnect):
-		resp := &http.Response{
-			Status:     "502 Bad Gateway",
-			StatusCode: http.StatusBadGateway,
-			Proto:      r.Proto,
-			ProtoMajor: r.ProtoMajor,
-			ProtoMinor: r.ProtoMinor,
-		}
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(htmlErrorTemplate502)))
+		w.Header().Set("X-Request-Proto", r.Proto)
+		w.Header().Set("X-Request-ProtoMajor", string(rune(r.ProtoMajor)))
+		w.Header().Set("X-Request-ProtoMinor", string(rune(r.ProtoMinor)))
+		w.Header().Set("Status", "502 Bad Gateway")
+		w.WriteHeader(http.StatusBadGateway)
 
-		_ = resp.Write(clientConn)
+		_, err = w.Write([]byte(htmlErrorTemplate502))
+
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to write response", slog.Any("error", err))
+			return
+		}
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		slog.DebugContext(ctx, "connection timed out", slog.String("host", r.Host))
 		return

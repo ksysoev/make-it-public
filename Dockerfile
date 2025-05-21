@@ -10,8 +10,7 @@ WORKDIR /app
 COPY . .
 RUN go mod download
 
-RUN \
-    if [ -z "$GOOS" || -z "$GOARCH" ]; then \
+RUN if [ -z "$GOOS" || -z "$GOARCH" ]; then \
         echo "GOOS and GOARCH are not set, building cross platform"; \
         CGO_ENABLED=0 go build -o mit -ldflags "-X main.defaultServer=$MIT_SERVER -X main.version=$VERSION" ./cmd/mit/main.go \
     else \

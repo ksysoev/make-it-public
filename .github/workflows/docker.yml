@@ -69,6 +69,8 @@ jobs:
           build-args: |
             MIT_SERVER=${{ secrets.MIT_SERVER }}
             VERSION=${{ env.VERSION }}
+            PLATFORM_OS=${{ env.PLATFORM_OS }}
+            PLATFORM_ARCH=${{ env.PLATFORM_ARCH }}
       - if: github.ref_type == 'tag'
         name: Deploy to DigitalOcean Droplet
         uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f

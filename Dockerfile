@@ -2,19 +2,17 @@ FROM golang:1.24-alpine AS builder
 
 ARG MIT_SERVER=${MIT_SERVER}
 ARG VERSION=${VERSION}
-ARG GOOS=${PLATFORM_OS}
-ARG GOARCH=${PLATFORM_ARCH}
 
 WORKDIR /app
 
 COPY . .
 RUN go mod download
 
-RUN if [ -z "$GOOS" || -z "$GOARCH" ]; then \
+RUN if [ -z "${PLATFORM_OS}" || -z "${PLATFORM_ARCH}" ]; then \
         echo "GOOS and GOARCH are not set, building cross platform"; \
         CGO_ENABLED=0 go build -o mit -ldflags "-X main.defaultServer=$MIT_SERVER -X main.version=$VERSION" ./cmd/mit/main.go \
     else \
-        echo "Building for $GOOS/$GOARCH"; \
+        echo "Building for ${PLATFORM_OS}/${PLATFORM_ARCH}"; \
         CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o mit -ldflags "-X main.defaultServer=$MIT_SERVER -X main.version=$VERSION" ./cmd/mit/main.go \
     fi
 

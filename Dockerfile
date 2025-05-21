@@ -10,7 +10,7 @@ RUN go mod download
 
 RUN echo "Building mit version ${VERSION} for ${PLATFORM_OS}/${PLATFORM_ARCH} with server ${MIT_SERVER}"
 
-RUN if [ -z "${PLATFORM_OS}"] || [ -z "${PLATFORM_ARCH}" ]; then \
+RUN if [ -z "${PLATFORM_OS}" ] || [ -z "${PLATFORM_ARCH}" ]; then \
         echo "GOOS and GOARCH are not set, building cross platform"; \
         CGO_ENABLED=0 go build -o mit -ldflags "-X main.defaultServer=$MIT_SERVER -X main.version=$VERSION" ./cmd/mit/main.go \
     else \

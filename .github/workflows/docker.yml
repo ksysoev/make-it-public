@@ -52,6 +52,13 @@ jobs:
             # For branch/commit triggers, use the commit hash
             echo "VERSION=${GITHUB_SHA}" >> $GITHUB_ENV
           fi
+      - name: Set PLATFORM based on trigger type
+        id: extract_platform
+        run: |
+          if [[ $GITHUB_REF_TYPE != "tag" || $GITHUB_REF_NAME != "main" ]]; then
+            echo "PLATFORM_OS=linux" >> $GITHUB_ENV
+            echo "PLATFORM_ARCH=amd64" >> $GITHUB_ENV
+          fi
       - name: Build and push Docker image
         uses: docker/build-push-action@1dc73863535b631f98b2378be8619f83b136f4a0
         with:

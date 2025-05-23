@@ -102,8 +102,8 @@ const docTemplate = `{
                 "summary": "Revoke Token",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Group ID",
+                        "type": "string",
+                        "description": "API Key ID",
                         "name": "keyID",
                         "in": "path",
                         "required": true

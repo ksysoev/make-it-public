@@ -172,7 +172,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 // @Summary Revoke Token
 // @Description Revokes an API token using the provided Key ID.
 // @Tags Token
-// @Param keyID path int true "Group ID"
+// @Param keyID path string true "API Key ID"
 // @Success 204
 // @Failure 400 {string} string "Bad Request"
 // @Failure 500 {string} string "Internal Server Error"

@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/ksysoev/make-it-public/pkg/core/conn/meta"
+	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/ksysoev/revdial/proto"
 	"golang.org/x/sync/errgroup"
 )
@@ -174,6 +175,14 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 		return err
 	}
 
+	return nil
+}
+
+func (s *Service) GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error) {
+	return nil, nil
+}
+
+func (s *Service) DeleteToken(ctx context.Context, tokenID string) error {
 	return nil
 }
 

@@ -27,11 +27,11 @@ type Config struct {
 }
 
 type API struct {
-	auth   AuthRepo
+	svc    Service
 	config Config
 }
 
-type AuthRepo interface {
+type Service interface {
 	GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error)
 	DeleteToken(ctx context.Context, tokenID string) error
 }
@@ -43,10 +43,13 @@ const (
 	SwaggerEndpoint       = "/swagger/"
 )
 
-func New(cfg Config, auth AuthRepo) *API {
+// New initializes and returns a new API instance configured with the provided Config and Service.
+// Config defines API server settings, and Service provides token management functionalities.
+// Returns a pointer to the API instance.
+func New(cfg Config, svc Service) *API {
 	return &API{
 		config: cfg,
-		auth:   auth,
+		svc:    svc,
 	}
 }
 
@@ -56,7 +59,10 @@ func New(cfg Config, auth AuthRepo) *API {
 // @host localhost:8082
 // @BasePath /
 
-// Runs the API management server
+// Run starts the API server and handles incoming HTTP requests.
+// It configures the HTTP routes, middleware, and server settings based on the API's configuration.
+// Accepts ctx to gracefully shut down the server when context is canceled.
+// Returns error if the server fails to start or encounters issues during runtime.
 func (api *API) Run(ctx context.Context) error {
 	router := http.NewServeMux()
 	genToken := middleware.Metrics()(http.HandlerFunc(api.generateTokenHandler))
@@ -87,7 +93,9 @@ func (api *API) Run(ctx context.Context) error {
 	return nil
 }
 
-// healthCheckHandler returns the API status.
+// healthCheckHandler handles a basic health check endpoint that returns the status of the service as a JSON response.
+// It writes a JSON-encoded "healthy" status to the response and sets the appropriate Content-Type header.
+// Returns an HTTP 500 status code if JSON encoding fails, logging the error context for debugging.
 // @Summary Health Check
 // @Description Returns the health status of the API.
 // @Tags Health
@@ -138,7 +146,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	ttl = cmp.Or(ttl, DefaultTTLSeconds)
 
-	generatedToken, err := api.auth.GenerateToken(r.Context(), keyID, time.Second*time.Duration(ttl))
+	generatedToken, err := api.svc.GenerateToken(r.Context(), keyID, time.Second*time.Duration(ttl))
 	if err != nil {
 		slog.ErrorContext(r.Context(), "Failed to generate token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -184,7 +192,7 @@ func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.auth.DeleteToken(r.Context(), keyID); err != nil {
+	if err := api.svc.DeleteToken(r.Context(), keyID); err != nil {
 		slog.ErrorContext(r.Context(), "Failed to revoke token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 

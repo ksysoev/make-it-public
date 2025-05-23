@@ -221,3 +221,61 @@ func TestHashSecret(t *testing.T) {
 		})
 	}
 }
+
+func TestRepo_DeleteToken(t *testing.T) {
+	tests := []struct {
+		name      string
+		tokenID   string
+		mockSetup func(m redismock.ClientMock)
+		wantErr   error
+	}{
+		{
+			name:    "successfully delete token",
+			tokenID: "token123",
+			mockSetup: func(m redismock.ClientMock) {
+				m.ExpectDel("prefixtoken123").SetVal(1)
+			},
+			wantErr: nil,
+		},
+		{
+			name:    "token does not exist",
+			tokenID: "nonexistentToken",
+			mockSetup: func(m redismock.ClientMock) {
+				m.ExpectDel("prefixnonexistentToken").SetVal(0)
+			},
+			wantErr: nil,
+		},
+		{
+			name:    "redis error during deletion",
+			tokenID: "tokenWithError",
+			mockSetup: func(m redismock.ClientMock) {
+				m.ExpectDel("prefixtokenWithError").SetErr(assert.AnError)
+			},
+			wantErr: assert.AnError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			rdb, mockRDB := redismock.NewClientMock()
+			tt.mockSetup(mockRDB)
+
+			r := &Repo{
+				db:        rdb,
+				keyPrefix: "prefix",
+			}
+
+			// Act
+			err := r.DeleteToken(context.Background(), tt.tokenID)
+
+			// Assert
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

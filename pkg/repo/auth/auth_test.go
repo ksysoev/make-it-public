@@ -224,10 +224,10 @@ func TestHashSecret(t *testing.T) {
 
 func TestRepo_DeleteToken(t *testing.T) {
 	tests := []struct {
+		wantErr   error
+		mockSetup func(m redismock.ClientMock)
 		name      string
 		tokenID   string
-		mockSetup func(m redismock.ClientMock)
-		wantErr   error
 	}{
 		{
 			name:    "successfully delete token",

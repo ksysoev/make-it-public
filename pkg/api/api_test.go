@@ -167,11 +167,11 @@ func TestRevokeTokenHandler(t *testing.T) {
 	api := New(Config{}, auth)
 
 	tests := []struct {
+		mockBehavior func()
 		name         string
 		keyID        string
-		mockBehavior func()
-		expectedCode int
 		expectedBody string
+		expectedCode int
 	}{
 		{
 			name:         "Missing KeyID",
@@ -204,7 +204,7 @@ func TestRevokeTokenHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mockBehavior()
 
-			req := httptest.NewRequest(http.MethodDelete, "/revoke/"+tt.keyID, nil)
+			req := httptest.NewRequest(http.MethodDelete, "/token/"+tt.keyID, nil)
 
 			if tt.keyID != "" {
 				req.SetPathValue("keyID", tt.keyID)

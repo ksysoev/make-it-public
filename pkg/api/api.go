@@ -39,7 +39,7 @@ type AuthRepo interface {
 const (
 	HealthCheckEndpoint   = "GET /health"
 	GenerateTokenEndpoint = "POST /generateToken"
-	RevokeTokenEndpoint   = "DELETE /token/{keyID}"
+	RevokeTokenEndpoint   = "DELETE /token/{keyID}" //nolint:gosec // false positive, no hardcoded credentials
 	SwaggerEndpoint       = "/swagger/"
 )
 

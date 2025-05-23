@@ -58,7 +58,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 	}, auth)
 
 	t.Run("Invalid Request Payload", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer([]byte("invalid json")))
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer([]byte("invalid json")))
 		rec := httptest.NewRecorder()
 
 		api.generateTokenHandler(rec, req)
@@ -77,7 +77,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 			TTL: 3600,
 		}
 		body, _ := json.Marshal(requestBody)
-		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
 
 		api.generateTokenHandler(rec, req)
@@ -103,7 +103,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 			TTL:   0,
 		}
 		body, _ := json.Marshal(requestBody)
-		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
 
 		api.generateTokenHandler(rec, req)
@@ -126,7 +126,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 			TTL:   3600,
 		}
 		body, _ := json.Marshal(requestBody)
-		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
 
 		api.generateTokenHandler(rec, req)
@@ -160,4 +160,62 @@ func TestAPIRun(t *testing.T) {
 	assert.Equal(t, response["status"], "healthy", "Response body should contain status 'healthy'")
 
 	_ = resp.Body.Close()
+}
+
+func TestRevokeTokenHandler(t *testing.T) {
+	auth := NewMockAuthRepo(t)
+	api := New(Config{}, auth)
+
+	tests := []struct {
+		mockBehavior func()
+		name         string
+		keyID        string
+		expectedBody string
+		expectedCode int
+	}{
+		{
+			name:         "Missing KeyID",
+			keyID:        "",
+			mockBehavior: func() {},
+			expectedCode: http.StatusBadRequest,
+			expectedBody: "Key ID is required\n",
+		},
+		{
+			name:  "Successful Revocation",
+			keyID: "test-key-id",
+			mockBehavior: func() {
+				auth.EXPECT().DeleteToken(mock.Anything, "test-key-id").Return(nil).Once()
+			},
+			expectedCode: http.StatusNoContent,
+			expectedBody: "",
+		},
+		{
+			name:  "Internal Error",
+			keyID: "test-key-id",
+			mockBehavior: func() {
+				auth.EXPECT().DeleteToken(mock.Anything, "test-key-id").Return(errors.New("failed to delete token")).Once()
+			},
+			expectedCode: http.StatusInternalServerError,
+			expectedBody: "Internal Server Error\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mockBehavior()
+
+			req := httptest.NewRequest(http.MethodDelete, "/token/"+tt.keyID, http.NoBody)
+
+			if tt.keyID != "" {
+				req.SetPathValue("keyID", tt.keyID)
+			}
+
+			rec := httptest.NewRecorder()
+
+			api.RevokeTokenHandler(rec, req)
+
+			assert.Equal(t, tt.expectedCode, rec.Code)
+			assert.Equal(t, tt.expectedBody, rec.Body.String())
+		})
+	}
 }

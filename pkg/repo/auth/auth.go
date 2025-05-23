@@ -29,6 +29,7 @@ type Config struct {
 type Redis interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
 	Close() error
 }
 
@@ -106,6 +107,18 @@ func (r *Repo) GenerateToken(ctx context.Context, keyID string, ttl time.Duratio
 	}
 
 	return nil, ErrFailedToGenerateToken
+}
+
+// DeleteToken removes a token identified by tokenID from the database using the configured key prefix.
+// It returns an error if the deletion operation fails.
+func (r *Repo) DeleteToken(ctx context.Context, tokenID string) error {
+	res := r.db.Del(ctx, r.keyPrefix+tokenID)
+
+	if res.Err() != nil {
+		return fmt.Errorf("failed to delete token: %w", res.Err())
+	}
+
+	return nil
 }
 
 // Close releases any resources associated with the Redis connection.

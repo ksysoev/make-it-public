@@ -33,11 +33,13 @@ type API struct {
 
 type AuthRepo interface {
 	GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error)
+	DeleteToken(ctx context.Context, tokenID string) error
 }
 
 const (
 	HealthCheckEndpoint   = "GET /health"
-	GenerateTokenEndpoint = "POST /generateToken"
+	GenerateTokenEndpoint = "POST /token"
+	RevokeTokenEndpoint   = "DELETE /token/{keyID}" //nolint:gosec // false positive, no hardcoded credentials
 	SwaggerEndpoint       = "/swagger/"
 )
 
@@ -58,8 +60,10 @@ func New(cfg Config, auth AuthRepo) *API {
 func (api *API) Run(ctx context.Context) error {
 	router := http.NewServeMux()
 	genToken := middleware.Metrics()(http.HandlerFunc(api.generateTokenHandler))
+	revokeToken := middleware.Metrics()(http.HandlerFunc(api.RevokeTokenHandler))
 
 	router.Handle(GenerateTokenEndpoint, genToken)
+	router.Handle(RevokeTokenEndpoint, revokeToken)
 	router.HandleFunc(HealthCheckEndpoint, api.healthCheckHandler)
 	router.HandleFunc(SwaggerEndpoint, httpSwagger.WrapHandler)
 
@@ -110,9 +114,7 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // generateTokenHandler is an endpoint to create API token.
 // It optionally accepts a key ID, which is automatically generated if not provided.
 // It also optionally accepts a TTL for API token, which is set to a default value if not provided.
-// As a part of response, it returns the key ID, generated token, and the TTL in seconds.
-
-// generateTokenHandler is an endpoint to create API token.
+// As a part of response, it returns the key ID, generated token, and the TTL in seconds
 // @Summary Generate Token
 // @Description Generates an API token with an optional key ID and TTL.
 // @Tags Token
@@ -122,7 +124,7 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} GenerateTokenResponse
 // @Failure 400 {string} string "Bad Request"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /generateToken [post]
+// @Router /token [post]
 func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var generateTokenRequest GenerateTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&generateTokenRequest); err != nil {
@@ -161,4 +163,33 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// RevokeTokenHandler revokes an API token based on the provided key ID in the request path.
+// It checks the presence of the key ID and returns an HTTP error if missing.
+// Deletes the token and returns a no-content response on success or an internal server error if deletion fails.
+// @Summary Revoke Token
+// @Description Revokes an API token using the provided Key ID.
+// @Tags Token
+// @Param keyID path string true "API Key ID"
+// @Success 204
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /token/{keyID} [delete]
+func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
+	keyID := r.PathValue("keyID")
+
+	if keyID == "" {
+		http.Error(w, "Key ID is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := api.auth.DeleteToken(r.Context(), keyID); err != nil {
+		slog.ErrorContext(r.Context(), "Failed to revoke token", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

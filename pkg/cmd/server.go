@@ -30,7 +30,7 @@ func RunServerCommand(ctx context.Context, args *args) error {
 	authRepo := auth.New(&cfg.Auth)
 	connManager := connmng.New()
 	connService := core.New(connManager, authRepo)
-	apiServ := api.New(cfg.API, authRepo)
+	apiServ := api.New(cfg.API, connService)
 
 	revServ, err := revproxy.New(&cfg.RevProxy, connService)
 	if err != nil {

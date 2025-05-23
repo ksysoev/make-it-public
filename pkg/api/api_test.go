@@ -52,7 +52,7 @@ func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
 }
 
 func TestGenerateTokenHandler(t *testing.T) {
-	auth := NewMockAuthRepo(t)
+	auth := NewMockService(t)
 	api := New(Config{
 		DefaultTokenExpiry: 3600, // 1 hour
 	}, auth)
@@ -163,7 +163,7 @@ func TestAPIRun(t *testing.T) {
 }
 
 func TestRevokeTokenHandler(t *testing.T) {
-	auth := NewMockAuthRepo(t)
+	auth := NewMockService(t)
 	api := New(Config{}, auth)
 
 	tests := []struct {

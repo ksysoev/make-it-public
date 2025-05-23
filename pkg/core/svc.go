@@ -27,6 +27,8 @@ type ControlConn interface {
 
 type AuthRepo interface {
 	Verify(ctx context.Context, keyID, secret string) (bool, error)
+	GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error)
+	DeleteToken(ctx context.Context, tokenID string) error
 }
 
 type ConnManager interface {
@@ -179,11 +181,11 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 }
 
 func (s *Service) GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error) {
-	return nil, nil
+	return s.auth.GenerateToken(ctx, keyID, ttl)
 }
 
 func (s *Service) DeleteToken(ctx context.Context, tokenID string) error {
-	return nil
+	return s.auth.DeleteToken(ctx, tokenID)
 }
 
 // pipeConn manages bidirectional copying of data between a source reader and a destination writer.

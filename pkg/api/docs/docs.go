@@ -92,6 +92,41 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/token/{keyID}": {
+            "delete": {
+                "description": "Revokes an API token using the provided Key ID.",
+                "tags": [
+                    "Token"
+                ],
+                "summary": "Revoke Token",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Group ID",
+                        "name": "keyID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {

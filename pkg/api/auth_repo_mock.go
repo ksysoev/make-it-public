@@ -26,6 +26,53 @@ func (_m *MockAuthRepo) EXPECT() *MockAuthRepo_Expecter {
 	return &MockAuthRepo_Expecter{mock: &_m.Mock}
 }
 
+// DeleteToken provides a mock function with given fields: ctx, tokenID
+func (_m *MockAuthRepo) DeleteToken(ctx context.Context, tokenID string) error {
+	ret := _m.Called(ctx, tokenID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteToken")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, tokenID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockAuthRepo_DeleteToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteToken'
+type MockAuthRepo_DeleteToken_Call struct {
+	*mock.Call
+}
+
+// DeleteToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tokenID string
+func (_e *MockAuthRepo_Expecter) DeleteToken(ctx interface{}, tokenID interface{}) *MockAuthRepo_DeleteToken_Call {
+	return &MockAuthRepo_DeleteToken_Call{Call: _e.mock.On("DeleteToken", ctx, tokenID)}
+}
+
+func (_c *MockAuthRepo_DeleteToken_Call) Run(run func(ctx context.Context, tokenID string)) *MockAuthRepo_DeleteToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockAuthRepo_DeleteToken_Call) Return(_a0 error) *MockAuthRepo_DeleteToken_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockAuthRepo_DeleteToken_Call) RunAndReturn(run func(context.Context, string) error) *MockAuthRepo_DeleteToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GenerateToken provides a mock function with given fields: ctx, keyID, ttl
 func (_m *MockAuthRepo) GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error) {
 	ret := _m.Called(ctx, keyID, ttl)

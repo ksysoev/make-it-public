@@ -20,7 +20,7 @@ type ControlConn interface {
 
 type AuthRepo interface {
 	Verify(ctx context.Context, keyID, secret string) (bool, error)
-	GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error)
+	SaveToken(ctx context.Context, t token.Token, ttl time.Duration) error
 	DeleteToken(ctx context.Context, tokenID string) error
 }
 

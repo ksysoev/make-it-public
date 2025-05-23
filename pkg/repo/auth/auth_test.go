@@ -140,7 +140,7 @@ func TestRepo_GenerateToken(t *testing.T) {
 				keyPrefix: "prefix",
 			}
 
-			_, err := r.GenerateToken(context.Background(), "", time.Minute)
+			_, err := r.SaveToken(context.Background(), "", time.Minute)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, tt.wantErr)

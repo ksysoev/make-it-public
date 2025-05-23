@@ -8,7 +8,7 @@ import (
 )
 
 func TestGenerateToken(t *testing.T) {
-	t.Run("GenerateToken with empty keyID", func(t *testing.T) {
+	t.Run("SaveToken with empty keyID", func(t *testing.T) {
 		token, err := GenerateToken("")
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.NotEmpty(t, token.ID, "Token ID should not be empty")
@@ -16,7 +16,7 @@ func TestGenerateToken(t *testing.T) {
 		assert.True(t, len(getTokenPair(token.ID, token.Secret))%3 == 0, "The string should be divisible by 3 for base64 encoding")
 	})
 
-	t.Run("GenerateToken with provided keyID", func(t *testing.T) {
+	t.Run("SaveToken with provided keyID", func(t *testing.T) {
 		keyID := "testKeyID"
 		token, err := GenerateToken(keyID)
 		assert.NoError(t, err, "Token generation should not return an error")

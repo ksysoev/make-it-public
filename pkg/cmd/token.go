@@ -5,7 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
+)
+
+const (
+	secondsInHour = 3600
 )
 
 // RunGenerateToken initializes the logger, loads configuration, and generates a new token for authentication.
@@ -26,8 +31,9 @@ func RunGenerateToken(ctx context.Context, args *args, keyID string, keyTTL int)
 	}
 
 	authRepo := auth.New(&cfg.Auth)
+	svc := core.New(nil, authRepo)
 
-	token, err := authRepo.GenerateToken(ctx, keyID, time.Duration(keyTTL)*time.Hour)
+	token, err := svc.GenerateToken(ctx, keyID, keyTTL*secondsInHour)
 	if err != nil {
 		return fmt.Errorf("failed to generate token: %w", err)
 	}

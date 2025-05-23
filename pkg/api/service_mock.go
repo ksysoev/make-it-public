@@ -78,7 +78,7 @@ func (_m *MockService) GenerateToken(ctx context.Context, keyID string, ttl time
 	ret := _m.Called(ctx, keyID, ttl)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GenerateToken")
+		panic("no return value specified for SaveToken")
 	}
 
 	var r0 *token.Token
@@ -103,7 +103,7 @@ func (_m *MockService) GenerateToken(ctx context.Context, keyID string, ttl time
 	return r0, r1
 }
 
-// MockService_GenerateToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateToken'
+// MockService_GenerateToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveToken'
 type MockService_GenerateToken_Call struct {
 	*mock.Call
 }
@@ -113,7 +113,7 @@ type MockService_GenerateToken_Call struct {
 //   - keyID string
 //   - ttl time.Duration
 func (_e *MockService_Expecter) GenerateToken(ctx interface{}, keyID interface{}, ttl interface{}) *MockService_GenerateToken_Call {
-	return &MockService_GenerateToken_Call{Call: _e.mock.On("GenerateToken", ctx, keyID, ttl)}
+	return &MockService_GenerateToken_Call{Call: _e.mock.On("SaveToken", ctx, keyID, ttl)}
 }
 
 func (_c *MockService_GenerateToken_Call) Run(run func(ctx context.Context, keyID string, ttl time.Duration)) *MockService_GenerateToken_Call {

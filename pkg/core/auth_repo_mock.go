@@ -78,7 +78,7 @@ func (_m *MockAuthRepo) GenerateToken(ctx context.Context, keyID string, ttl tim
 	ret := _m.Called(ctx, keyID, ttl)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GenerateToken")
+		panic("no return value specified for SaveToken")
 	}
 
 	var r0 *token.Token
@@ -103,7 +103,7 @@ func (_m *MockAuthRepo) GenerateToken(ctx context.Context, keyID string, ttl tim
 	return r0, r1
 }
 
-// MockAuthRepo_GenerateToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateToken'
+// MockAuthRepo_GenerateToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveToken'
 type MockAuthRepo_GenerateToken_Call struct {
 	*mock.Call
 }
@@ -113,7 +113,7 @@ type MockAuthRepo_GenerateToken_Call struct {
 //   - keyID string
 //   - ttl time.Duration
 func (_e *MockAuthRepo_Expecter) GenerateToken(ctx interface{}, keyID interface{}, ttl interface{}) *MockAuthRepo_GenerateToken_Call {
-	return &MockAuthRepo_GenerateToken_Call{Call: _e.mock.On("GenerateToken", ctx, keyID, ttl)}
+	return &MockAuthRepo_GenerateToken_Call{Call: _e.mock.On("SaveToken", ctx, keyID, ttl)}
 }
 
 func (_c *MockAuthRepo_GenerateToken_Call) Run(run func(ctx context.Context, keyID string, ttl time.Duration)) *MockAuthRepo_GenerateToken_Call {

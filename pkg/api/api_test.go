@@ -204,7 +204,7 @@ func TestRevokeTokenHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mockBehavior()
 
-			req := httptest.NewRequest(http.MethodDelete, "/token/"+tt.keyID, nil)
+			req := httptest.NewRequest(http.MethodDelete, "/token/"+tt.keyID, http.NoBody)
 
 			if tt.keyID != "" {
 				req.SetPathValue("keyID", tt.keyID)

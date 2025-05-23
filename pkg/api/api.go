@@ -187,6 +187,7 @@ func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err := api.auth.DeleteToken(r.Context(), keyID); err != nil {
 		slog.ErrorContext(r.Context(), "Failed to revoke token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+
 		return
 	}
 

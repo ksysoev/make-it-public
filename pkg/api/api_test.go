@@ -58,7 +58,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 	}, auth)
 
 	t.Run("Invalid Request Payload", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer([]byte("invalid json")))
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer([]byte("invalid json")))
 		rec := httptest.NewRecorder()
 
 		api.generateTokenHandler(rec, req)
@@ -77,7 +77,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 			TTL: 3600,
 		}
 		body, _ := json.Marshal(requestBody)
-		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
 
 		api.generateTokenHandler(rec, req)
@@ -103,7 +103,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 			TTL:   0,
 		}
 		body, _ := json.Marshal(requestBody)
-		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
 
 		api.generateTokenHandler(rec, req)
@@ -126,7 +126,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 			TTL:   3600,
 		}
 		body, _ := json.Marshal(requestBody)
-		req := httptest.NewRequest(http.MethodPost, "/generateToken", bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer(body))
 		rec := httptest.NewRecorder()
 
 		api.generateTokenHandler(rec, req)

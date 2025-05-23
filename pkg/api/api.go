@@ -38,7 +38,7 @@ type AuthRepo interface {
 
 const (
 	HealthCheckEndpoint   = "GET /health"
-	GenerateTokenEndpoint = "POST /generateToken"
+	GenerateTokenEndpoint = "POST /token"
 	RevokeTokenEndpoint   = "DELETE /token/{keyID}" //nolint:gosec // false positive, no hardcoded credentials
 	SwaggerEndpoint       = "/swagger/"
 )
@@ -124,7 +124,7 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} GenerateTokenResponse
 // @Failure 400 {string} string "Bad Request"
 // @Failure 500 {string} string "Internal Server Error"
-// @Router /generateToken [post]
+// @Router /token [post]
 func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var generateTokenRequest GenerateTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&generateTokenRequest); err != nil {

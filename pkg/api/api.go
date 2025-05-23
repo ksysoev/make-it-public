@@ -165,10 +165,9 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// RevokeTokenHandler revokes an API token by deleting it using the provided Key ID.
-// It decodes the incoming JSON request to extract the Key ID and validates it.
-// If the Key ID is missing or invalid, it responds with a 400 Bad Request error.
-// Returns 204 No Content on successful revocation or 500 Internal Server Error on failure.
+// RevokeTokenHandler revokes an API token based on the provided key ID in the request path.
+// It checks the presence of the key ID and returns an HTTP error if missing.
+// Deletes the token and returns a no-content response on success or an internal server error if deletion fails.
 // @Summary Revoke Token
 // @Description Revokes an API token using the provided Key ID.
 // @Tags Token

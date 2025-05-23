@@ -3,7 +3,6 @@
 package api
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -17,13 +16,8 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
-const (
-	DefaultTTLSeconds = int64(3600) // 1 hour
-)
-
 type Config struct {
-	Listen             string `mapstructure:"listen"`
-	DefaultTokenExpiry int64  `mapstructure:"default_token_expiry"`
+	Listen string `mapstructure:"listen"`
 }
 
 type API struct {
@@ -32,7 +26,7 @@ type API struct {
 }
 
 type Service interface {
-	GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error)
+	GenerateToken(ctx context.Context, keyID string, ttl int) (*token.Token, error)
 	DeleteToken(ctx context.Context, tokenID string) error
 }
 
@@ -134,19 +128,14 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /token [post]
 func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
-	var generateTokenRequest GenerateTokenRequest
-	if err := json.NewDecoder(r.Body).Decode(&generateTokenRequest); err != nil {
+	var req GenerateTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 
 		return
 	}
 
-	keyID := generateTokenRequest.KeyID
-	ttl := cmp.Or(generateTokenRequest.TTL, api.config.DefaultTokenExpiry)
-
-	ttl = cmp.Or(ttl, DefaultTTLSeconds)
-
-	generatedToken, err := api.svc.GenerateToken(r.Context(), keyID, time.Second*time.Duration(ttl))
+	t, err := api.svc.GenerateToken(r.Context(), req.KeyID, req.TTL)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "Failed to generate token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -155,9 +144,9 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := GenerateTokenResponse{
-		Token: generatedToken.Encode(),
-		KeyID: cmp.Or(keyID, generatedToken.ID),
-		TTL:   ttl,
+		Token: t.Encode(),
+		KeyID: t.ID,
+		TTL:   req.TTL,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

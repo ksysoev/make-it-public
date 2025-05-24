@@ -16,10 +16,6 @@ const (
 	scryptPrefix = "sc:"
 )
 
-var (
-	ErrFailedToGenerateToken = fmt.Errorf("failed to generate uniq token")
-)
-
 type Config struct {
 	RedisAddr string `mapstructure:"redis_addr"`
 	Password  string `mapstructure:"redis_password"`

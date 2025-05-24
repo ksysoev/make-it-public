@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	defaultTTLSeconds       = 3600 // 1 hour
 	attemptsToGenerateToken = 3
 )
 

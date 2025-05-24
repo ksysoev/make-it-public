@@ -3,38 +3,41 @@ package token
 import (
 	"encoding/base64"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateToken(t *testing.T) {
 	t.Run("SaveToken with empty keyID", func(t *testing.T) {
-		token, err := GenerateToken("")
+		token, err := GenerateToken("", 0)
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.NotEmpty(t, token.ID, "Token ID should not be empty")
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
 		assert.True(t, len(getTokenPair(token.ID, token.Secret))%3 == 0, "The string should be divisible by 3 for base64 encoding")
+		assert.Equal(t, 3600*time.Second, token.TTL, "Token TTL should not be the default value")
 	})
 
-	t.Run("SaveToken with provided keyID", func(t *testing.T) {
+	t.Run("SaveToken with provided keyID and TTL", func(t *testing.T) {
 		keyID := "testkeyid"
-		token, err := GenerateToken(keyID)
+		token, err := GenerateToken(keyID, 100)
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.Equal(t, keyID, token.ID, "Token ID should match the provided keyID")
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
 		assert.True(t, len(getTokenPair(token.ID, token.Secret))%3 == 0, "The string should be divisible by 3 for base64 encoding")
+		assert.Equal(t, 100*time.Second, token.TTL, "Token TTL should not be the default value")
 	})
 
 	t.Run("unusually long keyID returns error", func(t *testing.T) {
 		keyID := "testKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyID"
-		token, err := GenerateToken(keyID)
+		token, err := GenerateToken(keyID, 0)
 		assert.Error(t, err, "Token generation should return an error for unusually long keyID")
 		assert.Nil(t, token, "Token should be nil on error")
 	})
 
 	t.Run("SaveToken with valid alphanumeric keyID", func(t *testing.T) {
 		keyID := "abc123"
-		token, err := GenerateToken(keyID)
+		token, err := GenerateToken(keyID, 0)
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.Equal(t, keyID, token.ID, "Token ID should match the provided alphanumeric keyID")
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
@@ -42,9 +45,16 @@ func TestGenerateToken(t *testing.T) {
 
 	t.Run("SaveToken with unsupported characters", func(t *testing.T) {
 		keyID := "INVALID_KEY!"
-		token, err := GenerateToken(keyID)
+		token, err := GenerateToken(keyID, 0)
 		assert.Error(t, err, "Token generation should return an error for unsupported characters in keyID")
 		assert.Nil(t, token, "Token should be nil when keyID contains unsupported characters")
+	})
+
+	t.Run("SaveToken with negative TTL", func(t *testing.T) {
+		keyID := "testkeyid"
+		token, err := GenerateToken(keyID, -1)
+		assert.Error(t, err, "Token generation should return an error for negative TTL")
+		assert.Nil(t, token, "Token should be nil when TTL is negative")
 	})
 }
 

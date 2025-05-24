@@ -1,11 +1,9 @@
 package core
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 )
@@ -18,7 +16,6 @@ const (
 var (
 	ErrDuplicateTokenID = fmt.Errorf("duplicate token ID")
 	ErrTokenNotFound    = fmt.Errorf("token not found")
-	ErrInvalidTokenTTL  = fmt.Errorf("ttl must be positive number")
 )
 
 // GenerateToken generates a new token with the given keyID and time-to-live (TTL).
@@ -26,20 +23,14 @@ var (
 // Accepts ctx which is the context for the request, keyID as the identifier for the token, and ttl as the duration in seconds.
 // Returns the generated token and an error if generation or saving fails, or if all retry attempts are exhausted.
 func (s *Service) GenerateToken(ctx context.Context, keyID string, ttl int) (*token.Token, error) {
-	ttl = cmp.Or(ttl, defaultTTLSeconds)
-
-	if ttl <= 0 {
-		return nil, ErrInvalidTokenTTL
-	}
-
 	for i := 0; i < attemptsToGenerateToken; i++ {
-		t, err := token.GenerateToken(keyID)
+		t, err := token.GenerateToken(keyID, ttl)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate token: %w", err)
 		}
 
-		err = s.auth.SaveToken(ctx, t, time.Duration(ttl)*time.Second)
+		err = s.auth.SaveToken(ctx, t)
 
 		switch {
 		case err == nil:

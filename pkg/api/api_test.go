@@ -69,6 +69,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		auth.EXPECT().GenerateToken(mock.Anything, mock.Anything, 3600).Return(&token.Token{
 			ID:     "random-key-id",
 			Secret: "test-token",
+			TTL:    time.Hour,
 		}, nil).Once()
 
 		requestBody := GenerateTokenRequest{
@@ -94,6 +95,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 0).Return(&token.Token{
 			ID:     "test-key-id",
 			Secret: "test-token",
+			TTL:    time.Hour,
 		}, nil).Once()
 
 		requestBody := GenerateTokenRequest{
@@ -113,7 +115,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "test-key-id", response.KeyID)
 		assert.NotEmpty(t, response.Token)
-		assert.Equal(t, 0, response.TTL)
+		assert.Equal(t, 3600, response.TTL)
 	})
 
 	t.Run("Token Generation Error", func(t *testing.T) {
@@ -151,6 +153,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600).Return(&token.Token{
 			ID:     "test-key-id",
 			Secret: "test-token",
+			TTL:    3600,
 		}, nil).Once()
 
 		requestBody := GenerateTokenRequest{

@@ -137,9 +137,10 @@ func TestRepo_SaveToken(t *testing.T) {
 			testToken := &token.Token{
 				ID:     "test-id",
 				Secret: "test-secret",
+				TTL:    time.Minute,
 			}
 
-			err := r.SaveToken(context.Background(), testToken, time.Minute)
+			err := r.SaveToken(context.Background(), testToken)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, tt.wantErr)

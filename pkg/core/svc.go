@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
@@ -20,7 +19,7 @@ type ControlConn interface {
 
 type AuthRepo interface {
 	Verify(ctx context.Context, keyID, secret string) (bool, error)
-	SaveToken(ctx context.Context, t *token.Token, ttl time.Duration) error
+	SaveToken(ctx context.Context, t *token.Token) error
 	DeleteToken(ctx context.Context, tokenID string) error
 }
 

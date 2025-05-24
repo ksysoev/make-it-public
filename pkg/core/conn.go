@@ -16,6 +16,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var ErrFailedToConnect = errors.New("failed to connect")
+
 func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error {
 	var connKeyID string
 

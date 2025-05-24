@@ -147,8 +147,8 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, token.ErrTokenTooLong):
 		http.Error(w, token.ErrTokenTooLong.Error(), http.StatusBadRequest)
 		return
-	case errors.Is(err, core.ErrInvalidTokenTTL):
-		http.Error(w, core.ErrInvalidTokenTTL.Error(), http.StatusBadRequest)
+	case errors.Is(err, token.ErrInvalidTokenTTL):
+		http.Error(w, token.ErrInvalidTokenTTL.Error(), http.StatusBadRequest)
 		return
 	case errors.Is(err, core.ErrDuplicateTokenID):
 		http.Error(w, "Duplicate token ID", http.StatusConflict)
@@ -163,7 +163,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	resp := GenerateTokenResponse{
 		Token: t.Encode(),
 		KeyID: t.ID,
-		TTL:   req.TTL,
+		TTL:   int(t.TTL.Seconds()),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

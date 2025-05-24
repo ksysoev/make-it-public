@@ -77,16 +77,17 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
 	}
 }
 
-// SaveToken stores a token in the database with a specified time-to-live (TTL).
-// It computes a hash for the token secret using the configured salt and saves it with a unique key ID.
-// Returns an error if hashing fails, the token cannot be saved due to a database error, or the token ID is duplicate.
-func (r *Repo) SaveToken(ctx context.Context, t *token.Token, ttl time.Duration) error {
+// SaveToken saves a token to the database with a hashed secret and specified TTL.
+// It generates a hashed secret using the token's Secret and the Repo's salt.
+// Returns an error if hashing fails, or if the database operation encounters an issue.
+// Returns core.ErrDuplicateTokenID if a token with the same ID already exists.
+func (r *Repo) SaveToken(ctx context.Context, t *token.Token) error {
 	secretHash, err := hashSecret(t.Secret, r.salt)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt secret: %w", err)
 	}
 
-	res := r.db.SetNX(ctx, r.keyPrefix+t.ID, secretHash, ttl)
+	res := r.db.SetNX(ctx, r.keyPrefix+t.ID, secretHash, t.TTL)
 
 	if res.Err() != nil {
 		return fmt.Errorf("failed to save token: %w", res.Err())

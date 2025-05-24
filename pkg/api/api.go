@@ -125,8 +125,9 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param request body GenerateTokenRequest true "Generate Token Request"
-// @Success 200 {object} GenerateTokenResponse
+// @Success 201 {object} GenerateTokenResponse
 // @Failure 400 {string} string "Bad Request"
+// @Failure 409 {string} string "Duplicate token ID"
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /token [post]
 func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -138,10 +139,14 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	t, err := api.svc.GenerateToken(r.Context(), req.KeyID, req.TTL)
-	if err != nil {
+
+	switch {
+	case errors.Is(err, core.ErrDuplicateTokenID):
+		http.Error(w, "Duplicate token ID", http.StatusConflict)
+		return
+	case err != nil:
 		slog.ErrorContext(r.Context(), "Failed to generate token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-
 		return
 	}
 
@@ -153,15 +158,14 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	err = json.NewEncoder(w).Encode(resp)
-	if err != nil {
+	if err = json.NewEncoder(w).Encode(resp); err != nil {
 		slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 }
 
 // RevokeTokenHandler revokes an API token based on the provided key ID in the request path.
@@ -173,6 +177,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 // @Param keyID path string true "API Key ID"
 // @Success 204
 // @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Token not found"
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /token/{keyID} [delete]
 func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -185,12 +190,14 @@ func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := api.svc.DeleteToken(r.Context(), keyID)
 	switch {
-	case err == nil:
-		w.WriteHeader(http.StatusNoContent)
 	case errors.Is(err, core.ErrTokenNotFound):
 		http.Error(w, "Token not found", http.StatusNotFound)
-	default:
+		return
+	case err != nil:
 		slog.ErrorContext(r.Context(), "Failed to revoke token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
 	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

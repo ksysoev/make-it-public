@@ -198,7 +198,6 @@ The MIT client and server can be configured using environment variables:
 - `REVERSE_PROXY_CERT`: Path to TLS certificate
 - `REVERSE_PROXY_KEY`: Path to TLS key
 - `API_LISTEN`: API server listen address
-- `API_DEFAULT_TOKEN_EXPIRY`: Default token expiry time in seconds
 - `AUTH_REDIS_ADDR`: Redis address for authentication
 - `AUTH_REDIS_PASSWORD`: Redis password
 - `AUTH_KEY_PREFIX`: Redis key prefix
@@ -223,7 +222,6 @@ reverse_proxy:
   key: "/path/to/key.key"
 api:
   listen: ":8082"
-  default_token_expiry: 3600
 auth:
   redis_addr: "redis:6379"
   redis_password: ""

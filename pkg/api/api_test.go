@@ -49,7 +49,6 @@ func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
 	handler := http.HandlerFunc(api.healthCheckHandler)
 
 	handler.ServeHTTP(mockWriter, req)
-	t.Logf("The test did not panic")
 }
 
 func TestGenerateTokenHandler(t *testing.T) {

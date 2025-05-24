@@ -20,7 +20,7 @@ type ControlConn interface {
 
 type AuthRepo interface {
 	Verify(ctx context.Context, keyID, secret string) (bool, error)
-	SaveToken(ctx context.Context, t token.Token, ttl time.Duration) error
+	SaveToken(ctx context.Context, t *token.Token, ttl time.Duration) error
 	DeleteToken(ctx context.Context, tokenID string) error
 }
 
@@ -38,6 +38,10 @@ type Service struct {
 	endpointGenerator func(string) (string, error)
 }
 
+// New initializes and returns a new Service instance with the provided ConnManager and AuthRepo.
+// It assigns a default endpoint generator function that returns an error if invoked.
+// connmng manages connection-related operations.
+// auth handles authentication-related operations.
 func New(connmng ConnManager, auth AuthRepo) *Service {
 	return &Service{
 		connmng: connmng,
@@ -48,6 +52,10 @@ func New(connmng ConnManager, auth AuthRepo) *Service {
 	}
 }
 
+// SetEndpointGenerator sets a custom function to generate endpoints dynamically based on a provided key.
+// It updates the internal endpoint generation logic with the provided function.
+// Accepts generator as a function taking a string and returning a string as the generated endpoint and an error.
+// Returns no values, but any errors from the generator function should be handled internally by its caller.
 func (s *Service) SetEndpointGenerator(generator func(string) (string, error)) {
 	s.endpointGenerator = generator
 }

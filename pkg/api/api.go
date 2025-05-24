@@ -5,6 +5,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	_ "github.com/ksysoev/make-it-public/pkg/api/docs" // needed for swagger
 	"github.com/ksysoev/make-it-public/pkg/api/middleware"
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
@@ -181,12 +183,14 @@ func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.svc.DeleteToken(r.Context(), keyID); err != nil {
+	err := api.svc.DeleteToken(r.Context(), keyID)
+	switch {
+	case err == nil:
+		w.WriteHeader(http.StatusNoContent)
+	case errors.Is(err, core.ErrTokenNotFound):
+		http.Error(w, "Token not found", http.StatusNotFound)
+	default:
 		slog.ErrorContext(r.Context(), "Failed to revoke token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-
-		return
 	}
-
-	w.WriteHeader(http.StatusNoContent)
 }

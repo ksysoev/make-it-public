@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/scrypt"
@@ -79,7 +80,7 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
 // SaveToken stores a token in the database with a specified time-to-live (TTL).
 // It computes a hash for the token secret using the configured salt and saves it with a unique key ID.
 // Returns an error if hashing fails, the token cannot be saved due to a database error, or the token ID is duplicate.
-func (r *Repo) SaveToken(ctx context.Context, t token.Token, ttl time.Duration) error {
+func (r *Repo) SaveToken(ctx context.Context, t *token.Token, ttl time.Duration) error {
 	secretHash, err := hashSecret(t.Secret, r.salt)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt secret: %w", err)
@@ -92,7 +93,7 @@ func (r *Repo) SaveToken(ctx context.Context, t token.Token, ttl time.Duration) 
 	}
 
 	if !res.Val() {
-		return fmt.Errorf("duplicate token ID")
+		return core.ErrDuplicateTokenID
 	}
 
 	return nil
@@ -105,6 +106,10 @@ func (r *Repo) DeleteToken(ctx context.Context, tokenID string) error {
 
 	if res.Err() != nil {
 		return fmt.Errorf("failed to delete token: %w", res.Err())
+	}
+
+	if res.Val() == 0 {
+		return core.ErrTokenNotFound
 	}
 
 	return nil

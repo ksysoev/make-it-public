@@ -73,62 +73,50 @@ func (_c *MockAuthRepo_DeleteToken_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
-// GenerateToken provides a mock function with given fields: ctx, keyID, ttl
-func (_m *MockAuthRepo) GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error) {
-	ret := _m.Called(ctx, keyID, ttl)
+// SaveToken provides a mock function with given fields: ctx, t, ttl
+func (_m *MockAuthRepo) SaveToken(ctx context.Context, t *token.Token, ttl time.Duration) error {
+	ret := _m.Called(ctx, t, ttl)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveToken")
 	}
 
-	var r0 *token.Token
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, time.Duration) (*token.Token, error)); ok {
-		return rf(ctx, keyID, ttl)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, time.Duration) *token.Token); ok {
-		r0 = rf(ctx, keyID, ttl)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *token.Token, time.Duration) error); ok {
+		r0 = rf(ctx, t, ttl)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*token.Token)
-		}
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, time.Duration) error); ok {
-		r1 = rf(ctx, keyID, ttl)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
-// MockAuthRepo_GenerateToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveToken'
-type MockAuthRepo_GenerateToken_Call struct {
+// MockAuthRepo_SaveToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveToken'
+type MockAuthRepo_SaveToken_Call struct {
 	*mock.Call
 }
 
-// GenerateToken is a helper method to define mock.On call
+// SaveToken is a helper method to define mock.On call
 //   - ctx context.Context
-//   - keyID string
+//   - t *token.Token
 //   - ttl time.Duration
-func (_e *MockAuthRepo_Expecter) GenerateToken(ctx interface{}, keyID interface{}, ttl interface{}) *MockAuthRepo_GenerateToken_Call {
-	return &MockAuthRepo_GenerateToken_Call{Call: _e.mock.On("SaveToken", ctx, keyID, ttl)}
+func (_e *MockAuthRepo_Expecter) SaveToken(ctx interface{}, t interface{}, ttl interface{}) *MockAuthRepo_SaveToken_Call {
+	return &MockAuthRepo_SaveToken_Call{Call: _e.mock.On("SaveToken", ctx, t, ttl)}
 }
 
-func (_c *MockAuthRepo_GenerateToken_Call) Run(run func(ctx context.Context, keyID string, ttl time.Duration)) *MockAuthRepo_GenerateToken_Call {
+func (_c *MockAuthRepo_SaveToken_Call) Run(run func(ctx context.Context, t *token.Token, ttl time.Duration)) *MockAuthRepo_SaveToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(time.Duration))
+		run(args[0].(context.Context), args[1].(*token.Token), args[2].(time.Duration))
 	})
 	return _c
 }
 
-func (_c *MockAuthRepo_GenerateToken_Call) Return(_a0 *token.Token, _a1 error) *MockAuthRepo_GenerateToken_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *MockAuthRepo_SaveToken_Call) Return(_a0 error) *MockAuthRepo_SaveToken_Call {
+	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockAuthRepo_GenerateToken_Call) RunAndReturn(run func(context.Context, string, time.Duration) (*token.Token, error)) *MockAuthRepo_GenerateToken_Call {
+func (_c *MockAuthRepo_SaveToken_Call) RunAndReturn(run func(context.Context, *token.Token, time.Duration) error) *MockAuthRepo_SaveToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

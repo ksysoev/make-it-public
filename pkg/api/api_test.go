@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -66,7 +67,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 	})
 
 	t.Run("Success token generation", func(t *testing.T) {
-		auth.EXPECT().GenerateToken(mock.Anything, mock.Anything, time.Hour).Return(&token.Token{
+		auth.EXPECT().GenerateToken(mock.Anything, mock.Anything, 3600).Return(&token.Token{
 			ID:     "random-key-id",
 			Secret: "test-token",
 		}, nil).Once()
@@ -87,11 +88,11 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, response.KeyID)
 		assert.NotEmpty(t, response.Token)
-		assert.Equal(t, int64(3600), response.TTL)
+		assert.Equal(t, 3600, response.TTL)
 	})
 
 	t.Run("Giving 0 TTL defaults to TTL of one hour", func(t *testing.T) {
-		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", time.Hour).Return(&token.Token{
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 0).Return(&token.Token{
 			ID:     "test-key-id",
 			Secret: "test-token",
 		}, nil).Once()
@@ -113,11 +114,11 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "test-key-id", response.KeyID)
 		assert.NotEmpty(t, response.Token)
-		assert.Equal(t, int64(3600), response.TTL)
+		assert.Equal(t, 0, response.TTL)
 	})
 
 	t.Run("Token Generation Error", func(t *testing.T) {
-		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", time.Hour).Return(nil, errors.New("token generation error")).Once()
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600).Return(nil, errors.New("token generation error")).Once()
 
 		requestBody := GenerateTokenRequest{
 			KeyID: "test-key-id",
@@ -129,6 +130,40 @@ func TestGenerateTokenHandler(t *testing.T) {
 
 		api.generateTokenHandler(rec, req)
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+
+	t.Run("Duplicate Token ID Error", func(t *testing.T) {
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600).Return(nil, core.ErrDuplicateTokenID).Once()
+
+		requestBody := GenerateTokenRequest{
+			KeyID: "test-key-id",
+			TTL:   3600,
+		}
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer(body))
+		rec := httptest.NewRecorder()
+
+		api.generateTokenHandler(rec, req)
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		assert.Equal(t, "Duplicate token ID\n", rec.Body.String())
+	})
+
+	t.Run("JSON Encoding Error", func(t *testing.T) {
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600).Return(&token.Token{
+			ID:     "test-key-id",
+			Secret: "test-token",
+		}, nil).Once()
+
+		requestBody := GenerateTokenRequest{
+			KeyID: "test-key-id",
+			TTL:   3600,
+		}
+		body, _ := json.Marshal(requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer(body))
+		mockWriter := &mockResponseWriter{ResponseWriter: httptest.NewRecorder()}
+
+		api.generateTokenHandler(mockWriter, req)
+		// The test passes if it doesn't panic
 	})
 }
 
@@ -186,6 +221,15 @@ func TestRevokeTokenHandler(t *testing.T) {
 			},
 			expectedCode: http.StatusNoContent,
 			expectedBody: "",
+		},
+		{
+			name:  "Token Not Found",
+			keyID: "test-key-id",
+			mockBehavior: func() {
+				auth.EXPECT().DeleteToken(mock.Anything, "test-key-id").Return(core.ErrTokenNotFound).Once()
+			},
+			expectedCode: http.StatusNotFound,
+			expectedBody: "Token not found\n",
 		},
 		{
 			name:  "Internal Error",

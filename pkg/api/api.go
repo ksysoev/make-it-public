@@ -147,6 +147,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		slog.ErrorContext(r.Context(), "Failed to generate token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+
 		return
 	}
 
@@ -189,6 +190,7 @@ func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := api.svc.DeleteToken(r.Context(), keyID)
+
 	switch {
 	case errors.Is(err, core.ErrTokenNotFound):
 		http.Error(w, "Token not found", http.StatusNotFound)
@@ -196,6 +198,7 @@ func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		slog.ErrorContext(r.Context(), "Failed to revoke token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+
 		return
 	}
 

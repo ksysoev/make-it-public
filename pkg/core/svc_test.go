@@ -10,7 +10,7 @@ import (
 func TestService_SetEndpointGenerator(t *testing.T) {
 	svc := New(nil, nil)
 	expectedEndpoint := "generated-endpoint"
-	generator := func(s string) (string, error) {
+	generator := func(_ string) (string, error) {
 		return expectedEndpoint, nil
 	}
 

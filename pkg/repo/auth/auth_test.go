@@ -281,8 +281,8 @@ func TestRepo_DeleteToken(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	tests := []struct {
-		name      string
 		config    *Config
+		name      string
 		expectErr bool
 	}{
 		{

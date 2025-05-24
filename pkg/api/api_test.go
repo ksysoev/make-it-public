@@ -42,8 +42,8 @@ func TestHealthCheckHandler(t *testing.T) {
 	assert.Equal(t, expectedResponse, actualResponse, "Response body does not match expected")
 }
 
-func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
-	api := New(Config{Listen: ":8082"}, nil)
+func TestHealthCheckHandler_JSONEncodeError(_ *testing.T) {
+	api := New(Config{Listen: ":0"}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	mockWriter := &mockResponseWriter{ResponseWriter: httptest.NewRecorder()}
 	handler := http.HandlerFunc(api.healthCheckHandler)
@@ -147,7 +147,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.Equal(t, "Duplicate token ID\n", rec.Body.String())
 	})
 
-	t.Run("JSON Encoding Error", func(t *testing.T) {
+	t.Run("JSON Encoding Error", func(_ *testing.T) {
 		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600).Return(&token.Token{
 			ID:     "test-key-id",
 			Secret: "test-token",
@@ -162,7 +162,6 @@ func TestGenerateTokenHandler(t *testing.T) {
 		mockWriter := &mockResponseWriter{ResponseWriter: httptest.NewRecorder()}
 
 		api.generateTokenHandler(mockWriter, req)
-		// The test passes if it doesn't panic
 	})
 }
 

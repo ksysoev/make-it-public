@@ -53,9 +53,7 @@ func TestHealthCheckHandler_JSONEncodeError(t *testing.T) {
 
 func TestGenerateTokenHandler(t *testing.T) {
 	auth := NewMockService(t)
-	api := New(Config{
-		DefaultTokenExpiry: 3600, // 1 hour
-	}, auth)
+	api := New(Config{}, auth)
 
 	t.Run("Invalid Request Payload", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/token", bytes.NewBuffer([]byte("invalid json")))

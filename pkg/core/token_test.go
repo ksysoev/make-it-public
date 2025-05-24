@@ -57,7 +57,7 @@ func TestService_GenerateToken(t *testing.T) {
 		assert.Equal(t, 100*time.Second, tkn.TTL)
 	})
 
-	t.Run("error from token generation", func(t *testing.T) {
+	t.Run("error from token generation - invalid characters", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
 		svc := New(nil, mockAuth)
@@ -70,6 +70,38 @@ func TestService_GenerateToken(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, tkn)
 		assert.Contains(t, err.Error(), "failed to generate token")
+		assert.ErrorIs(t, err, token.ErrTokenInvalid)
+	})
+
+	t.Run("error from token generation - token too long", func(t *testing.T) {
+		// Setup
+		mockAuth := NewMockAuthRepo(t)
+		svc := New(nil, mockAuth)
+		keyID := "thisistoolongforatokenid" // Exceeds maxIDLength
+
+		// Execute
+		tkn, err := svc.GenerateToken(context.Background(), keyID, 0)
+
+		// Assert
+		require.Error(t, err)
+		assert.Nil(t, tkn)
+		assert.Contains(t, err.Error(), "failed to generate token")
+		assert.ErrorIs(t, err, token.ErrTokenTooLong)
+	})
+
+	t.Run("error from token generation - invalid TTL", func(t *testing.T) {
+		// Setup
+		mockAuth := NewMockAuthRepo(t)
+		svc := New(nil, mockAuth)
+
+		// Execute
+		tkn, err := svc.GenerateToken(context.Background(), "validkeyid", -1) // Negative TTL
+
+		// Assert
+		require.Error(t, err)
+		assert.Nil(t, tkn)
+		assert.Contains(t, err.Error(), "failed to generate token")
+		assert.ErrorIs(t, err, token.ErrInvalidTokenTTL)
 	})
 
 	t.Run("error from SaveToken", func(t *testing.T) {

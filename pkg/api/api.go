@@ -59,18 +59,18 @@ func New(cfg Config, svc Service) *API {
 // It configures the HTTP routes, middleware, and server settings based on the API's configuration.
 // Accepts ctx to gracefully shut down the server when context is canceled.
 // Returns error if the server fails to start or encounters issues during runtime.
-func (api *API) Run(ctx context.Context) error {
+func (a *API) Run(ctx context.Context) error {
 	router := http.NewServeMux()
-	genToken := middleware.Metrics()(http.HandlerFunc(api.generateTokenHandler))
-	revokeToken := middleware.Metrics()(http.HandlerFunc(api.RevokeTokenHandler))
+	genToken := middleware.Metrics()(http.HandlerFunc(a.generateTokenHandler))
+	revokeToken := middleware.Metrics()(http.HandlerFunc(a.RevokeTokenHandler))
 
 	router.Handle(GenerateTokenEndpoint, genToken)
 	router.Handle(RevokeTokenEndpoint, revokeToken)
-	router.HandleFunc(HealthCheckEndpoint, api.healthCheckHandler)
+	router.HandleFunc(HealthCheckEndpoint, a.healthCheckHandler)
 	router.HandleFunc(SwaggerEndpoint, httpSwagger.WrapHandler)
 
 	server := &http.Server{
-		Addr:              api.config.Listen,
+		Addr:              a.config.Listen,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,
 		Handler:           router,
@@ -100,7 +100,7 @@ func (api *API) Run(ctx context.Context) error {
 // @Success 200 {object} map[string]string
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /health [get]
-func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func (a *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{"status": "healthy"}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -130,7 +130,7 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 409 {string} string "Duplicate token ID"
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /token [post]
-func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
+func (a *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var req GenerateTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -138,7 +138,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err := api.svc.GenerateToken(r.Context(), req.KeyID, req.TTL)
+	t, err := a.svc.GenerateToken(r.Context(), req.KeyID, req.TTL)
 
 	switch {
 	case errors.Is(err, token.ErrTokenInvalid):
@@ -190,7 +190,7 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {string} string "Token not found"
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /token/{keyID} [delete]
-func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
+func (a *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 	keyID := r.PathValue("keyID")
 
 	if keyID == "" {
@@ -198,7 +198,7 @@ func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := api.svc.DeleteToken(r.Context(), keyID)
+	err := a.svc.DeleteToken(r.Context(), keyID)
 
 	switch {
 	case errors.Is(err, core.ErrTokenNotFound):

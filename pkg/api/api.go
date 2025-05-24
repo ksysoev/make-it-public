@@ -141,6 +141,15 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	t, err := api.svc.GenerateToken(r.Context(), req.KeyID, req.TTL)
 
 	switch {
+	case errors.Is(err, token.ErrTokenInvalid):
+		http.Error(w, token.ErrTokenInvalid.Error(), http.StatusBadRequest)
+		return
+	case errors.Is(err, token.ErrTokenTooLong):
+		http.Error(w, token.ErrTokenTooLong.Error(), http.StatusBadRequest)
+		return
+	case errors.Is(err, core.ErrInvalidTokenTTL):
+		http.Error(w, core.ErrInvalidTokenTTL.Error(), http.StatusBadRequest)
+		return
 	case errors.Is(err, core.ErrDuplicateTokenID):
 		http.Error(w, "Duplicate token ID", http.StatusConflict)
 		return

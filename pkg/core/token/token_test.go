@@ -17,7 +17,7 @@ func TestGenerateToken(t *testing.T) {
 	})
 
 	t.Run("SaveToken with provided keyID", func(t *testing.T) {
-		keyID := "testKeyID"
+		keyID := "testkeyid"
 		token, err := GenerateToken(keyID)
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.Equal(t, keyID, token.ID, "Token ID should match the provided keyID")
@@ -30,6 +30,21 @@ func TestGenerateToken(t *testing.T) {
 		token, err := GenerateToken(keyID)
 		assert.Error(t, err, "Token generation should return an error for unusually long keyID")
 		assert.Nil(t, token, "Token should be nil on error")
+	})
+
+	t.Run("SaveToken with valid alphanumeric keyID", func(t *testing.T) {
+		keyID := "abc123"
+		token, err := GenerateToken(keyID)
+		assert.NoError(t, err, "Token generation should not return an error")
+		assert.Equal(t, keyID, token.ID, "Token ID should match the provided alphanumeric keyID")
+		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
+	})
+
+	t.Run("SaveToken with unsupported characters", func(t *testing.T) {
+		keyID := "INVALID_KEY!"
+		token, err := GenerateToken(keyID)
+		assert.Error(t, err, "Token generation should return an error for unsupported characters in keyID")
+		assert.Nil(t, token, "Token should be nil when keyID contains unsupported characters")
 	})
 }
 

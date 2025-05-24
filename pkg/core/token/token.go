@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"slices"
 )
 
 const (
@@ -22,12 +23,24 @@ type Token struct {
 	Secret string
 }
 
-// GenerateToken creates a new token with a unique ID and secret.
-// If keyID is empty, a new ID is generated. The function ensures the keyID does not exceed the maximum allowed length.
-// Returns a Token containing the keyID and a generated secret, or an error if keyID validation or secret generation fails.
+var (
+	ErrTokenTooLong = fmt.Errorf("token length exceeds maximum limit of %d characters", maxIDLength)
+	ErrTokenInvalid = fmt.Errorf("token contains invalid characters, only lowercase letters and digits are allowed")
+)
+
+// GenerateToken creates a new token with the provided keyID.
+// It validates the keyID to ensure it only contains lowercase letters and digits and is within length constraints.
+// If keyID is empty, a random ID is generated. The secret is generated to ensure base64 encoding compatibility.
+// Returns the generated token and an error if keyID is invalid, exceeds the maximum length, or if secret generation fails.
 func GenerateToken(keyID string) (*Token, error) {
 	if len(keyID) > maxIDLength {
-		return nil, fmt.Errorf("keyID length exceeds maximum limit of %d characters", maxIDLength)
+		return nil, ErrTokenTooLong
+	}
+
+	for _, r := range keyID {
+		if !slices.Contains([]rune(lowerCase+numbers), r) {
+			return nil, ErrTokenInvalid
+		}
 	}
 
 	if keyID == "" {
@@ -87,7 +100,6 @@ func Decode(encoded string) (*Token, error) {
 // Returns the generated ID or an error if randomIntSlice fails.
 func generateID() (string, error) {
 	indices, err := randomIntSlice(len(lowerCase+numbers), defaultIDLength)
-
 	if err != nil {
 		return "", err
 	}

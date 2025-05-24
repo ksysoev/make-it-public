@@ -18,6 +18,7 @@ const (
 var (
 	ErrDuplicateTokenID = fmt.Errorf("duplicate token ID")
 	ErrTokenNotFound    = fmt.Errorf("token not found")
+	ErrInvalidTokenTTL  = fmt.Errorf("ttl must be positive number")
 )
 
 // GenerateToken generates a new token with the given keyID and time-to-live (TTL).
@@ -26,6 +27,10 @@ var (
 // Returns the generated token and an error if generation or saving fails, or if all retry attempts are exhausted.
 func (s *Service) GenerateToken(ctx context.Context, keyID string, ttl int) (*token.Token, error) {
 	ttl = cmp.Or(ttl, defaultTTLSeconds)
+
+	if ttl <= 0 {
+		return nil, ErrInvalidTokenTTL
+	}
 
 	for i := 0; i < attemptsToGenerateToken; i++ {
 		t, err := token.GenerateToken(keyID)

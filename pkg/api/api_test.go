@@ -81,7 +81,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 
 		api.generateTokenHandler(rec, req)
 
-		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, http.StatusCreated, rec.Code)
 
 		var response GenerateTokenResponse
 		err := json.Unmarshal(rec.Body.Bytes(), &response)
@@ -108,7 +108,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 
 		api.generateTokenHandler(rec, req)
 
-		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, http.StatusCreated, rec.Code)
 
 		var response GenerateTokenResponse
 		err := json.Unmarshal(rec.Body.Bytes(), &response)

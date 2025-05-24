@@ -166,6 +166,7 @@ func (a *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		TTL:   int(t.TTL.Seconds()),
 	}
 
+	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
 
 	if err = json.NewEncoder(w).Encode(resp); err != nil {
@@ -174,8 +175,6 @@ func (a *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-
-	w.WriteHeader(http.StatusCreated)
 }
 
 // RevokeTokenHandler revokes an API token based on the provided key ID in the request path.

@@ -7,6 +7,7 @@ package core
 import (
 	context "context"
 
+	token "github.com/ksysoev/make-it-public/pkg/core/token"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -21,6 +22,100 @@ type MockAuthRepo_Expecter struct {
 
 func (_m *MockAuthRepo) EXPECT() *MockAuthRepo_Expecter {
 	return &MockAuthRepo_Expecter{mock: &_m.Mock}
+}
+
+// DeleteToken provides a mock function with given fields: ctx, tokenID
+func (_m *MockAuthRepo) DeleteToken(ctx context.Context, tokenID string) error {
+	ret := _m.Called(ctx, tokenID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteToken")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, tokenID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockAuthRepo_DeleteToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteToken'
+type MockAuthRepo_DeleteToken_Call struct {
+	*mock.Call
+}
+
+// DeleteToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tokenID string
+func (_e *MockAuthRepo_Expecter) DeleteToken(ctx interface{}, tokenID interface{}) *MockAuthRepo_DeleteToken_Call {
+	return &MockAuthRepo_DeleteToken_Call{Call: _e.mock.On("DeleteToken", ctx, tokenID)}
+}
+
+func (_c *MockAuthRepo_DeleteToken_Call) Run(run func(ctx context.Context, tokenID string)) *MockAuthRepo_DeleteToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockAuthRepo_DeleteToken_Call) Return(_a0 error) *MockAuthRepo_DeleteToken_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockAuthRepo_DeleteToken_Call) RunAndReturn(run func(context.Context, string) error) *MockAuthRepo_DeleteToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SaveToken provides a mock function with given fields: ctx, t
+func (_m *MockAuthRepo) SaveToken(ctx context.Context, t *token.Token) error {
+	ret := _m.Called(ctx, t)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SaveToken")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *token.Token) error); ok {
+		r0 = rf(ctx, t)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockAuthRepo_SaveToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveToken'
+type MockAuthRepo_SaveToken_Call struct {
+	*mock.Call
+}
+
+// SaveToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - t *token.Token
+func (_e *MockAuthRepo_Expecter) SaveToken(ctx interface{}, t interface{}) *MockAuthRepo_SaveToken_Call {
+	return &MockAuthRepo_SaveToken_Call{Call: _e.mock.On("SaveToken", ctx, t)}
+}
+
+func (_c *MockAuthRepo_SaveToken_Call) Run(run func(ctx context.Context, t *token.Token)) *MockAuthRepo_SaveToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*token.Token))
+	})
+	return _c
+}
+
+func (_c *MockAuthRepo_SaveToken_Call) Return(_a0 error) *MockAuthRepo_SaveToken_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockAuthRepo_SaveToken_Call) RunAndReturn(run func(context.Context, *token.Token) error) *MockAuthRepo_SaveToken_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // Verify provides a mock function with given fields: ctx, keyID, secret

@@ -3,9 +3,9 @@
 package api
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -13,26 +13,22 @@ import (
 
 	_ "github.com/ksysoev/make-it-public/pkg/api/docs" // needed for swagger
 	"github.com/ksysoev/make-it-public/pkg/api/middleware"
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
-const (
-	DefaultTTLSeconds = int64(3600) // 1 hour
-)
-
 type Config struct {
-	Listen             string `mapstructure:"listen"`
-	DefaultTokenExpiry int64  `mapstructure:"default_token_expiry"`
+	Listen string `mapstructure:"listen"`
 }
 
 type API struct {
-	auth   AuthRepo
+	svc    Service
 	config Config
 }
 
-type AuthRepo interface {
-	GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error)
+type Service interface {
+	GenerateToken(ctx context.Context, keyID string, ttl int) (*token.Token, error)
 	DeleteToken(ctx context.Context, tokenID string) error
 }
 
@@ -43,10 +39,13 @@ const (
 	SwaggerEndpoint       = "/swagger/"
 )
 
-func New(cfg Config, auth AuthRepo) *API {
+// New initializes and returns a new API instance configured with the provided Config and Service.
+// Config defines API server settings, and Service provides token management functionalities.
+// Returns a pointer to the API instance.
+func New(cfg Config, svc Service) *API {
 	return &API{
 		config: cfg,
-		auth:   auth,
+		svc:    svc,
 	}
 }
 
@@ -56,19 +55,22 @@ func New(cfg Config, auth AuthRepo) *API {
 // @host localhost:8082
 // @BasePath /
 
-// Runs the API management server
-func (api *API) Run(ctx context.Context) error {
+// Run starts the API server and handles incoming HTTP requests.
+// It configures the HTTP routes, middleware, and server settings based on the API's configuration.
+// Accepts ctx to gracefully shut down the server when context is canceled.
+// Returns error if the server fails to start or encounters issues during runtime.
+func (a *API) Run(ctx context.Context) error {
 	router := http.NewServeMux()
-	genToken := middleware.Metrics()(http.HandlerFunc(api.generateTokenHandler))
-	revokeToken := middleware.Metrics()(http.HandlerFunc(api.RevokeTokenHandler))
+	genToken := middleware.Metrics()(http.HandlerFunc(a.generateTokenHandler))
+	revokeToken := middleware.Metrics()(http.HandlerFunc(a.RevokeTokenHandler))
 
 	router.Handle(GenerateTokenEndpoint, genToken)
 	router.Handle(RevokeTokenEndpoint, revokeToken)
-	router.HandleFunc(HealthCheckEndpoint, api.healthCheckHandler)
+	router.HandleFunc(HealthCheckEndpoint, a.healthCheckHandler)
 	router.HandleFunc(SwaggerEndpoint, httpSwagger.WrapHandler)
 
 	server := &http.Server{
-		Addr:              api.config.Listen,
+		Addr:              a.config.Listen,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,
 		Handler:           router,
@@ -87,7 +89,9 @@ func (api *API) Run(ctx context.Context) error {
 	return nil
 }
 
-// healthCheckHandler returns the API status.
+// healthCheckHandler handles a basic health check endpoint that returns the status of the service as a JSON response.
+// It writes a JSON-encoded "healthy" status to the response and sets the appropriate Content-Type header.
+// Returns an HTTP 500 status code if JSON encoding fails, logging the error context for debugging.
 // @Summary Health Check
 // @Description Returns the health status of the API.
 // @Tags Health
@@ -96,7 +100,7 @@ func (api *API) Run(ctx context.Context) error {
 // @Success 200 {object} map[string]string
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /health [get]
-func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func (a *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{"status": "healthy"}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -121,25 +125,35 @@ func (api *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param request body GenerateTokenRequest true "Generate Token Request"
-// @Success 200 {object} GenerateTokenResponse
+// @Success 201 {object} GenerateTokenResponse
 // @Failure 400 {string} string "Bad Request"
+// @Failure 409 {string} string "Duplicate token ID"
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /token [post]
-func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
-	var generateTokenRequest GenerateTokenRequest
-	if err := json.NewDecoder(r.Body).Decode(&generateTokenRequest); err != nil {
+func (a *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
+	var req GenerateTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 
 		return
 	}
 
-	keyID := generateTokenRequest.KeyID
-	ttl := cmp.Or(generateTokenRequest.TTL, api.config.DefaultTokenExpiry)
+	t, err := a.svc.GenerateToken(r.Context(), req.KeyID, req.TTL)
 
-	ttl = cmp.Or(ttl, DefaultTTLSeconds)
-
-	generatedToken, err := api.auth.GenerateToken(r.Context(), keyID, time.Second*time.Duration(ttl))
-	if err != nil {
+	switch {
+	case errors.Is(err, token.ErrTokenInvalid):
+		http.Error(w, token.ErrTokenInvalid.Error(), http.StatusBadRequest)
+		return
+	case errors.Is(err, token.ErrTokenTooLong):
+		http.Error(w, token.ErrTokenTooLong.Error(), http.StatusBadRequest)
+		return
+	case errors.Is(err, token.ErrInvalidTokenTTL):
+		http.Error(w, token.ErrInvalidTokenTTL.Error(), http.StatusBadRequest)
+		return
+	case errors.Is(err, core.ErrDuplicateTokenID):
+		http.Error(w, "Duplicate token ID", http.StatusConflict)
+		return
+	case err != nil:
 		slog.ErrorContext(r.Context(), "Failed to generate token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
@@ -147,22 +161,20 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := GenerateTokenResponse{
-		Token: generatedToken.Encode(),
-		KeyID: cmp.Or(keyID, generatedToken.ID),
-		TTL:   ttl,
+		Token: t.Encode(),
+		KeyID: t.ID,
+		TTL:   int(t.TTL.Seconds()),
 	}
 
+	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
 
-	err = json.NewEncoder(w).Encode(resp)
-	if err != nil {
+	if err = json.NewEncoder(w).Encode(resp); err != nil {
 		slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // RevokeTokenHandler revokes an API token based on the provided key ID in the request path.
@@ -174,9 +186,10 @@ func (api *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 // @Param keyID path string true "API Key ID"
 // @Success 204
 // @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Token not found"
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /token/{keyID} [delete]
-func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
+func (a *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 	keyID := r.PathValue("keyID")
 
 	if keyID == "" {
@@ -184,7 +197,13 @@ func (api *API) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.auth.DeleteToken(r.Context(), keyID); err != nil {
+	err := a.svc.DeleteToken(r.Context(), keyID)
+
+	switch {
+	case errors.Is(err, core.ErrTokenNotFound):
+		http.Error(w, "Token not found", http.StatusNotFound)
+		return
+	case err != nil:
 		slog.ErrorContext(r.Context(), "Failed to revoke token", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 

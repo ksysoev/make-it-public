@@ -2,9 +2,12 @@ package token
 
 import (
 	"bytes"
+	"cmp"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"slices"
+	"time"
 )
 
 const (
@@ -15,19 +18,40 @@ const (
 	upperCase           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	numbers             = "0123456789"
 	base64Modulo        = 3
+	defaultTTLSeconds   = 3600 // 1 hour
 )
 
 type Token struct {
 	ID     string
 	Secret string
+	TTL    time.Duration
 }
 
-// GenerateToken creates a new token with a unique ID and secret.
-// If keyID is empty, a new ID is generated. The function ensures the keyID does not exceed the maximum allowed length.
-// Returns a Token containing the keyID and a generated secret, or an error if keyID validation or secret generation fails.
-func GenerateToken(keyID string) (*Token, error) {
+var (
+	ErrTokenTooLong    = fmt.Errorf("token length exceeds maximum limit of %d characters", maxIDLength)
+	ErrTokenInvalid    = fmt.Errorf("token contains invalid characters, only lowercase letters and digits are allowed")
+	ErrInvalidTokenTTL = fmt.Errorf("ttl must be positive number")
+)
+
+// GenerateToken creates a new token with the specified keyID and time-to-live (TTL).
+// It validates the keyID's length and characters, generating a random keyID if none is provided.
+// Accepts keyID as the identifier for the token and ttl as the duration in seconds; if ttl is 0, a default value is used.
+// Returns the generated Token structure or an error if validation fails, or if ID/secret generation errors occur.
+func GenerateToken(keyID string, ttl int) (*Token, error) {
 	if len(keyID) > maxIDLength {
-		return nil, fmt.Errorf("keyID length exceeds maximum limit of %d characters", maxIDLength)
+		return nil, ErrTokenTooLong
+	}
+
+	for _, r := range keyID {
+		if !slices.Contains([]rune(lowerCase+numbers), r) {
+			return nil, ErrTokenInvalid
+		}
+	}
+
+	ttl = cmp.Or(ttl, defaultTTLSeconds)
+
+	if ttl <= 0 {
+		return nil, ErrInvalidTokenTTL
 	}
 
 	if keyID == "" {
@@ -49,6 +73,7 @@ func GenerateToken(keyID string) (*Token, error) {
 	return &Token{
 		ID:     keyID,
 		Secret: secret,
+		TTL:    time.Duration(ttl) * time.Second,
 	}, nil
 }
 
@@ -87,7 +112,6 @@ func Decode(encoded string) (*Token, error) {
 // Returns the generated ID or an error if randomIntSlice fails.
 func generateID() (string, error) {
 	indices, err := randomIntSlice(len(lowerCase+numbers), defaultIDLength)
-
 	if err != nil {
 		return "", err
 	}

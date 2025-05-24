@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/go-redis/redismock/v9"
+	"github.com/ksysoev/make-it-public/pkg/core"
+	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -87,7 +89,7 @@ func TestRepo_Verify(t *testing.T) {
 	}
 }
 
-func TestRepo_GenerateToken(t *testing.T) {
+func TestRepo_SaveToken(t *testing.T) {
 	matcher := func(_, _ []interface{}) error {
 		return nil
 	}
@@ -98,28 +100,18 @@ func TestRepo_GenerateToken(t *testing.T) {
 		name      string
 	}{
 		{
-			name: "successful token generation",
+			name: "successful token save",
 			mockSetup: func(m redismock.ClientMock) {
 				m.CustomMatch(matcher).ExpectSetNX(mock.Anything, mock.Anything, time.Minute).SetVal(true)
 			},
 			wantErr: nil,
 		},
 		{
-			name: "token collision resolved after retry",
+			name: "duplicate token ID",
 			mockSetup: func(m redismock.ClientMock) {
 				m.CustomMatch(matcher).ExpectSetNX(mock.Anything, mock.Anything, time.Minute).SetVal(false)
-				m.CustomMatch(matcher).ExpectSetNX(mock.Anything, mock.Anything, time.Minute).SetVal(true)
 			},
-			wantErr: nil,
-		},
-		{
-			name: "all attempts failed due to token collision",
-			mockSetup: func(m redismock.ClientMock) {
-				m.CustomMatch(matcher).ExpectSetNX(mock.Anything, mock.Anything, time.Minute).SetVal(false)
-				m.CustomMatch(matcher).ExpectSetNX(mock.Anything, mock.Anything, time.Minute).SetVal(false)
-				m.CustomMatch(matcher).ExpectSetNX(mock.Anything, mock.Anything, time.Minute).SetVal(false)
-			},
-			wantErr: ErrFailedToGenerateToken,
+			wantErr: core.ErrDuplicateTokenID,
 		},
 		{
 			name: "failed due to redis error",
@@ -138,9 +130,17 @@ func TestRepo_GenerateToken(t *testing.T) {
 			r := &Repo{
 				db:        rdb,
 				keyPrefix: "prefix",
+				salt:      []byte("test-salt"),
 			}
 
-			_, err := r.GenerateToken(context.Background(), "", time.Minute)
+			// Create a test token
+			testToken := &token.Token{
+				ID:     "test-id",
+				Secret: "test-secret",
+				TTL:    time.Minute,
+			}
+
+			err := r.SaveToken(context.Background(), testToken)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, tt.wantErr)
@@ -243,7 +243,7 @@ func TestRepo_DeleteToken(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectDel("prefixnonexistentToken").SetVal(0)
 			},
-			wantErr: nil,
+			wantErr: core.ErrTokenNotFound,
 		},
 		{
 			name:    "redis error during deletion",
@@ -275,6 +275,39 @@ func TestRepo_DeleteToken(t *testing.T) {
 				assert.ErrorIs(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	tests := []struct {
+		config    *Config
+		name      string
+		expectErr bool
+	}{
+		{
+			name: "valid configuration",
+			config: &Config{
+				RedisAddr: "localhost:6379",
+				Password:  "password",
+				KeyPrefix: "test",
+				Salt:      "test-salt",
+			},
+			expectErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := New(tt.config)
+
+			if tt.expectErr {
+				assert.Nil(t, r)
+			} else {
+				assert.NotNil(t, r)
+				assert.Equal(t, tt.config.KeyPrefix, r.keyPrefix)
+				assert.Equal(t, []byte(tt.config.Salt), r.salt)
 			}
 		})
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/scrypt"
@@ -13,10 +14,6 @@ import (
 
 const (
 	scryptPrefix = "sc:"
-)
-
-var (
-	ErrFailedToGenerateToken = fmt.Errorf("failed to generate uniq token")
 )
 
 type Config struct {
@@ -76,37 +73,27 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
 	}
 }
 
-// GenerateToken creates and stores a unique authentication token in the database with a specified time-to-live (TTL).
-// It attempts to save the token up to three times in case of collisions and encrypts the token secret before storage.
-// Accepts ctx for request scoping, keyID as the identifier for the token, and ttl as the token's lifespan duration.
-// Returns the generated token or an error if token generation, encryption, or database storage fails.
-func (r *Repo) GenerateToken(ctx context.Context, keyID string, ttl time.Duration) (*token.Token, error) {
-	for i := 0; i < 3; i++ {
-		t, err := token.GenerateToken(keyID)
-
-		if err != nil {
-			return nil, err
-		}
-
-		secretHash, err := hashSecret(t.Secret, r.salt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encrypt secret: %w", err)
-		}
-
-		res := r.db.SetNX(ctx, r.keyPrefix+t.ID, secretHash, ttl)
-
-		if res.Err() != nil {
-			return nil, fmt.Errorf("failed to save token: %w", res.Err())
-		}
-
-		if !res.Val() {
-			continue
-		}
-
-		return t, nil
+// SaveToken saves a token to the database with a hashed secret and specified TTL.
+// It generates a hashed secret using the token's Secret and the Repo's salt.
+// Returns an error if hashing fails, or if the database operation encounters an issue.
+// Returns core.ErrDuplicateTokenID if a token with the same ID already exists.
+func (r *Repo) SaveToken(ctx context.Context, t *token.Token) error {
+	secretHash, err := hashSecret(t.Secret, r.salt)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt secret: %w", err)
 	}
 
-	return nil, ErrFailedToGenerateToken
+	res := r.db.SetNX(ctx, r.keyPrefix+t.ID, secretHash, t.TTL)
+
+	if res.Err() != nil {
+		return fmt.Errorf("failed to save token: %w", res.Err())
+	}
+
+	if !res.Val() {
+		return core.ErrDuplicateTokenID
+	}
+
+	return nil
 }
 
 // DeleteToken removes a token identified by tokenID from the database using the configured key prefix.
@@ -116,6 +103,10 @@ func (r *Repo) DeleteToken(ctx context.Context, tokenID string) error {
 
 	if res.Err() != nil {
 		return fmt.Errorf("failed to delete token: %w", res.Err())
+	}
+
+	if res.Val() == 0 {
+		return core.ErrTokenNotFound
 	}
 
 	return nil

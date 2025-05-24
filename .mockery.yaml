@@ -22,7 +22,7 @@ packages:
       serverConn:
   github.com/ksysoev/make-it-public/pkg/api:
     interfaces:
-      AuthRepo:
+      Service:
   github.com/ksysoev/make-it-public/pkg/revproxy:
     interfaces:
       ConnService:

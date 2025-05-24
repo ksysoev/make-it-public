@@ -28,7 +28,6 @@ services:
       - REVERSE_PROXY_CERT=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.crt
       - REVERSE_PROXY_KEY=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.key
       - API_LISTEN=:8082
-      - API_DEFAULT_TOKEN_EXPIRY=3600
       - LOG_LEVEL=info
       - LOG_TEXT=false
     command: ["server", "run", "all" ]

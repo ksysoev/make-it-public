@@ -52,6 +52,12 @@ jobs:
             # For branch/commit triggers, use the commit hash
             echo "VERSION=${GITHUB_SHA}" >> $GITHUB_ENV
           fi
+      - name: Set PLATFORM based on trigger type
+        id: extract_platform
+        if: github.event_name == 'pull_request'
+        run: |
+            echo "PLATFORM_OS=linux" >> $GITHUB_ENV
+            echo "PLATFORM_ARCH=amd64" >> $GITHUB_ENV
       - name: Build and push Docker image
         uses: docker/build-push-action@1dc73863535b631f98b2378be8619f83b136f4a0
         with:
@@ -63,6 +69,8 @@ jobs:
           build-args: |
             MIT_SERVER=${{ secrets.MIT_SERVER }}
             VERSION=${{ env.VERSION }}
+            PLATFORM_OS=${{ env.PLATFORM_OS }}
+            PLATFORM_ARCH=${{ env.PLATFORM_ARCH }}
       - if: github.ref_type == 'tag'
         name: Deploy to DigitalOcean Droplet
         uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f

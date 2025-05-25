@@ -43,18 +43,6 @@ type PublicEndpointConfig struct {
 	Port   int    `mapstructure:"port"`
 }
 
-const htmlErrorTemplate502 = `<!DOCTYPE html>
-<html>
-<head>
-	<title>502 Bad Gateway</title>
-</head>
-<body>
-	<h1>502 Bad Gateway</h1>
-	<p>The server received an invalid response from the upstream server.</p>
-	<p>Please try again later.</p>
-</body>
-</html>`
-
 func New(cfg Config, connService ConnService) (*HTTPServer, error) {
 	generator, err := url.NewEndpointGenerator(cfg.Public.Schema, cfg.Public.Domain, cfg.Public.Port)
 	if err != nil {
@@ -152,7 +140,20 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Status:        "502 Bad Gateway",
 			StatusCode:    http.StatusBadGateway,
 			ContentLength: int64(len(htmlErrorTemplate502)),
+			Header:        http.Header{"Content-Type": []string{"text/html; charset=utf-8"}},
 			Body:          io.NopCloser(strings.NewReader(htmlErrorTemplate502)),
+		}
+
+		if err := resp.Write(w); err != nil {
+			slog.ErrorContext(ctx, "failed to write response", slog.Any("error", err))
+		}
+	case errors.Is(err, core.ErrKeyIDNotFound):
+		resp := http.Response{
+			Status:        "404 Not Found",
+			StatusCode:    http.StatusNotFound,
+			Header:        http.Header{"Content-Type": []string{"text/html; charset=utf-8"}},
+			ContentLength: int64(len(htmlErrorTemplate404)),
+			Body:          io.NopCloser(strings.NewReader(htmlErrorTemplate404)),
 		}
 
 		if err := resp.Write(w); err != nil {

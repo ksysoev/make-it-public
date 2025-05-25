@@ -16,6 +16,7 @@ func TestParseKeyID(t *testing.T) {
 		host          string
 		expectedKeyID string
 		wantStatus    int
+		wantContent   string
 	}{
 		{
 			name:          "valid host with keyID",
@@ -23,6 +24,7 @@ func TestParseKeyID(t *testing.T) {
 			host:          "keyID.example.com",
 			expectedKeyID: "keyID",
 			wantStatus:    http.StatusOK,
+			wantContent:   "",
 		},
 		{
 			name:          "invalid host without domain postfix",
@@ -30,6 +32,7 @@ func TestParseKeyID(t *testing.T) {
 			host:          "keyID.notexample.com",
 			expectedKeyID: "",
 			wantStatus:    http.StatusNotFound,
+			wantContent:   htmlErrorTemplate404,
 		},
 		{
 			name:          "valid host without keyID",
@@ -37,6 +40,7 @@ func TestParseKeyID(t *testing.T) {
 			host:          "example.com",
 			expectedKeyID: "",
 			wantStatus:    http.StatusNotFound,
+			wantContent:   htmlErrorTemplate404,
 		},
 		{
 			name:          "empty host",
@@ -44,6 +48,7 @@ func TestParseKeyID(t *testing.T) {
 			host:          "",
 			expectedKeyID: "",
 			wantStatus:    http.StatusNotFound,
+			wantContent:   htmlErrorTemplate404,
 		},
 	}
 
@@ -65,6 +70,7 @@ func TestParseKeyID(t *testing.T) {
 			handler.ServeHTTP(rec, req)
 
 			assert.Equal(t, tt.wantStatus, rec.Result().StatusCode)
+			assert.Equal(t, tt.wantContent, rec.Body.String())
 		})
 	}
 }

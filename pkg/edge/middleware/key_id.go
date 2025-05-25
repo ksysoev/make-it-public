@@ -2,11 +2,25 @@ package middleware
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 )
 
 type keyIDKeyType struct{}
+
+const htmlErrorTemplate404 = `<!DOCTYPE html>
+<html>
+<head>
+	<title>404 Not Found</title>
+</head>
+<body>
+	<h1>404 Not Found</h1>
+	<p>The requested resource does not exist on the server.</p>
+	<p>Please try again later.</p>
+</body>
+</html>`
 
 // ParseKeyID checks if the request's host ends with the specified domain postfix and validates the subdomain.
 // It rejects requests with unmatched postfix or missing subdomains by returning a 404 response.
@@ -17,13 +31,15 @@ func ParseKeyID(domainPostfix string) func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			host := strings.Split(r.Host, ":")[0]
 			if !strings.HasSuffix(host, domainPostfix) {
-				http.NotFound(w, r)
+				writeHTTPNotFound(w, r)
+
 				return
 			}
 
 			keyID := getUserIDFromRequest(r)
 			if keyID == "" {
-				http.NotFound(w, r)
+				writeHTTPNotFound(w, r)
+
 				return
 			}
 
@@ -33,6 +49,20 @@ func ParseKeyID(domainPostfix string) func(next http.Handler) http.Handler {
 
 			next.ServeHTTP(w, r)
 		})
+	}
+}
+
+func writeHTTPNotFound(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(htmlErrorTemplate404)))
+	w.Header().Set("Status", "404 Not Found")
+	w.WriteHeader(http.StatusNotFound)
+
+	_, err := w.Write([]byte(htmlErrorTemplate404))
+
+	if err != nil {
+		slog.ErrorContext(r.Context(), "failed to write response", slog.Any("error", err))
+		return
 	}
 }
 

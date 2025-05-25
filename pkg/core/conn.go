@@ -16,7 +16,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var ErrFailedToConnect = errors.New("failed to connect")
+var (
+	ErrFailedToConnect = errors.New("failed to connect")
+	ErrKeyIDNotFound   = errors.New("keyID not found")
+)
 
 func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error {
 	var connKeyID string
@@ -92,7 +95,18 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	defer slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 
 	req, err := s.connmng.RequestConnection(ctx, keyID)
-	if err != nil {
+
+	switch {
+	case err != nil && errors.Is(err, ErrKeyIDNotFound):
+		ok, err := s.auth.IsKeyExists(ctx, keyID)
+		if err != nil {
+			return fmt.Errorf("failed to check key existence: %w", err)
+		}
+
+		if !ok {
+			return ErrKeyIDNotFound
+		}
+	case err != nil:
 		return fmt.Errorf("failed to request connection: %w", ErrFailedToConnect)
 	}
 

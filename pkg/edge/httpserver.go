@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -146,23 +148,18 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case errors.Is(err, core.ErrFailedToConnect):
-		w.Header().Set("Content-Type", "text/html")
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(htmlErrorTemplate502)))
-		w.Header().Set("X-Request-Proto", r.Proto)
-		w.Header().Set("X-Request-ProtoMajor", string(rune(r.ProtoMajor)))
-		w.Header().Set("X-Request-ProtoMinor", string(rune(r.ProtoMinor)))
-		w.Header().Set("Status", "502 Bad Gateway")
-		w.WriteHeader(http.StatusBadGateway)
+		resp := http.Response{
+			Status:        "502 Bad Gateway",
+			StatusCode:    http.StatusBadGateway,
+			ContentLength: int64(len(htmlErrorTemplate502)),
+			Body:          io.NopCloser(strings.NewReader(htmlErrorTemplate502)),
+		}
 
-		_, err = w.Write([]byte(htmlErrorTemplate502))
-
-		if err != nil {
+		if err := resp.Write(w); err != nil {
 			slog.ErrorContext(ctx, "failed to write response", slog.Any("error", err))
-			return
 		}
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		slog.DebugContext(ctx, "connection timed out", slog.String("host", r.Host))
-		return
 	case err != nil:
 		slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
 		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)

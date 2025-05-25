@@ -15,8 +15,8 @@ func TestParseKeyID(t *testing.T) {
 		domainPostfix string
 		host          string
 		expectedKeyID string
-		wantStatus    int
 		wantContent   string
+		wantStatus    int
 	}{
 		{
 			name:          "valid host with keyID",

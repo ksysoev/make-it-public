@@ -144,7 +144,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Body:          io.NopCloser(strings.NewReader(htmlErrorTemplate502)),
 		}
 
-		if err := resp.Write(w); err != nil {
+		if err := resp.Write(clientConn); err != nil {
 			slog.ErrorContext(ctx, "failed to write response", slog.Any("error", err))
 		}
 	case errors.Is(err, core.ErrKeyIDNotFound):
@@ -156,7 +156,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Body:          io.NopCloser(strings.NewReader(htmlErrorTemplate404)),
 		}
 
-		if err := resp.Write(w); err != nil {
+		if err := resp.Write(clientConn); err != nil {
 			slog.ErrorContext(ctx, "failed to write response", slog.Any("error", err))
 		}
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):

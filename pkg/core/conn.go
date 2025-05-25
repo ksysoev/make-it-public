@@ -97,7 +97,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	req, err := s.connmng.RequestConnection(ctx, keyID)
 
 	switch {
-	case err != nil && errors.Is(err, ErrKeyIDNotFound):
+	case errors.Is(err, ErrKeyIDNotFound):
 		ok, err := s.auth.IsKeyExists(ctx, keyID)
 		if err != nil {
 			return fmt.Errorf("failed to check key existence: %w", err)

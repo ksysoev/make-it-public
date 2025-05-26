@@ -71,6 +71,63 @@ func (_c *MockAuthRepo_DeleteToken_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// IsKeyExists provides a mock function with given fields: ctx, keyID
+func (_m *MockAuthRepo) IsKeyExists(ctx context.Context, keyID string) (bool, error) {
+	ret := _m.Called(ctx, keyID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsKeyExists")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (bool, error)); ok {
+		return rf(ctx, keyID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
+		r0 = rf(ctx, keyID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, keyID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockAuthRepo_IsKeyExists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsKeyExists'
+type MockAuthRepo_IsKeyExists_Call struct {
+	*mock.Call
+}
+
+// IsKeyExists is a helper method to define mock.On call
+//   - ctx context.Context
+//   - keyID string
+func (_e *MockAuthRepo_Expecter) IsKeyExists(ctx interface{}, keyID interface{}) *MockAuthRepo_IsKeyExists_Call {
+	return &MockAuthRepo_IsKeyExists_Call{Call: _e.mock.On("IsKeyExists", ctx, keyID)}
+}
+
+func (_c *MockAuthRepo_IsKeyExists_Call) Run(run func(ctx context.Context, keyID string)) *MockAuthRepo_IsKeyExists_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockAuthRepo_IsKeyExists_Call) Return(_a0 bool, _a1 error) *MockAuthRepo_IsKeyExists_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockAuthRepo_IsKeyExists_Call) RunAndReturn(run func(context.Context, string) (bool, error)) *MockAuthRepo_IsKeyExists_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SaveToken provides a mock function with given fields: ctx, t
 func (_m *MockAuthRepo) SaveToken(ctx context.Context, t *token.Token) error {
 	ret := _m.Called(ctx, t)

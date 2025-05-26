@@ -74,7 +74,7 @@ func (cm *ConnManager) RequestConnection(ctx context.Context, keyID string) (con
 
 	revConn, ok := cm.conns[keyID]
 	if !ok {
-		return nil, fmt.Errorf("no connections for user %s", keyID)
+		return nil, core.ErrKeyIDNotFound
 	}
 
 	req, err := revConn.RequestConnection()

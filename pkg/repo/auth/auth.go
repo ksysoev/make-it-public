@@ -25,6 +25,7 @@ type Config struct {
 
 type Redis interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
+	Exists(ctx context.Context, keys ...string) *redis.IntCmd
 	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
 	Close() error
@@ -50,6 +51,22 @@ func New(cfg *Config) *Repo {
 		keyPrefix: cfg.KeyPrefix,
 		salt:      []byte(cfg.Salt),
 	}
+}
+
+// IsKeyExists checks if a key exists in the database using the specified keyID and keyPrefix.
+// It returns true if the key exists, false if it does not, and an error if the database operation fails.
+func (r *Repo) IsKeyExists(ctx context.Context, keyID string) (bool, error) {
+	res := r.db.Exists(ctx, r.keyPrefix+keyID)
+
+	if res.Err() != nil {
+		return false, fmt.Errorf("failed to check key existence: %w", res.Err())
+	}
+
+	if res.Val() == 0 {
+		return false, nil // Key does not exist
+	}
+
+	return true, nil // Key exists
 }
 
 // Verify checks if the provided secret matches the stored value for the given keyID.

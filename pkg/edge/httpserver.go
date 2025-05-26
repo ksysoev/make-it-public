@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,18 +43,11 @@ type PublicEndpointConfig struct {
 	Port   int    `mapstructure:"port"`
 }
 
-const htmlErrorTemplate502 = `<!DOCTYPE html>
-<html>
-<head>
-	<title>502 Bad Gateway</title>
-</head>
-<body>
-	<h1>502 Bad Gateway</h1>
-	<p>The server received an invalid response from the upstream server.</p>
-	<p>Please try again later.</p>
-</body>
-</html>`
-
+// New initializes and returns an instance of HTTPServer configured with the provided settings and connection service.
+// It validates the configuration by creating a URL endpoint generator and applies it to the connection service.
+// Accepts cfg, a configuration struct defining server and public endpoint parameters, and connService,
+// an interface to manage HTTP connections.
+// Returns a pointer to an HTTPServer if successful or an error if the configuration or endpoint generator fails.
 func New(cfg Config, connService ConnService) (*HTTPServer, error) {
 	generator, err := url.NewEndpointGenerator(cfg.Public.Schema, cfg.Public.Domain, cfg.Public.Port)
 	if err != nil {
@@ -67,6 +62,10 @@ func New(cfg Config, connService ConnService) (*HTTPServer, error) {
 	}, nil
 }
 
+// Run starts the HTTP server and manages its lifecycle using the provided context.
+// It composes middleware, sets up a TCP listener, and creates an HTTP server instance.
+// Accepts ctx to control the server's lifecycle and handle graceful shutdowns.
+// Returns an error if the server fails to start, listen, or encounters unexpected termination issues.
 func (s *HTTPServer) Run(ctx context.Context) error {
 	var mw []func(next http.Handler) http.Handler
 
@@ -115,6 +114,9 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	return nil
 }
 
+// ServeHTTP handles incoming HTTP requests by processing the request context and managing hijacked connections.
+// It uses a hijacker to take control of the underlying connection for advanced protocol handling.
+// Returns appropriate HTTP error responses for unsupported hijacking, connection issues, or context errors.
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//nolint:staticcheck,revive // don't want to couple with cmd package for now
 	ctx := context.WithValue(r.Context(), "req_id", uuid.New().String())
@@ -146,25 +148,37 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case errors.Is(err, core.ErrFailedToConnect):
-		w.Header().Set("Content-Type", "text/html")
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(htmlErrorTemplate502)))
-		w.Header().Set("X-Request-Proto", r.Proto)
-		w.Header().Set("X-Request-ProtoMajor", string(rune(r.ProtoMajor)))
-		w.Header().Set("X-Request-ProtoMinor", string(rune(r.ProtoMinor)))
-		w.Header().Set("Status", "502 Bad Gateway")
-		w.WriteHeader(http.StatusBadGateway)
-
-		_, err = w.Write([]byte(htmlErrorTemplate502))
-
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to write response", slog.Any("error", err))
-			return
-		}
+		sendResponse(r, clientConn, http.StatusBadGateway, htmlErrorTemplate502)
+	case errors.Is(err, core.ErrKeyIDNotFound):
+		sendResponse(r, clientConn, http.StatusNotFound, htmlErrorTemplate404)
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		slog.DebugContext(ctx, "connection timed out", slog.String("host", r.Host))
-		return
 	case err != nil:
 		slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
 		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// sendResponse constructs and sends an HTTP response over a hijacked connection.
+// It builds the response using the provided request protocol details, status code, and body content.
+// r is the original HTTP request from which protocol details are extracted.
+// conn is the hijacked network connection used to write the response.
+// status specifies the HTTP status code for the response.
+// body contains the response body content as a string.
+// Returns nothing but logs an error if writing the response fails.
+func sendResponse(r *http.Request, conn net.Conn, status int, body string) {
+	resp := http.Response{
+		StatusCode:    status,
+		Proto:         r.Proto,
+		ProtoMajor:    r.ProtoMajor,
+		ProtoMinor:    r.ProtoMinor,
+		ContentLength: int64(len(body)),
+		Header:        http.Header{"Content-Type": []string{"text/html; charset=utf-8"}},
+		Body:          io.NopCloser(strings.NewReader(body)),
+	}
+
+	if err := resp.Write(conn); err != nil {
+		slog.ErrorContext(r.Context(), "failed to write response", slog.Any("error", err))
+		return
 	}
 }

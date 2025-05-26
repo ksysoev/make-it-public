@@ -21,6 +21,7 @@ type AuthRepo interface {
 	Verify(ctx context.Context, keyID, secret string) (bool, error)
 	SaveToken(ctx context.Context, t *token.Token) error
 	DeleteToken(ctx context.Context, tokenID string) error
+	IsKeyExists(ctx context.Context, keyID string) (bool, error)
 }
 
 type ConnManager interface {

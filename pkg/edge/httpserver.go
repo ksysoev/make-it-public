@@ -43,6 +43,11 @@ type PublicEndpointConfig struct {
 	Port   int    `mapstructure:"port"`
 }
 
+// New initializes and returns an instance of HTTPServer configured with the provided settings and connection service.
+// It validates the configuration by creating a URL endpoint generator and applies it to the connection service.
+// Accepts cfg, a configuration struct defining server and public endpoint parameters, and connService,
+// an interface to manage HTTP connections.
+// Returns a pointer to an HTTPServer if successful or an error if the configuration or endpoint generator fails.
 func New(cfg Config, connService ConnService) (*HTTPServer, error) {
 	generator, err := url.NewEndpointGenerator(cfg.Public.Schema, cfg.Public.Domain, cfg.Public.Port)
 	if err != nil {
@@ -57,6 +62,10 @@ func New(cfg Config, connService ConnService) (*HTTPServer, error) {
 	}, nil
 }
 
+// Run starts the HTTP server and manages its lifecycle using the provided context.
+// It composes middleware, sets up a TCP listener, and creates an HTTP server instance.
+// Accepts ctx to control the server's lifecycle and handle graceful shutdowns.
+// Returns an error if the server fails to start, listen, or encounters unexpected termination issues.
 func (s *HTTPServer) Run(ctx context.Context) error {
 	var mw []func(next http.Handler) http.Handler
 
@@ -105,6 +114,9 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	return nil
 }
 
+// ServeHTTP handles incoming HTTP requests by processing the request context and managing hijacked connections.
+// It uses a hijacker to take control of the underlying connection for advanced protocol handling.
+// Returns appropriate HTTP error responses for unsupported hijacking, connection issues, or context errors.
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//nolint:staticcheck,revive // don't want to couple with cmd package for now
 	ctx := context.WithValue(r.Context(), "req_id", uuid.New().String())

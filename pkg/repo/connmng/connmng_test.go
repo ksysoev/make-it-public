@@ -70,7 +70,7 @@ func TestConnManager_RequestConnection_NoConnection(t *testing.T) {
 	cm := New()
 	_, err := cm.RequestConnection(context.Background(), "key1")
 
-	assert.ErrorContains(t, err, "no connections for user")
+	assert.ErrorIs(t, err, core.ErrKeyIDNotFound)
 }
 
 func TestConnManager_RequestConnection_Error(t *testing.T) {

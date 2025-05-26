@@ -136,10 +136,10 @@ func TestRun(t *testing.T) {
 
 func TestServeHTTP(t *testing.T) {
 	tests := []struct {
+		handleConnErr  error
 		name           string
 		keyID          string
 		clientIP       string
-		handleConnErr  error
 		expectedStatus int
 	}{
 		{
@@ -211,7 +211,7 @@ func TestServeHTTP(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create a request
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 
 			// Mock the GetKeyID and GetClientIP functions by patching the HTTPServer.ServeHTTP method
 			// We'll use the mock ConnService to verify that the correct keyID and clientIP are passed
@@ -234,8 +234,8 @@ func TestServeHTTP(t *testing.T) {
 func TestSendResponse(t *testing.T) {
 	tests := []struct {
 		name       string
-		status     int
 		body       string
+		status     int
 		expectBody bool
 	}{
 		{
@@ -261,7 +261,7 @@ func TestSendResponse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a request
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 
 			// Create a pipe to capture the response
 			clientReader, serverWriter := net.Pipe()
@@ -306,7 +306,7 @@ func (hrw *hijackableResponseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, er
 	// Return a mock connection
 	return hrw, bufio.NewReadWriter(
 		bufio.NewReader(strings.NewReader("")),
-		bufio.NewWriter(hrw.ResponseRecorder.Body),
+		bufio.NewWriter(hrw.Body),
 	), nil
 }
 
@@ -320,7 +320,7 @@ func (hrw *hijackableResponseRecorder) Read(_ []byte) (int, error) {
 }
 
 func (hrw *hijackableResponseRecorder) Write(p []byte) (int, error) {
-	return hrw.ResponseRecorder.Body.Write(p)
+	return hrw.Body.Write(p)
 }
 
 func (hrw *hijackableResponseRecorder) LocalAddr() net.Addr {

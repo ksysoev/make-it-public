@@ -139,6 +139,9 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		resp := http.Response{
 			Status:        "502 Bad Gateway",
 			StatusCode:    http.StatusBadGateway,
+			Proto:         r.Proto,
+			ProtoMajor:    r.ProtoMajor,
+			ProtoMinor:    r.ProtoMinor,
 			ContentLength: int64(len(htmlErrorTemplate502)),
 			Header:        http.Header{"Content-Type": []string{"text/html; charset=utf-8"}},
 			Body:          io.NopCloser(strings.NewReader(htmlErrorTemplate502)),
@@ -151,6 +154,9 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		resp := http.Response{
 			Status:        "404 Not Found",
 			StatusCode:    http.StatusNotFound,
+			Proto:         r.Proto,
+			ProtoMajor:    r.ProtoMajor,
+			ProtoMinor:    r.ProtoMinor,
 			Header:        http.Header{"Content-Type": []string{"text/html; charset=utf-8"}},
 			ContentLength: int64(len(htmlErrorTemplate404)),
 			Body:          io.NopCloser(strings.NewReader(htmlErrorTemplate404)),

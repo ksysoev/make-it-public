@@ -104,8 +104,10 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 		}
 
 		if !ok {
-			return ErrKeyIDNotFound
+			return fmt.Errorf("keyID %s not found: %w", keyID, ErrKeyIDNotFound)
 		}
+
+		return fmt.Errorf("no connections available for keyID %s: %w", keyID, ErrFailedToConnect)
 	case err != nil:
 		return fmt.Errorf("failed to request connection: %w", ErrFailedToConnect)
 	}

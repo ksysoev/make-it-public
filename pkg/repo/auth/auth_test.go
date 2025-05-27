@@ -29,7 +29,7 @@ func TestRepo_Verify(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				val, err := hashSecret("secret123", []byte(""))
 				assert.NoError(t, err)
-				m.ExpectGet("prefixkey123").SetVal(val)
+				m.ExpectGet("prefix::API_KEY::key123").SetVal(val)
 			},
 			want:    true,
 			wantErr: nil,
@@ -39,7 +39,7 @@ func TestRepo_Verify(t *testing.T) {
 			keyID:  "key123",
 			secret: "invalidSecret",
 			mockSetup: func(m redismock.ClientMock) {
-				m.ExpectGet("prefixkey123").SetVal("secret123")
+				m.ExpectGet("prefix::API_KEY::key123").SetVal("secret123")
 			},
 			want:    false,
 			wantErr: nil,
@@ -49,7 +49,7 @@ func TestRepo_Verify(t *testing.T) {
 			keyID:  "key123",
 			secret: "secret123",
 			mockSetup: func(m redismock.ClientMock) {
-				m.ExpectGet("prefixkey123").RedisNil()
+				m.ExpectGet("prefix::API_KEY::key123").RedisNil()
 			},
 			want:    false,
 			wantErr: nil,
@@ -59,7 +59,7 @@ func TestRepo_Verify(t *testing.T) {
 			keyID:  "key123",
 			secret: "secret123",
 			mockSetup: func(m redismock.ClientMock) {
-				m.ExpectGet("prefixkey123").SetErr(assert.AnError)
+				m.ExpectGet("prefix::API_KEY::key123").SetErr(assert.AnError)
 			},
 			want:    false,
 			wantErr: assert.AnError,
@@ -73,7 +73,7 @@ func TestRepo_Verify(t *testing.T) {
 
 			r := &Repo{
 				db:        rdb,
-				keyPrefix: "prefix",
+				keyPrefix: "prefix::",
 			}
 
 			got, err := r.Verify(context.Background(), tt.keyID, tt.secret)
@@ -129,7 +129,7 @@ func TestRepo_SaveToken(t *testing.T) {
 
 			r := &Repo{
 				db:        rdb,
-				keyPrefix: "prefix",
+				keyPrefix: "prefix::",
 				salt:      []byte("test-salt"),
 			}
 
@@ -233,7 +233,7 @@ func TestRepo_DeleteToken(t *testing.T) {
 			name:    "successfully delete token",
 			tokenID: "token123",
 			mockSetup: func(m redismock.ClientMock) {
-				m.ExpectDel("prefixtoken123").SetVal(1)
+				m.ExpectDel("prefix::API_KEY::token123").SetVal(1)
 			},
 			wantErr: nil,
 		},
@@ -241,7 +241,7 @@ func TestRepo_DeleteToken(t *testing.T) {
 			name:    "token does not exist",
 			tokenID: "nonexistentToken",
 			mockSetup: func(m redismock.ClientMock) {
-				m.ExpectDel("prefixnonexistentToken").SetVal(0)
+				m.ExpectDel("prefix::API_KEY::nonexistentToken").SetVal(0)
 			},
 			wantErr: core.ErrTokenNotFound,
 		},
@@ -249,7 +249,7 @@ func TestRepo_DeleteToken(t *testing.T) {
 			name:    "redis error during deletion",
 			tokenID: "tokenWithError",
 			mockSetup: func(m redismock.ClientMock) {
-				m.ExpectDel("prefixtokenWithError").SetErr(assert.AnError)
+				m.ExpectDel("prefix::API_KEY::tokenWithError").SetErr(assert.AnError)
 			},
 			wantErr: assert.AnError,
 		},
@@ -263,7 +263,7 @@ func TestRepo_DeleteToken(t *testing.T) {
 
 			r := &Repo{
 				db:        rdb,
-				keyPrefix: "prefix",
+				keyPrefix: "prefix::",
 			}
 
 			// Act

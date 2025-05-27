@@ -14,6 +14,7 @@ import (
 
 const (
 	scryptPrefix = "sc:"
+	apiKeyPrefix = "API_KEY::"
 )
 
 type Config struct {
@@ -78,7 +79,7 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
 		return false, fmt.Errorf("failed to hash secret: %w", err)
 	}
 
-	res := r.db.Get(ctx, r.keyPrefix+keyID)
+	res := r.db.Get(ctx, r.keyPrefix+apiKeyPrefix+keyID)
 
 	switch res.Err() {
 	case nil:
@@ -100,7 +101,7 @@ func (r *Repo) SaveToken(ctx context.Context, t *token.Token) error {
 		return fmt.Errorf("failed to encrypt secret: %w", err)
 	}
 
-	res := r.db.SetNX(ctx, r.keyPrefix+t.ID, secretHash, t.TTL)
+	res := r.db.SetNX(ctx, r.keyPrefix+apiKeyPrefix+t.ID, secretHash, t.TTL)
 
 	if res.Err() != nil {
 		return fmt.Errorf("failed to save token: %w", res.Err())
@@ -116,7 +117,7 @@ func (r *Repo) SaveToken(ctx context.Context, t *token.Token) error {
 // DeleteToken removes a token identified by tokenID from the database using the configured key prefix.
 // It returns an error if the deletion operation fails.
 func (r *Repo) DeleteToken(ctx context.Context, tokenID string) error {
-	res := r.db.Del(ctx, r.keyPrefix+tokenID)
+	res := r.db.Del(ctx, r.keyPrefix+apiKeyPrefix+tokenID)
 
 	if res.Err() != nil {
 		return fmt.Errorf("failed to delete token: %w", res.Err())

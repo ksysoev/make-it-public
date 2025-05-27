@@ -2,6 +2,7 @@ package token
 
 import (
 	"encoding/base64"
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,6 +15,10 @@ func TestGenerateToken(t *testing.T) {
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.NotEmpty(t, token.ID, "Token ID should not be empty")
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
+		fmt.Println(token.Secret)
+		fmt.Println(len(getTokenPair(token.ID, token.Secret)))
+		fmt.Println(len(token.ID))
+		fmt.Println(len(token.Secret))
 		assert.True(t, len(getTokenPair(token.ID, token.Secret))%3 == 0, "The string should be divisible by 3 for base64 encoding")
 		assert.Equal(t, 3600*time.Second, token.TTL, "Token TTL should not be the default value")
 	})
@@ -108,7 +113,7 @@ func TestGenerateID(t *testing.T) {
 func TestGenerateSecret(t *testing.T) {
 	t.Run("GenerateSecret generates valid secret", func(t *testing.T) {
 		buffer := 21
-		secret, err := generateSecret(buffer)
+		secret, err := generateSecret(WebToken, buffer)
 		assert.NoError(t, err, "Secret generation should not return an error")
 		assert.Len(t, secret, buffer, "Generated Secret should have the correct length")
 	})

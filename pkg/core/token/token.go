@@ -13,17 +13,20 @@ import (
 const (
 	defaultIDLength     = 8
 	maxIDLength         = 15
-	defaultSecretLength = 33
+	defaultSecretLength = 31
 	lowerCase           = "abcdefghijklmnopqrstuvwxyz"
 	upperCase           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	numbers             = "0123456789"
 	base64Modulo        = 3
 	defaultTTLSeconds   = 3600 // 1 hour
+	typePrefixLen       = 1
+	delimitersLen       = 2
 )
 
 type Token struct {
 	ID     string
 	Secret string
+	Type   TokenType
 	TTL    time.Duration
 }
 
@@ -64,7 +67,7 @@ func GenerateToken(keyID string, ttl int) (*Token, error) {
 	}
 
 	bufferLen := calculateSecretBuffer(len(keyID))
-	secret, err := generateSecret(bufferLen)
+	secret, err := generateSecret(WebToken, bufferLen)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token secret: %w", err)
@@ -73,6 +76,7 @@ func GenerateToken(keyID string, ttl int) (*Token, error) {
 	return &Token{
 		ID:     keyID,
 		Secret: secret,
+		Type:   WebToken,
 		TTL:    time.Duration(ttl) * time.Second,
 	}, nil
 }
@@ -129,7 +133,7 @@ func generateID() (string, error) {
 // It uses lowercase letters, uppercase letters, and digits to create the secret.
 // bufferLen specifies the length of the generated secret.
 // Returns the generated secret string and an error if random number generation fails.
-func generateSecret(bufferLen int) (string, error) {
+func generateSecret(tt TokenType, bufferLen int) (string, error) {
 	indices, err := randomIntSlice(len(lowerCase+upperCase+numbers), bufferLen)
 
 	if err != nil {
@@ -142,7 +146,7 @@ func generateSecret(bufferLen int) (string, error) {
 		b[i] = (lowerCase + upperCase + numbers)[idx]
 	}
 
-	return string(b), nil
+	return fmt.Sprintf("%s-%s", tt.Prefix(), b), nil
 }
 
 // randomIntSlice generates a slice of random integers with values less than maxLen and of specified length.
@@ -176,7 +180,7 @@ func getTokenPair(id, secret string) string {
 func calculateSecretBuffer(keyIDLength int) int {
 	buffer := defaultSecretLength
 
-	for (keyIDLength+buffer+1)%base64Modulo != 0 {
+	for (keyIDLength+buffer+typePrefixLen+delimitersLen)%base64Modulo != 0 {
 		buffer++
 	}
 

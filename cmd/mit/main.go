@@ -10,7 +10,7 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/cmd"
 )
 
-var defaultServer = "localhost:8081"
+var defaultServer = "make-it-public.dev:8081"
 var version = "dev"
 
 func main() {

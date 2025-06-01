@@ -152,3 +152,72 @@ func TestPipeConn(t *testing.T) {
 		})
 	}
 }
+
+func TestTimeoutContext(t *testing.T) {
+	tests := []struct {
+		name           string
+		timeout        time.Duration
+		sleepBefore    time.Duration
+		cancelEarly    bool
+		cancelOriginal bool
+		expectCanceled bool
+	}{
+		{
+			name:           "zero timeout",
+			timeout:        0,
+			sleepBefore:    10 * time.Millisecond,
+			expectCanceled: false,
+		},
+		{
+			name:           "valid timeout",
+			timeout:        50 * time.Millisecond,
+			sleepBefore:    60 * time.Millisecond,
+			expectCanceled: true,
+		},
+		{
+			name:           "early cancel before timeout",
+			timeout:        100 * time.Millisecond,
+			cancelEarly:    true,
+			sleepBefore:    50 * time.Millisecond,
+			expectCanceled: false,
+		},
+		{
+			name:           "original context canceled",
+			timeout:        100 * time.Millisecond,
+			cancelOriginal: true,
+			sleepBefore:    50 * time.Millisecond,
+			expectCanceled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origCtx, origCancel := context.WithCancel(context.Background())
+			defer origCancel()
+
+			ctx, cancelTimeout := timeoutContext(origCtx, tt.timeout)
+			if tt.cancelEarly {
+				cancelTimeout()
+			} else {
+				defer cancelTimeout()
+			}
+
+			if tt.cancelOriginal {
+				origCancel()
+			}
+
+			time.Sleep(tt.sleepBefore)
+
+			select {
+			case <-ctx.Done():
+				if !tt.expectCanceled {
+					t.Errorf("unexpected cancellation: %v", ctx.Err())
+				}
+			default:
+				if tt.expectCanceled {
+					t.Errorf("expected cancellation did not occur")
+				}
+			}
+		})
+	}
+}

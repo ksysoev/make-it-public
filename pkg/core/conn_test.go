@@ -157,9 +157,9 @@ func TestTimeoutContext(t *testing.T) {
 	tests := []struct {
 		name           string
 		timeout        time.Duration
+		sleepBefore    time.Duration
 		cancelEarly    bool
 		cancelOriginal bool
-		sleepBefore    time.Duration
 		expectCanceled bool
 	}{
 		{

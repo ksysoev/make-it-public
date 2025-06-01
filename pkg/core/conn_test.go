@@ -195,11 +195,11 @@ func TestTimeoutContext(t *testing.T) {
 			origCtx, origCancel := context.WithCancel(context.Background())
 			defer origCancel()
 
-			ctx, cancel := timeoutContext(origCtx, tt.timeout)
+			ctx, cancelTimeout := timeoutContext(origCtx, tt.timeout)
 			if tt.cancelEarly {
-				cancel()
+				cancelTimeout()
 			} else {
-				defer cancel()
+				defer cancelTimeout()
 			}
 
 			if tt.cancelOriginal {

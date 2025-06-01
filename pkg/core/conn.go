@@ -200,6 +200,8 @@ func timeoutContext(ctx context.Context, timeout time.Duration) (context.Context
 	wg.Add(1)
 
 	go func() {
+		defer wg.Done()
+
 		select {
 		case <-ctx.Done():
 			return

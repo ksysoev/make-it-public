@@ -47,6 +47,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	}))
 
 	err := servConn.Process()
+
 	cancelTimeout()
 
 	if err != nil {
@@ -187,15 +188,18 @@ func pipeConn(src io.Reader, dst io.Writer) func() error {
 	}
 }
 
+// timeoutContext creates a new context with a specified timeout duration.
+// It cancels the context either when the timeout elapses or the parent context is canceled.
+// Accepts ctx as the parent context and timeout specifying the duration before cancellation.
+// Returns the new context and a cancel function to release resources. The cancel function should always be called to avoid leaks.
 func timeoutContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	if timeout <= 0 {
 		return ctx, func() {}
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-
 	done := make(chan struct{})
-	var wg sync.WaitGroup
+	wg := sync.WaitGroup{}
 
 	wg.Add(1)
 

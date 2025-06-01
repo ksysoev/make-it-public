@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync"
 	"syscall"
 	"time"
 
@@ -16,16 +17,22 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const (
+	connectionTimeout = 5 * time.Second
+)
+
 var (
 	ErrFailedToConnect = errors.New("failed to connect")
 	ErrKeyIDNotFound   = errors.New("keyID not found")
 )
 
 func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error {
-	var connKeyID string
+	ctx, cancelTimeout := timeoutContext(ctx, connectionTimeout)
 
 	slog.DebugContext(ctx, "new connection", slog.Any("remote", revConn.RemoteAddr()))
 	defer slog.DebugContext(ctx, "closing connection", slog.Any("remote", revConn.RemoteAddr()))
+
+	var connKeyID string
 
 	servConn := proto.NewServer(revConn, proto.WithUserPassAuth(func(keyID, secret string) bool {
 		valid, err := s.auth.Verify(ctx, keyID, secret)
@@ -39,7 +46,10 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 		return false
 	}))
 
-	if err := servConn.Process(); err != nil {
+	err := servConn.Process()
+	cancelTimeout()
+
+	if err != nil {
 		slog.DebugContext(ctx, "failed to process connection", slog.Any("error", err))
 		return nil
 	}
@@ -174,5 +184,34 @@ func pipeConn(src io.Reader, dst io.Writer) func() error {
 		}
 
 		return io.EOF
+	}
+}
+
+func timeoutContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
+		return ctx, func() {}
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(timeout):
+			cancel()
+		case <-done:
+			return
+		}
+	}()
+
+	return ctx, func() {
+		close(done)
+		wg.Wait()
 	}
 }

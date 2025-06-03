@@ -2,6 +2,7 @@ package revproxy
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"os"
 	"path/filepath"
@@ -70,7 +71,7 @@ func TestNew(t *testing.T) {
 				assert.NotNil(t, server)
 				assert.Equal(t, tt.cfg.Listen, server.listen)
 				assert.Equal(t, mockConnService, server.connService)
-				assert.Nil(t, server.cert)
+				assert.Equal(t, &Certificate{Cert: (*tls.Certificate)(nil), CertFilePath: "", Key: ""}, server.cert)
 			}
 		})
 	}

@@ -34,6 +34,7 @@ func NewFileWatcher(paths ...string) (*FileWatcher, error) {
 	cw := &FileWatcher{
 		watcher:     w,
 		subscribers: make(map[Subscriber]struct{}),
+		mu:          sync.Mutex{},
 	}
 	go cw.run()
 	return cw, nil

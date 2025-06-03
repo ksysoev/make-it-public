@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/core/watcher"
 )
 
 type Config struct {
@@ -21,10 +22,17 @@ type ConnService interface {
 	HandleReverseConn(ctx context.Context, conn net.Conn) error
 }
 
+type Certificate struct {
+	Cert         *tls.Certificate
+	CertFilePath string
+	Key          string
+}
+
 type RevServer struct {
 	connService ConnService
-	cert        *tls.Certificate
+	cert        *Certificate
 	listen      string
+	certWatcher *watcher.FileWatcher
 }
 
 func New(cfg *Config, connService ConnService) (*RevServer, error) {
@@ -37,6 +45,7 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 	}
 
 	var cert *tls.Certificate
+	var certWatcher *watcher.FileWatcher
 
 	if cfg.Cert != "" {
 		c, err := tls.LoadX509KeyPair(cfg.Cert, cfg.Key)
@@ -45,18 +54,53 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 		}
 
 		cert = &c
+
+		certWatcher, err = watcher.NewFileWatcher(cfg.Cert)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to create file watcher for TLS certificate: %w", err)
+		}
 	}
 
 	return &RevServer{
 		connService: connService,
 		listen:      cfg.Listen,
-		cert:        cert,
+		cert: &Certificate{
+			Cert:         cert,
+			CertFilePath: cfg.Cert,
+			Key:          cfg.Key,
+		},
+		certWatcher: certWatcher,
 	}, nil
 }
 
 func (r *RevServer) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	subscriber := r.certWatcher.Subscribe()
+	defer r.certWatcher.Unsubscribe(subscriber)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case notification := <-subscriber:
+				slog.InfoContext(ctx, "TLS certificate file changed", slog.String("path", notification.Path))
+				newCert, err := tls.LoadX509KeyPair(r.cert.CertFilePath, r.cert.Key)
+				if err != nil {
+					slog.ErrorContext(ctx, "failed to reload TLS certificate", slog.Any("error", err))
+					continue
+				}
+				r.cert = &Certificate{
+					Cert:         &newCert,
+					CertFilePath: r.cert.CertFilePath,
+					Key:          r.cert.Key}
+				slog.InfoContext(ctx, "TLS certificate reloaded successfully")
+			}
+		}
+	}()
 
 	var (
 		l   net.Listener
@@ -65,7 +109,7 @@ func (r *RevServer) Run(ctx context.Context) error {
 
 	if r.cert != nil {
 		l, err = tls.Listen("tcp", r.listen, &tls.Config{
-			Certificates: []tls.Certificate{*r.cert},
+			Certificates: []tls.Certificate{*r.cert.Cert},
 			MinVersion:   tls.VersionTLS13,
 		})
 	} else {

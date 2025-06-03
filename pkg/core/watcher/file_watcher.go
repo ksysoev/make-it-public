@@ -14,13 +14,13 @@ type Notification struct {
 
 type Subscriber chan Notification
 
-type Watcher struct {
+type FileWatcher struct {
 	watcher     *fsnotify.Watcher
 	subscribers map[Subscriber]struct{}
 	mu          sync.Mutex
 }
 
-func NewWatcher(paths ...string) (*Watcher, error) {
+func NewFileWatcher(paths ...string) (*FileWatcher, error) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func NewWatcher(paths ...string) (*Watcher, error) {
 			return nil, err
 		}
 	}
-	cw := &Watcher{
+	cw := &FileWatcher{
 		watcher:     w,
 		subscribers: make(map[Subscriber]struct{}),
 	}
@@ -39,7 +39,7 @@ func NewWatcher(paths ...string) (*Watcher, error) {
 	return cw, nil
 }
 
-func (cw *Watcher) Subscribe() Subscriber {
+func (cw *FileWatcher) Subscribe() Subscriber {
 	ch := make(Subscriber, 1)
 	cw.mu.Lock()
 	cw.subscribers[ch] = struct{}{}
@@ -47,14 +47,14 @@ func (cw *Watcher) Subscribe() Subscriber {
 	return ch
 }
 
-func (cw *Watcher) Unsubscribe(ch Subscriber) {
+func (cw *FileWatcher) Unsubscribe(ch Subscriber) {
 	cw.mu.Lock()
 	delete(cw.subscribers, ch)
 	close(ch)
 	cw.mu.Unlock()
 }
 
-func (cw *Watcher) run() {
+func (cw *FileWatcher) run() {
 	for {
 		select {
 		case event, ok := <-cw.watcher.Events:
@@ -73,7 +73,7 @@ func (cw *Watcher) run() {
 	}
 }
 
-func (cw *Watcher) notifyAll(n Notification) {
+func (cw *FileWatcher) notifyAll(n Notification) {
 	cw.mu.Lock()
 	defer cw.mu.Unlock()
 	for ch := range cw.subscribers {
@@ -84,6 +84,6 @@ func (cw *Watcher) notifyAll(n Notification) {
 	}
 }
 
-func (cw *Watcher) Close() error {
+func (cw *FileWatcher) Close() error {
 	return cw.watcher.Close()
 }

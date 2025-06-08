@@ -9,18 +9,24 @@ import (
 )
 
 type LocalServer struct {
-	url string
+	addr    string
+	isReady chan struct{}
 }
 
 func New() *LocalServer {
-	return &LocalServer{}
+	return &LocalServer{
+		isReady: make(chan struct{}),
+	}
 }
 
 func (s *LocalServer) Run(ctx context.Context) error {
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
+		close(s.isReady)
 		return fmt.Errorf("failed to start local server: %w", err)
 	}
+
+	s.addr = l.Addr().String()
 
 	srv := http.Server{
 		Handler:           s,
@@ -35,7 +41,14 @@ func (s *LocalServer) Run(ctx context.Context) error {
 		}
 	}()
 
+	close(s.isReady)
+
 	return srv.Serve(l)
+}
+
+func (s *LocalServer) Addr() string {
+	<-s.isReady
+	return s.addr
 }
 
 func (s *LocalServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {

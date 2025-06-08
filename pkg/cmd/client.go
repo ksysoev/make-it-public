@@ -6,7 +6,10 @@ import (
 	"log/slog"
 
 	"github.com/ksysoev/make-it-public/pkg/core/token"
+	"github.com/ksysoev/make-it-public/pkg/localsrv"
 	"github.com/ksysoev/make-it-public/pkg/revclient"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func RunClientCommand(ctx context.Context, args *args) error {
@@ -19,9 +22,18 @@ func RunClientCommand(ctx context.Context, args *args) error {
 		return fmt.Errorf("invalid token: %w", err)
 	}
 
+	exposeAddr := args.Expose
+
+	eg, ctx := errgroup.WithContext(ctx)
+	if exposeAddr == "" && args.LocalServer {
+		lclSrv := localsrv.New()
+		eg.Go(func() error { return lclSrv.Run(ctx) })
+		exposeAddr = lclSrv.Addr()
+	}
+
 	cfg := revclient.Config{
 		ServerAddr: args.Server,
-		DestAddr:   args.Expose,
+		DestAddr:   exposeAddr,
 		NoTLS:      args.NoTLS,
 		Insecure:   args.Insecure,
 	}
@@ -29,6 +41,7 @@ func RunClientCommand(ctx context.Context, args *args) error {
 	revcli := revclient.NewClientServer(cfg, tkn)
 
 	slog.InfoContext(ctx, "revclient started", "server", args.Server)
+	eg.Go(func() error { return revcli.Run(ctx) })
 
-	return revcli.Run(ctx)
+	return eg.Wait()
 }

@@ -46,7 +46,7 @@ func InitCommand(build BuildInfo) cobra.Command {
 	cmd.Flags().StringVar(&arg.Token, "token", "", "token")
 	cmd.Flags().BoolVar(&arg.NoTLS, "no-tls", false, "disable TLS")
 	cmd.Flags().BoolVar(&arg.Insecure, "insecure", false, "skip TLS verification")
-	cmd.Flags().BoolVar(&arg.LocalServer, "local", false, "run local server (for testing purposes)")
+	cmd.Flags().BoolVar(&arg.LocalServer, "dummy", false, "run local dummy web server that will print incoming requests(experimental feature)")
 
 	cmd.PersistentFlags().StringVar(&arg.LogLevel, "log-level", "info", "log level (debug, info, warn, error)")
 	cmd.PersistentFlags().BoolVar(&arg.TextFormat, "log-text", true, "log in text format, otherwise JSON")

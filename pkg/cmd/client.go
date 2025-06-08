@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/ksysoev/make-it-public/pkg/core/token"
-	"github.com/ksysoev/make-it-public/pkg/localsrv"
+	"github.com/ksysoev/make-it-public/pkg/dummy"
 	"github.com/ksysoev/make-it-public/pkg/revclient"
 
 	"golang.org/x/sync/errgroup"
@@ -26,7 +26,7 @@ func RunClientCommand(ctx context.Context, args *args) error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	if exposeAddr == "" && args.LocalServer {
-		lclSrv := localsrv.New()
+		lclSrv := dummy.New()
 		eg.Go(func() error { return lclSrv.Run(ctx) })
 		exposeAddr = lclSrv.Addr()
 	}

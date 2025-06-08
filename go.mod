@@ -3,6 +3,7 @@ module github.com/ksysoev/make-it-public
 go 1.24.2
 
 require (
+	github.com/fatih/color v1.18.0
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/google/uuid v1.6.0
 	github.com/ksysoev/revdial v0.4.1
@@ -16,7 +17,12 @@ require (
 	golang.org/x/sync v0.14.0
 )
 
-require github.com/swaggo/files/v2 v2.0.0 // indirect
+require (
+	github.com/TylerBrock/colorjson v0.0.0-20200706003622-8a50f05110d2 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/swaggo/files/v2 v2.0.0 // indirect
+)
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect

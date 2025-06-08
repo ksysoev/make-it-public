@@ -23,11 +23,13 @@ func RunClientCommand(ctx context.Context, args *args) error {
 	}
 
 	exposeAddr := args.Expose
-
 	eg, ctx := errgroup.WithContext(ctx)
+
 	if exposeAddr == "" && args.LocalServer {
 		lclSrv := dummy.New()
+
 		eg.Go(func() error { return lclSrv.Run(ctx) })
+
 		exposeAddr = lclSrv.Addr()
 	}
 

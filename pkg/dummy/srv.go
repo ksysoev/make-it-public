@@ -17,18 +17,28 @@ import (
 )
 
 type Server struct {
-	addr    string
 	isReady chan struct{}
+	jsonFmt *colorjson.Formatter
+	addr    string
 }
 
 func New() *Server {
+	f := colorjson.NewFormatter()
+	f.Indent = 2
+	f.KeyColor = color.New(color.FgMagenta)
+	f.StringColor = color.New(color.FgYellow)
+	f.BoolColor = color.New(color.FgBlue)
+	f.NumberColor = color.New(color.FgGreen)
+	f.NullColor = color.New(color.FgRed)
+
 	return &Server{
 		isReady: make(chan struct{}),
+		jsonFmt: f,
 	}
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	l, err := net.Listen("tcp", ":0")
+	l, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		close(s.isReady)
 		return fmt.Errorf("failed to start local server: %w", err)
@@ -44,6 +54,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
+
 		if err := srv.Close(); err != nil {
 			fmt.Printf("Error closing server: %v\n", err)
 		}
@@ -72,6 +83,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Read the request body
 	if r.Body != nil {
 		defer func() { _ = r.Body.Close() }()
+
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			fmt.Printf("Error reading body: %v\n", err)
@@ -117,26 +129,19 @@ func (s *Server) printText(data []byte) error {
 
 func (s *Server) printJSON(data []byte) error {
 	var parsedData any
-	err := json.Unmarshal(data, &parsedData)
-	if err != nil {
+
+	if err := json.Unmarshal(data, &parsedData); err != nil {
 		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 
-	f := colorjson.NewFormatter()
-	f.Indent = 2
-	f.KeyColor = color.New(color.FgMagenta)
-	f.StringColor = color.New(color.FgYellow)
-	f.BoolColor = color.New(color.FgBlue)
-	f.NumberColor = color.New(color.FgGreen)
-	f.NullColor = color.New(color.FgRed)
-
-	output, err := f.Marshal(parsedData)
+	output, err := s.jsonFmt.Marshal(parsedData)
 	if err != nil {
 		return fmt.Errorf("failed to format JSON: %w", err)
 	}
 
-	fmt.Println(string(output))
-	return nil
+	_, err = fmt.Fprintf(os.Stdout, "%s\n", output)
+
+	return err
 }
 
 func printHeaders(headers http.Header, out io.Writer) {

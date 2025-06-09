@@ -16,7 +16,6 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/url"
 	"github.com/ksysoev/make-it-public/pkg/edge/middleware"
-	"github.com/pires/go-proxyproto"
 )
 
 type ConnService interface {
@@ -32,9 +31,10 @@ type HTTPServer struct {
 const defaultConnLimitPerKeyID = 4
 
 type Config struct {
-	Listen    string               `mapstructure:"listen"`
-	Public    PublicEndpointConfig `mapstructure:"public"`
-	ConnLimit int                  `mapstructure:"conn_limit"`
+	Listen     string               `mapstructure:"listen"`
+	Public     PublicEndpointConfig `mapstructure:"public"`
+	ConnLimit  int                  `mapstructure:"conn_limit"`
+	ProxyProto bool                 `mapstructure:"proxy_proto"`
 }
 
 type PublicEndpointConfig struct {
@@ -83,18 +83,12 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		handler = mw[i](handler)
 	}
 
-	ln, err := net.Listen("tcp", s.config.Listen)
+	ln, err := listen(s.config.Listen, s.config.ProxyProto)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", s.config.Listen, err)
 	}
 
-	proxyListener := &proxyproto.Listener{
-		Listener:          ln,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
 	server := &http.Server{
-		Addr:              s.config.Listen,
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,
@@ -104,10 +98,9 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		<-ctx.Done()
 
 		_ = server.Close()
-		_ = proxyListener.Close()
 	}()
 
-	if err := server.Serve(proxyListener); err != http.ErrServerClosed {
+	if err := server.Serve(ln); err != http.ErrServerClosed {
 		return err
 	}
 

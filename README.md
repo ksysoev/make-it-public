@@ -194,6 +194,7 @@ The MIT client and server can be configured using environment variables:
 - `HTTP_PUBLIC_SCHEMA`: Public HTTP schema (http/https)
 - `HTTP_PUBLIC_DOMAIN`: Public domain name
 - `HTTP_LISTEN`: HTTP server listen address
+- `HTTP_PROXY_PROTO`: Enable proxy protocol support (true/false)
 - `REVERSE_PROXY_LISTEN`: Reverse proxy listen address
 - `REVERSE_PROXY_CERT`: Path to TLS certificate
 - `REVERSE_PROXY_KEY`: Path to TLS key
@@ -216,6 +217,7 @@ http:
     domain: "your-domain.com"
     port: 443
   listen: ":8080"
+  proxy_proto: true
 reverse_proxy:
   listen: ":8081"
   cert: "/path/to/cert.crt"

@@ -6,8 +6,8 @@ require (
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/google/uuid v1.6.0
 	github.com/ksysoev/revdial v0.4.1
+	github.com/mailgun/proxyproto v1.0.0
 	github.com/mileusna/useragent v1.3.5
-	github.com/pires/go-proxyproto v0.8.1
 	github.com/redis/go-redis/v9 v9.9.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
@@ -16,7 +16,10 @@ require (
 	golang.org/x/sync v0.14.0
 )
 
-require github.com/swaggo/files/v2 v2.0.0 // indirect
+require (
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/swaggo/files/v2 v2.0.0 // indirect
+)
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect

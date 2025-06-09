@@ -21,7 +21,7 @@ type conn struct {
 // If withProxyProto is true, the listener intercepts connections to support Proxy Protocol.
 // Returns a net.Listener instance or an error if the listener creation fails.
 func listen(address string, withProxyProto bool) (net.Listener, error) {
-	ln, err := net.Listen("tco", address)
+	ln, err := net.Listen("tcp", address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on %s: %w", address, err)
 	}

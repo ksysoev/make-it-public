@@ -15,9 +15,18 @@ services:
     restart: unless-stopped
     container_name: mitserver
     ports:
-      - "8080:8080" # HTTP server
-      - "8081:8081" # Reverse proxy
-      - "8082:8082" # API server
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: host
+      - target: 8081
+        published: 8081
+        protocol: tcp
+        mode: host
+      - target: 8082
+        published: 8082
+        protocol: tcp
+        mode: host
     environment:
       - AUTH_REDIS_ADDR=redis:6379
       - AUTH_SALT=${AUTH_SALT:-someRandomSalt}

@@ -31,41 +31,41 @@ func NewFileWatcher(paths ...string) (*FileWatcher, error) {
 			return nil, err
 		}
 	}
-	cw := &FileWatcher{
+	fw := &FileWatcher{
 		watcher:     w,
 		subscribers: make(map[Subscriber]struct{}),
 		mu:          sync.Mutex{},
 	}
-	go cw.run()
-	return cw, nil
+	go fw.run()
+	return fw, nil
 }
 
-func (cw *FileWatcher) Subscribe() Subscriber {
+func (fw *FileWatcher) Subscribe() Subscriber {
 	ch := make(Subscriber, 1)
-	cw.mu.Lock()
-	cw.subscribers[ch] = struct{}{}
-	cw.mu.Unlock()
+	fw.mu.Lock()
+	fw.subscribers[ch] = struct{}{}
+	fw.mu.Unlock()
 	return ch
 }
 
-func (cw *FileWatcher) Unsubscribe(ch Subscriber) {
-	cw.mu.Lock()
-	delete(cw.subscribers, ch)
+func (fw *FileWatcher) Unsubscribe(ch Subscriber) {
+	fw.mu.Lock()
+	delete(fw.subscribers, ch)
 	close(ch)
-	cw.mu.Unlock()
+	fw.mu.Unlock()
 }
 
-func (cw *FileWatcher) run() {
+func (fw *FileWatcher) run() {
 	for {
 		select {
-		case event, ok := <-cw.watcher.Events:
+		case event, ok := <-fw.watcher.Events:
 			if !ok {
 				return
 			}
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0 {
-				cw.notifyAll(Notification{Path: event.Name})
+				fw.notifyAll(Notification{Path: event.Name})
 			}
-		case err, ok := <-cw.watcher.Errors:
+		case err, ok := <-fw.watcher.Errors:
 			if !ok {
 				return
 			}
@@ -74,10 +74,10 @@ func (cw *FileWatcher) run() {
 	}
 }
 
-func (cw *FileWatcher) notifyAll(n Notification) {
-	cw.mu.Lock()
-	defer cw.mu.Unlock()
-	for ch := range cw.subscribers {
+func (fw *FileWatcher) notifyAll(n Notification) {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	for ch := range fw.subscribers {
 		select {
 		case ch <- n:
 		default:
@@ -85,6 +85,6 @@ func (cw *FileWatcher) notifyAll(n Notification) {
 	}
 }
 
-func (cw *FileWatcher) Close() error {
-	return cw.watcher.Close()
+func (fw *FileWatcher) Close() error {
+	return fw.watcher.Close()
 }

@@ -44,7 +44,7 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 		return nil, fmt.Errorf("both cert and key are required for TLS")
 	}
 
-	var cert *tls.Certificate
+	var cert *Certificate
 	var certWatcher *watcher.FileWatcher
 
 	if cfg.Cert != "" {
@@ -53,7 +53,11 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
 		}
 
-		cert = &c
+		cert = &Certificate{
+			Cert:         &c,
+			CertFilePath: cfg.Cert,
+			Key:          cfg.Key,
+		}
 
 		certWatcher, err = watcher.NewFileWatcher(cfg.Cert)
 
@@ -65,11 +69,7 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 	return &RevServer{
 		connService: connService,
 		listen:      cfg.Listen,
-		cert: &Certificate{
-			Cert:         cert,
-			CertFilePath: cfg.Cert,
-			Key:          cfg.Key,
-		},
+		cert:        cert,
 		certWatcher: certWatcher,
 	}, nil
 }
@@ -78,29 +78,31 @@ func (r *RevServer) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	subscriber := r.certWatcher.Subscribe()
-	defer r.certWatcher.Unsubscribe(subscriber)
+	if r.cert != nil {
+		subscriber := r.certWatcher.Subscribe()
+		defer r.certWatcher.Unsubscribe(subscriber)
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case notification := <-subscriber:
-				slog.InfoContext(ctx, "TLS certificate file changed", slog.String("path", notification.Path))
-				newCert, err := tls.LoadX509KeyPair(r.cert.CertFilePath, r.cert.Key)
-				if err != nil {
-					slog.ErrorContext(ctx, "failed to reload TLS certificate", slog.Any("error", err))
-					continue
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case notification := <-subscriber:
+					slog.InfoContext(ctx, "TLS certificate file changed", slog.String("path", notification.Path))
+					newCert, err := tls.LoadX509KeyPair(r.cert.CertFilePath, r.cert.Key)
+					if err != nil {
+						slog.ErrorContext(ctx, "failed to reload TLS certificate", slog.Any("error", err))
+						continue
+					}
+					r.cert = &Certificate{
+						Cert:         &newCert,
+						CertFilePath: r.cert.CertFilePath,
+						Key:          r.cert.Key}
+					slog.InfoContext(ctx, "TLS certificate reloaded successfully")
 				}
-				r.cert = &Certificate{
-					Cert:         &newCert,
-					CertFilePath: r.cert.CertFilePath,
-					Key:          r.cert.Key}
-				slog.InfoContext(ctx, "TLS certificate reloaded successfully")
 			}
-		}
-	}()
+		}()
+	}
 
 	var (
 		l   net.Listener

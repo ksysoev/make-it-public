@@ -2,7 +2,6 @@ package revproxy
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"os"
 	"path/filepath"
@@ -58,6 +57,8 @@ func TestNew(t *testing.T) {
 		},
 	}
 
+	var expectedCert *Certificate
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server, err := New(tt.cfg, mockConnService)
@@ -71,7 +72,7 @@ func TestNew(t *testing.T) {
 				assert.NotNil(t, server)
 				assert.Equal(t, tt.cfg.Listen, server.listen)
 				assert.Equal(t, mockConnService, server.connService)
-				assert.Equal(t, &Certificate{Cert: (*tls.Certificate)(nil), CertFilePath: "", Key: ""}, server.cert)
+				assert.Equal(t, expectedCert, server.cert)
 			}
 		})
 	}
@@ -180,6 +181,12 @@ func TestRunWithError(t *testing.T) {
 	err = server.Run(context.Background())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to listen")
+}
+
+func TestRunWithModifiedTLS(t *testing.T) {
+	// The filewatcher should watch changes to the certificate and update certificates accordingly.
+	// TODO: implement this
+	assert.Fail(t, "TestRunWithModifiedTLS is not implemented yet")
 }
 
 // Helper function to generate a self-signed certificate for testing

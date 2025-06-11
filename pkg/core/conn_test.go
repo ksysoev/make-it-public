@@ -141,7 +141,7 @@ func TestPipeConn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			copyFunc := pipeConn(tt.src, tt.dst)
+			copyFunc := pipeConn(tt.src, tt.dst, nil)
 
 			err := copyFunc()
 			if tt.expectErr != nil {

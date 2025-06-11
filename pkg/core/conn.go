@@ -147,9 +147,10 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	// Create error group for managing both copy operations
 	eg, ctx := errgroup.WithContext(ctx)
 	connNopCloser := conn.NewContextConnNopCloser(ctx, cliConn)
+	hasResp := false
 
-	eg.Go(pipeConn(connNopCloser, revConn))
-	eg.Go(pipeConn(revConn, connNopCloser))
+	eg.Go(pipeConn(connNopCloser, revConn, nil))
+	eg.Go(pipeConn(revConn, connNopCloser, &hasResp))
 	eg.Go(func() error {
 		select {
 		case <-ctx.Done():
@@ -163,15 +164,24 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 		return err
 	}
 
+	if !hasResp {
+		slog.DebugContext(ctx, "no response received from reverse connection")
+		return ErrFailedToConnect
+	}
+
 	return nil
 }
 
 // pipeConn manages bidirectional copying of data between a source reader and a destination writer.
 // It reads from src and writes to dst, handling specific network-related errors gracefully.
 // Returns a function that performs the copy operation, returning io.EOF on successful completion or a detailed error on failure.
-func pipeConn(src io.Reader, dst io.Writer) func() error {
+func pipeConn(src io.Reader, dst io.Writer, hasResp *bool) func() error {
 	return func() error {
 		n, err := io.Copy(dst, src)
+
+		if hasResp != nil && n > 0 {
+			*hasResp = true
+		}
 
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):

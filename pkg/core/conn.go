@@ -172,9 +172,9 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	return nil
 }
 
-// pipeConn manages bidirectional copying of data between a source reader and a destination writer.
-// It reads from src and writes to dst, handling specific network-related errors gracefully.
-// Returns a function that performs the copy operation, returning io.EOF on successful completion or a detailed error on failure.
+// pipeConn transfers data from a source reader to a destination writer in a streaming manner.
+// It sets hasResp to true if data is successfully transferred and hasResp is not nil.
+// Returns an error if copying fails, with specific error handling for closed connections and reset errors.
 func pipeConn(src io.Reader, dst io.Writer, hasResp *bool) func() error {
 	return func() error {
 		n, err := io.Copy(dst, src)
@@ -185,10 +185,6 @@ func pipeConn(src io.Reader, dst io.Writer, hasResp *bool) func() error {
 
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
-			if n == 0 {
-				return ErrFailedToConnect
-			}
-
 			return io.EOF
 		case err != nil:
 			return fmt.Errorf("error copying from reverse connection: %w", err)

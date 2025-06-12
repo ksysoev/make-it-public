@@ -24,6 +24,7 @@ const (
 var (
 	ErrFailedToConnect = errors.New("failed to connect")
 	ErrKeyIDNotFound   = errors.New("keyID not found")
+	ErrConnClosed      = errors.New("connection closed")
 )
 
 type Conn interface {
@@ -163,31 +164,33 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	eg.Go(pipeToDest(connNopCloser, destConn))
 	eg.Go(pipeToSource(destConn, connNopCloser))
 
-	eg.Go(func() error {
+	go func() {
 		select {
 		case <-ctx.Done():
 		case <-req.ParentContext().Done(): // Pare
 		}
 
-		return revConn.Close()
-	})
+		_ = revConn.Close()
+	}()
 
-	if err := eg.Wait(); !errors.Is(err, net.ErrClosed) {
+	if err := eg.Wait(); !errors.Is(err, ErrConnClosed) {
 		return err
 	}
 
 	return nil
 }
 
+// pipeToDest copies data from the source Reader to the destination Conn in a streaming manner.
+// It manages specific error conditions such as closed or reset connections.
+// Returns a function that executes the copy process, returning ErrConnClosed for io.ErrClosedPipe or connection reset errors.
+// Also returns a wrapped error for other errors encountered during the copy process, or nil if the operation completes successfully.
 func pipeToDest(src io.Reader, dst Conn) func() error {
 	return func() error {
 		_, err := io.Copy(dst, src)
 
-		slog.Info("Copying data from source to destination done")
-
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
-			return io.EOF
+			return ErrConnClosed
 		case err != nil:
 			return fmt.Errorf("error copying from reverse connection: %w", err)
 		}
@@ -196,20 +199,26 @@ func pipeToDest(src io.Reader, dst Conn) func() error {
 	}
 }
 
+// pipeToSource copies data from the source connection to the destination writer in a streaming manner.
+// It logs the completion of the copy operation and handles specific error conditions.
+// Returns a function that executes the copy process, returning ErrConnClosed if the source connection is closed or reset,
+// or a wrapped error if other errors occur during the copying process.
 func pipeToSource(src Conn, dst io.Writer) func() error {
 	return func() error {
-		_, err := io.Copy(dst, src)
+		n, err := io.Copy(dst, src)
 
-		slog.Info("Copying data from destination to source done")
+		if n <= 0 {
+			return fmt.Errorf("error copying from reverse connection: %w", ErrFailedToConnect)
+		}
 
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
-			return net.ErrClosed
+			return ErrConnClosed
 		case err != nil:
 			return fmt.Errorf("error copying to reverse connection: %w", err)
 		}
 
-		return src.Close()
+		return ErrConnClosed
 	}
 }
 

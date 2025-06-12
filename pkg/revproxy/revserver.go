@@ -29,9 +29,10 @@ type Certificate struct {
 }
 
 type RevServer struct {
+	certMu      sync.RWMutex
+	listen      string
 	connService ConnService
 	cert        *Certificate
-	listen      string
 	certWatcher *watcher.FileWatcher
 }
 
@@ -44,8 +45,10 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 		return nil, fmt.Errorf("both cert and key are required for TLS")
 	}
 
-	var cert *Certificate
-	var certWatcher *watcher.FileWatcher
+	var (
+		cert        *Certificate
+		certWatcher *watcher.FileWatcher
+	)
 
 	if cfg.Cert != "" {
 		c, err := tls.LoadX509KeyPair(cfg.Cert, cfg.Key)
@@ -71,6 +74,7 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 		listen:      cfg.Listen,
 		cert:        cert,
 		certWatcher: certWatcher,
+		certMu:      sync.RWMutex{},
 	}, nil
 }
 
@@ -89,16 +93,23 @@ func (r *RevServer) Run(ctx context.Context) error {
 					return
 				case notification := <-subscriber:
 					slog.InfoContext(ctx, "TLS certificate file changed", slog.String("path", notification.Path))
+
 					newCert, err := tls.LoadX509KeyPair(r.cert.CertFilePath, r.cert.Key)
 					if err != nil {
 						slog.ErrorContext(ctx, "failed to reload TLS certificate", slog.Any("error", err))
 						continue
 					}
+
+					r.certMu.Lock()
+
 					r.cert = &Certificate{
 						Cert:         &newCert,
 						CertFilePath: r.cert.CertFilePath,
 						Key:          r.cert.Key}
+
 					slog.InfoContext(ctx, "TLS certificate reloaded successfully")
+
+					r.certMu.Unlock()
 				}
 			}
 		}()
@@ -110,10 +121,12 @@ func (r *RevServer) Run(ctx context.Context) error {
 	)
 
 	if r.cert != nil {
+		r.certMu.Lock()
 		l, err = tls.Listen("tcp", r.listen, &tls.Config{
 			Certificates: []tls.Certificate{*r.cert.Cert},
 			MinVersion:   tls.VersionTLS13,
 		})
+		r.certMu.Unlock()
 	} else {
 		l, err = net.Listen("tcp", r.listen)
 	}

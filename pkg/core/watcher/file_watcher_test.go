@@ -31,10 +31,13 @@ func TestNewWatcher_AddError(t *testing.T) {
 func TestWatcher_SubscribeAndUnsubscribe(t *testing.T) {
 	tmpDir := t.TempDir()
 	w, err := NewFileWatcher(tmpDir)
+
 	assert.NoError(t, err)
+
 	defer w.Close()
 
 	sub := w.Subscribe()
+
 	assert.NotNil(t, sub)
 	assert.Equal(t, 1, len(w.subscribers))
 
@@ -45,7 +48,9 @@ func TestWatcher_SubscribeAndUnsubscribe(t *testing.T) {
 func TestWatcher_NotifyAll(t *testing.T) {
 	tmpDir := t.TempDir()
 	w, err := NewFileWatcher(tmpDir)
+
 	assert.NoError(t, err)
+
 	defer w.Close()
 
 	sub := w.Subscribe()
@@ -65,14 +70,16 @@ func TestWatcher_NotifyAll(t *testing.T) {
 func TestWatcher_RunAndEvent(t *testing.T) {
 	tmpDir := t.TempDir()
 	w, err := NewFileWatcher(tmpDir)
+
 	assert.NoError(t, err)
+
 	defer w.Close()
 
 	sub := w.Subscribe()
 	defer w.Unsubscribe(sub)
 
 	testFile := filepath.Join(tmpDir, "file.txt")
-	err = os.WriteFile(testFile, []byte("hello"), 0644)
+	err = os.WriteFile(testFile, []byte("hello"), 0o600)
 	assert.NoError(t, err)
 
 	select {
@@ -88,17 +95,19 @@ func TestWatcher_RunError(t *testing.T) {
 		Events: make(chan fsnotify.Event),
 		Errors: make(chan error, 1),
 	}
-	w := &FileWatcher{
-		watcher:     nil,
-		subscribers: make(map[Subscriber]struct{}),
-	}
+	w, err := NewFileWatcher()
+
+	assert.NoError(t, err)
 
 	w.watcher = &fsnotify.Watcher{
 		Events: mw.Events,
 		Errors: mw.Errors,
 	}
+
 	var wg sync.WaitGroup
+
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
 		w.run()

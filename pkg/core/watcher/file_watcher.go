@@ -25,26 +25,32 @@ func NewFileWatcher(paths ...string) (*FileWatcher, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	for _, path := range paths {
 		if err := w.Add(path); err != nil {
 			w.Close()
 			return nil, err
 		}
 	}
+
 	fw := &FileWatcher{
 		watcher:     w,
 		subscribers: make(map[Subscriber]struct{}),
 		mu:          sync.Mutex{},
 	}
+
 	go fw.run()
+
 	return fw, nil
 }
 
 func (fw *FileWatcher) Subscribe() Subscriber {
 	ch := make(Subscriber, 1)
+
 	fw.mu.Lock()
 	fw.subscribers[ch] = struct{}{}
 	fw.mu.Unlock()
+
 	return ch
 }
 
@@ -62,6 +68,7 @@ func (fw *FileWatcher) run() {
 			if !ok {
 				return
 			}
+
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0 {
 				fw.notifyAll(Notification{Path: event.Name})
 			}
@@ -69,6 +76,7 @@ func (fw *FileWatcher) run() {
 			if !ok {
 				return
 			}
+
 			slog.Error(fmt.Sprintf("Watcher error: %v", err))
 		}
 	}
@@ -77,6 +85,7 @@ func (fw *FileWatcher) run() {
 func (fw *FileWatcher) notifyAll(n Notification) {
 	fw.mu.Lock()
 	defer fw.mu.Unlock()
+
 	for ch := range fw.subscribers {
 		select {
 		case ch <- n:

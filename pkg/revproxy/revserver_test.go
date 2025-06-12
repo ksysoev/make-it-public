@@ -206,13 +206,14 @@ func TestRunWithModifiedTLS(t *testing.T) {
 		errCh <- server.Run(ctx)
 	}()
 
+	server.certMu.Lock()
 	currentCert := server.cert
+	server.certMu.Unlock()
 
 	time.Sleep(100 * time.Millisecond)
 
 	// modify the certificate file to simulate a change
-	cert, key, err = generateRSACert()
-	assert.NoError(t, err)
+	cert, key = generateRSACert()
 
 	err = os.WriteFile(certPath, cert, 0o600)
 	require.NoError(t, err)
@@ -222,7 +223,9 @@ func TestRunWithModifiedTLS(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
+	server.certMu.Lock()
 	newCert := server.cert
+	server.certMu.Unlock()
 
 	assert.NotEqual(t, currentCert.Cert, newCert.Cert, "Certificate should be reloaded after modification")
 
@@ -266,7 +269,7 @@ func generateSelfSignedCert() (cert, key []byte, err error) {
 		nil
 }
 
-func generateRSACert() (cert, key []byte, err error) {
+func generateRSACert() (cert, key []byte) {
 	// This is a placeholder. In a real implementation, you would generate
 	// a self-signed certificate here. For the purpose of this test, we'll
 	// return dummy values that will cause the test to fail in a controlled way.
@@ -318,6 +321,5 @@ TOdtYJ1VBCsQoTq29OdE6Gh0jPbUSEOmT6ZZ4OuHAoGAWyU4JIxGfP1mQlA6QYu8
 5FFd1ldbaid+DnHoiv1gdXuM2RGXXyf5LEXnVwlodQJ4ANKmpmto5QdhKmRHBhD0
 uRdt2i8umLKY+bF4lgCaLBbe3gzoUzxp3rvOP3hNNMltZAkBjRSw05MWyMDBPiKh
 XIU2boodjWnKYPEmWzgtJw4=
------END PRIVATE KEY-----`),
-		nil
+-----END PRIVATE KEY-----`)
 }

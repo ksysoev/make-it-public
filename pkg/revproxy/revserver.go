@@ -28,6 +28,7 @@ type Certificate struct {
 	Key          string
 }
 
+//nolint:govet // linter mistakes Mutex to be smallers
 type RevServer struct {
 	certMu      sync.RWMutex
 	listen      string

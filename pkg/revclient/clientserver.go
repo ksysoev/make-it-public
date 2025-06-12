@@ -31,6 +31,11 @@ type ClientServer struct {
 	wg    sync.WaitGroup
 }
 
+type Conn interface {
+	net.Conn
+	CloseWrite() error
+}
+
 func NewClientServer(cfg Config, tkn *token.Token) *ClientServer {
 	return &ClientServer{
 		cfg:   cfg,
@@ -137,15 +142,24 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
+	conn1, ok := conn.(Conn)
+	conn2, ok2 := destConn.(Conn)
+	if !ok || !ok2 {
+		slog.ErrorContext(ctx, "failed to cast connections to custom Conn interface")
+		return
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 
-	eg.Go(pipeConn(conn, destConn))
-	eg.Go(pipeConn(destConn, conn))
-	eg.Go(func() error {
+	eg.Go(pipeConn(conn1, conn2))
+	eg.Go(pipeConn(conn2, conn1))
+
+	go func() {
 		<-ctx.Done()
 
-		return errors.Join(conn.Close(), destConn.Close())
-	})
+		_ = conn1.Close()
+		_ = conn2.Close()
+	}()
 
 	_ = eg.Wait()
 }
@@ -153,17 +167,17 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 // pipeConn transfers data between two network connections until an error or EOF occurs.
 // It propagates specific network-related errors (like connection closures or resets) as io.EOF.
 // Returns an error if an unexpected I/O error occurs during data transfer.
-func pipeConn(src, dst net.Conn) func() error {
+func pipeConn(src, dst Conn) func() error {
 	return func() error {
 		_, err := io.Copy(src, dst)
 
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
-			return io.EOF
+			return net.ErrClosed
 		case err != nil:
 			return fmt.Errorf("error copying from reverse connection: %w", err)
 		}
 
-		return io.EOF
+		return dst.CloseWrite()
 	}
 }

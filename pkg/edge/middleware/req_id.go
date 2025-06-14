@@ -13,6 +13,7 @@ import (
 func ReqID() func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			//nolint:staticcheck,revive // don't want to couple with cmd package for now
 			ctx := context.WithValue(r.Context(), "req_id", uuid.New().String())
 			r = r.WithContext(ctx)
 

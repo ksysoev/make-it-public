@@ -155,14 +155,9 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	eg.Go(pipeToDest(connNopCloser, revConn))
 	eg.Go(pipeToSource(revConn, connNopCloser))
 
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-req.ParentContext().Done(): // Pare
-		}
+	guard := closeOnContextDone(ctx, req.ParentContext(), revConn)
 
-		_ = revConn.Close()
-	}()
+	defer guard.Wait()
 
 	if err := eg.Wait(); !errors.Is(err, ErrConnClosed) {
 		return err
@@ -211,6 +206,30 @@ func pipeToSource(src conn.WithWriteCloser, dst io.Writer) func() error {
 
 		return ErrConnClosed
 	}
+}
+
+// closeOnContextDone closes the provided connection when either of the given contexts is done.
+// It initiates a goroutine that waits for completion signals from reqCtx or parentCtx.
+// Accepts reqCtx as the request-level context, parentCtx as the parent context, and c as the connection to close.
+// Returns a *sync.WaitGroup which can be used to wait until the closing operation is complete.
+func closeOnContextDone(reqCtx, parentCtx context.Context, c conn.WithWriteCloser) *sync.WaitGroup {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		select {
+		case <-reqCtx.Done():
+		case <-parentCtx.Done(): // Pare
+		}
+
+		if err := c.Close(); err != nil {
+			slog.DebugContext(reqCtx, "failed to close connection", slog.Any("error", err))
+		}
+	}()
+
+	return wg
 }
 
 // timeoutContext creates a new context with a specified timeout duration.

@@ -3,7 +3,6 @@ package conn
 import (
 	"context"
 	"fmt"
-	"net"
 
 	"github.com/google/uuid"
 )
@@ -13,15 +12,15 @@ import (
 type Request interface {
 	ID() uuid.UUID
 	ParentContext() context.Context
-	WaitConn(ctx context.Context) (net.Conn, error)
-	SendConn(ctx context.Context, conn net.Conn)
+	WaitConn(ctx context.Context) (WithWriteCloser, error)
+	SendConn(ctx context.Context, conn WithWriteCloser)
 	Cancel()
 }
 
 // request represents a connection request with a unique identifier, channel for delivering the connection, and context for cancellation.
 type request struct {
 	ctx context.Context
-	ch  chan net.Conn
+	ch  chan WithWriteCloser
 	id  uuid.UUID
 }
 
@@ -31,7 +30,7 @@ type request struct {
 func newRequest(ctx context.Context) *request {
 	return &request{
 		id:  uuid.New(),
-		ch:  make(chan net.Conn),
+		ch:  make(chan WithWriteCloser),
 		ctx: ctx,
 	}
 }
@@ -49,7 +48,7 @@ func (r *request) ParentContext() context.Context {
 
 // WaitConn waits for a network connection to be delivered through the request's channel or observes context cancellations.
 // It returns the established net.Conn if successful or an error if the provided context, parent context, or request is canceled.
-func (r *request) WaitConn(ctx context.Context) (net.Conn, error) {
+func (r *request) WaitConn(ctx context.Context) (WithWriteCloser, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -68,7 +67,7 @@ func (r *request) WaitConn(ctx context.Context) (net.Conn, error) {
 // It returns immediately if the provided context or the parent context is done, ensuring no blocking occurs.
 // ctx represents the context to observe for cancellation or deadlines.
 // conn represents the network connection to be sent.
-func (r *request) SendConn(ctx context.Context, conn net.Conn) {
+func (r *request) SendConn(ctx context.Context, conn WithWriteCloser) {
 	select {
 	case <-ctx.Done():
 		return

@@ -3,13 +3,11 @@ package revclient
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ksysoev/make-it-public/pkg/core/conn/meta"
@@ -29,6 +27,11 @@ type ClientServer struct {
 	token *token.Token
 	cfg   Config
 	wg    sync.WaitGroup
+}
+
+type Conn interface {
+	net.Conn
+	CloseWrite() error
 }
 
 func NewClientServer(cfg Config, tkn *token.Token) *ClientServer {
@@ -137,33 +140,41 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
+	conn1, ok := conn.(Conn)
+	conn2, ok2 := destConn.(Conn)
+
+	if !ok || !ok2 {
+		slog.ErrorContext(ctx, "failed to cast connections to custom Conn interface")
+		return
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 
-	eg.Go(pipeConn(conn, destConn))
-	eg.Go(pipeConn(destConn, conn))
-	eg.Go(func() error {
+	eg.Go(pipeConn(conn1, conn2))
+	eg.Go(pipeConn(conn2, conn1))
+
+	go func() {
 		<-ctx.Done()
 
-		return errors.Join(conn.Close(), destConn.Close())
-	})
+		_ = conn2.Close()
+		_ = conn1.Close()
+	}()
 
-	_ = eg.Wait()
+	if err := eg.Wait(); err != nil {
+		slog.DebugContext(ctx, "error during connection data transfer", "error", err)
+	}
 }
 
-// pipeConn transfers data between two network connections until an error or EOF occurs.
-// It propagates specific network-related errors (like connection closures or resets) as io.EOF.
-// Returns an error if an unexpected I/O error occurs during data transfer.
-func pipeConn(src, dst net.Conn) func() error {
+// pipeConn facilitates data transfer from the source connection to the destination connection in a single direction.
+// It utilizes io.Copy for copying data and closes the writing end of the destination connection afterward.
+// Accepts src as the source Conn interface and dst as the destination Conn interface, both supporting a CloseWrite method.
+// Returns a function that executes the transfer process, returning an error if copying fails or if closing dst's write end fails.
+func pipeConn(src, dst Conn) func() error {
 	return func() error {
-		_, err := io.Copy(src, dst)
-
-		switch {
-		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
-			return io.EOF
-		case err != nil:
-			return fmt.Errorf("error copying from reverse connection: %w", err)
+		if _, err := io.Copy(dst, src); err != nil {
+			return fmt.Errorf("error copying data: %w", err)
 		}
 
-		return io.EOF
+		return dst.CloseWrite()
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/ksysoev/revdial/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServConn_ID(t *testing.T) {
@@ -94,12 +95,14 @@ func TestCloseNotifier_WaitClose(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockConn := &net.IPConn{}
+			mockConn := &net.TCPConn{}
 			ctx, cancel := context.WithTimeout(context.Background(), tt.ctxTimeout)
 
 			defer cancel()
 
-			cn := NewCloseNotifier(mockConn)
+			cn, err := NewCloseNotifier(mockConn)
+
+			require.NoError(t, err)
 
 			go func() {
 				time.Sleep(tt.closeDelay)
@@ -120,9 +123,12 @@ func TestCloseNotifier_WaitClose(t *testing.T) {
 }
 
 func TestCloseNotifier_Close(t *testing.T) {
-	mockConn := &net.IPConn{}
+	mockConn := &net.TCPConn{}
 
-	cn := NewCloseNotifier(mockConn)
+	cn, err := NewCloseNotifier(mockConn)
+
+	require.NoError(t, err)
+
 	_ = cn.Close()
 
 	select {

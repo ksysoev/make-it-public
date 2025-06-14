@@ -148,7 +148,6 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.DebugContext(ctx, "connection timed out", slog.String("host", r.Host))
 	case err != nil:
 		slog.ErrorContext(ctx, "failed to handle connection", slog.Any("error", err))
-		http.Error(w, "Failed to handle connection: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 

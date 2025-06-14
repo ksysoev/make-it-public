@@ -23,6 +23,8 @@ func TestHandleHTTPConnection_ConnectionRequestFailure(t *testing.T) {
 	service := New(connManager, authRepo)
 	clientConn := conn.NewMockWithWriteCloser(t)
 
+	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080})
+
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
@@ -35,6 +37,7 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 	authRepo := NewMockAuthRepo(t)
 
 	revConn := conn.NewMockWithWriteCloser(t)
+	revConn.EXPECT().Write(mock.Anything).Return(0, assert.AnError)
 
 	mockReq := conn.NewMockRequest(t)
 	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
@@ -42,6 +45,8 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 
 	service := New(connManager, authRepo)
 	clientConn := conn.NewMockWithWriteCloser(t)
+
+	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -68,6 +73,8 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 
 	service := New(connManager, authRepo)
 	clientConn := conn.NewMockWithWriteCloser(t)
+
+	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()

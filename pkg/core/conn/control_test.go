@@ -99,7 +99,9 @@ func TestCloseNotifier_WaitClose(t *testing.T) {
 
 			defer cancel()
 
-			cn := NewCloseNotifier(mockConn)
+			cn, err := NewCloseNotifier(mockConn)
+
+			assert.NoError(t, err)
 
 			go func() {
 				time.Sleep(tt.closeDelay)
@@ -122,7 +124,10 @@ func TestCloseNotifier_WaitClose(t *testing.T) {
 func TestCloseNotifier_Close(t *testing.T) {
 	mockConn := &net.IPConn{}
 
-	cn := NewCloseNotifier(mockConn)
+	cn, err := NewCloseNotifier(mockConn)
+
+	assert.NoError(t, err)
+
 	_ = cn.Close()
 
 	select {

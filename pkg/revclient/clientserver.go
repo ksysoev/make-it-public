@@ -142,6 +142,7 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 
 	conn1, ok := conn.(Conn)
 	conn2, ok2 := destConn.(Conn)
+
 	if !ok || !ok2 {
 		slog.ErrorContext(ctx, "failed to cast connections to custom Conn interface")
 		return
@@ -162,7 +163,6 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 	if err := eg.Wait(); err != nil {
 		slog.DebugContext(ctx, "error during connection data transfer", "error", err)
 	}
-
 }
 
 // pipeConn facilitates data transfer from the source connection to the destination connection in a single direction.

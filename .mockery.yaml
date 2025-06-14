@@ -20,6 +20,7 @@ packages:
     interfaces:
       Request:
       serverConn:
+      WithWriteCloser:
   github.com/ksysoev/make-it-public/pkg/api:
     interfaces:
       Service:

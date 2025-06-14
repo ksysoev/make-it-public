@@ -65,7 +65,7 @@ func TestConnReq_WaitConn(t *testing.T) {
 			}
 
 			if tt.sendConn {
-				conn := &net.IPConn{}
+				conn := &net.TCPConn{}
 				go func() {
 					time.Sleep(10 * time.Millisecond)
 					connReq.SendConn(ctx, conn)
@@ -118,7 +118,7 @@ func TestConnReq_SendConn(t *testing.T) {
 				childCancel()
 			}
 
-			conn := &net.IPConn{}
+			conn := &net.TCPConn{}
 			done := make(chan struct{})
 
 			go func() {

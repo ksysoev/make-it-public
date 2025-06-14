@@ -98,6 +98,7 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 		slog.InfoContext(ctx, "rev conn established", slog.String("keyID", connKeyID))
 
 		notifier.WaitClose(ctx)
+		slog.DebugContext(ctx, "bound connection closed", slog.String("keyID", connKeyID))
 
 		return nil
 	default:
@@ -234,7 +235,9 @@ func closeOnContextDone(reqCtx, parentCtx context.Context, c conn.WithWriteClose
 
 		select {
 		case <-reqCtx.Done():
-		case <-parentCtx.Done(): // Pare
+			slog.DebugContext(reqCtx, "closing connection, request context done")
+		case <-parentCtx.Done():
+			slog.DebugContext(reqCtx, "closing connection, parent context done")
 		}
 
 		slog.DebugContext(reqCtx, "closing connection, context done")

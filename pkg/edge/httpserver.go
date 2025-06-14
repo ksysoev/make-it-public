@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core"
 	"github.com/ksysoev/make-it-public/pkg/core/url"
 	"github.com/ksysoev/make-it-public/pkg/edge/middleware"
@@ -75,6 +74,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		middleware.Metrics(),
 		middleware.LimitConnections(cmp.Or(s.config.ConnLimit, defaultConnLimitPerKeyID)),
 		middleware.ClientIP(),
+		middleware.ReqID(),
 	)
 
 	var handler http.Handler = s
@@ -110,12 +110,9 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 // It uses a hijacker to take control of the underlying connection for advanced protocol handling.
 // Returns appropriate HTTP error responses for unsupported hijacking, connection issues, or context errors.
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//nolint:staticcheck,revive // don't want to couple with cmd package for now
-	ctx := context.WithValue(r.Context(), "req_id", uuid.New().String())
-
 	hj, ok := w.(http.Hijacker)
 	if !ok {
-		slog.ErrorContext(ctx, "webserver doesn't support hijacking", slog.String("host", r.Host))
+		slog.ErrorContext(r.Context(), "webserver doesn't support hijacking", slog.String("host", r.Host))
 		http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
 
 		return
@@ -123,13 +120,15 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	clientConn, _, err := hj.Hijack()
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to hijack connection", slog.Any("error", err))
+		slog.ErrorContext(r.Context(), "failed to hijack connection", slog.Any("error", err))
 		http.Error(w, "Failed to hijack connection: "+err.Error(), http.StatusInternalServerError)
 
 		return
 	}
 
 	defer func() { _ = clientConn.Close() }()
+
+	ctx := r.Context()
 
 	keyID := middleware.GetKeyID(r)
 	clientIP := middleware.GetClientIP(r)

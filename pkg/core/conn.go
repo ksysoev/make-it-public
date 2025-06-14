@@ -150,7 +150,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	}
 
 	// Create error group for managing both copy operations
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, ctx := errgroup.WithContext(context.TODO())
 	connNopCloser := conn.NewContextConnNopCloser(ctx, cliConn)
 	respBytesWritten := int64(0)
 

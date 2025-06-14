@@ -153,8 +153,8 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	connNopCloser := conn.NewContextConnNopCloser(ctx, cliConn)
 	respBytesWritten := int64(0)
 
-	eg.Go(pipeToDest(connNopCloser, revConn))
-	eg.Go(pipeToSource(revConn, connNopCloser, &respBytesWritten))
+	eg.Go(pipeToDest(ctx, connNopCloser, revConn))
+	eg.Go(pipeToSource(ctx, revConn, connNopCloser, &respBytesWritten))
 
 	guard := closeOnContextDone(ctx, req.ParentContext(), revConn)
 	defer guard.Wait()
@@ -162,10 +162,12 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	err = eg.Wait()
 
 	if respBytesWritten <= 0 {
+		slog.DebugContext(ctx, "no data written to reverse connection", slog.Any("error", err))
 		return fmt.Errorf("no data written to reverse connection: %w", ErrFailedToConnect)
 	}
 
 	if err != nil && !errors.Is(err, ErrConnClosed) {
+		slog.DebugContext(ctx, "failed to copy data", slog.Any("error", err))
 		return fmt.Errorf("failed to copy data: %w", err)
 	}
 
@@ -176,9 +178,10 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 // It manages specific error conditions such as closed or reset connections.
 // Returns a function that executes the copy process, returning ErrConnClosed for io.ErrClosedPipe or connection reset errors.
 // Also returns a wrapped error for other errors encountered during the copy process, or nil if the operation completes successfully.
-func pipeToDest(src io.Reader, dst conn.WithWriteCloser) func() error {
+func pipeToDest(ctx context.Context, src io.Reader, dst conn.WithWriteCloser) func() error {
 	return func() error {
-		_, err := io.Copy(dst, src)
+		n, err := io.Copy(dst, src)
+		slog.DebugContext(ctx, "data copied to reverse connection", slog.Any("error", err), slog.Int64("bytes_written", n))
 
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
@@ -188,6 +191,7 @@ func pipeToDest(src io.Reader, dst conn.WithWriteCloser) func() error {
 		}
 
 		if err := dst.CloseWrite(); err != nil && !errors.Is(err, net.ErrClosed) {
+			slog.DebugContext(ctx, "failed to close write end of reverse connection", slog.Any("error", err))
 			return fmt.Errorf("failed to close write end of reverse connection: %w", err)
 		}
 
@@ -199,11 +203,12 @@ func pipeToDest(src io.Reader, dst conn.WithWriteCloser) func() error {
 // It logs the completion of the copy operation and handles specific error conditions.
 // Returns a function that executes the copy process, returning ErrConnClosed if the source connection is closed or reset,
 // or a wrapped error if other errors occur during the copying process.
-func pipeToSource(src conn.WithWriteCloser, dst io.Writer, written *int64) func() error {
+func pipeToSource(ctx context.Context, src conn.WithWriteCloser, dst io.Writer, written *int64) func() error {
 	return func() error {
 		var err error
 
 		*written, err = io.Copy(dst, src)
+		slog.DebugContext(ctx, "data copied from reverse connection", slog.Int64("bytes_written", *written), slog.Any("error", err))
 
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
@@ -231,6 +236,8 @@ func closeOnContextDone(reqCtx, parentCtx context.Context, c conn.WithWriteClose
 		case <-reqCtx.Done():
 		case <-parentCtx.Done(): // Pare
 		}
+
+		slog.DebugContext(reqCtx, "closing connection, context done")
 
 		if err := c.Close(); err != nil {
 			slog.DebugContext(reqCtx, "failed to close connection", slog.Any("error", err))

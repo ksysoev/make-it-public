@@ -150,8 +150,8 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	eg.Go(pipeConn(conn1, conn2))
-	eg.Go(pipeConn(conn2, conn1))
+	eg.Go(pipeConn(ctx, conn1, conn2))
+	eg.Go(pipeConn(ctx, conn2, conn1))
 
 	go func() {
 		<-ctx.Done()
@@ -161,7 +161,7 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 	}()
 
 	if err := eg.Wait(); err != nil {
-		slog.DebugContext(ctx, "error during connection data transfer", "error", err)
+		slog.DebugContext(ctx, "error during connection data transfer", slog.Any("error", err))
 	}
 }
 
@@ -169,9 +169,12 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 // It utilizes io.Copy for copying data and closes the writing end of the destination connection afterward.
 // Accepts src as the source Conn interface and dst as the destination Conn interface, both supporting a CloseWrite method.
 // Returns a function that executes the transfer process, returning an error if copying fails or if closing dst's write end fails.
-func pipeConn(src, dst Conn) func() error {
+func pipeConn(ctx context.Context, src, dst Conn) func() error {
 	return func() error {
-		if _, err := io.Copy(dst, src); err != nil {
+		n, err := io.Copy(dst, src)
+		slog.DebugContext(ctx, "data copied", slog.Int64("bytes_written", n), slog.Any("error", err))
+
+		if err != nil {
 			return fmt.Errorf("error copying data: %w", err)
 		}
 

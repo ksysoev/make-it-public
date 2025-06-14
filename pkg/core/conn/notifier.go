@@ -6,29 +6,29 @@ import (
 	"net"
 )
 
-type ConnCloseWriter interface {
+type WithWriteCloser interface {
 	net.Conn
 	CloseWrite() error
 }
 
 // CloseNotifier is a type that wraps a network connection and provides a mechanism to signal when the connection is closed.
 type CloseNotifier struct {
-	ConnCloseWriter
+	WithWriteCloser
 	done chan struct{}
 }
 
 // NewCloseNotifier creates and returns a CloseNotifier wrapping the given network connection.
 // It initializes a channel to signal when the connection is closed.
-func NewCloseNotifier(conn net.Conn) *CloseNotifier {
-	c, ok := conn.(ConnCloseWriter)
+func NewCloseNotifier(conn net.Conn) (*CloseNotifier, error) {
+	c, ok := conn.(WithWriteCloser)
 	if !ok {
-		panic(fmt.Sprintf("connection does not implement CloseWriter interface: %T", conn))
+		return nil, fmt.Errorf("connection does not implement WithWriteCloser interface")
 	}
 
 	return &CloseNotifier{
-		ConnCloseWriter: c,
+		WithWriteCloser: c,
 		done:            make(chan struct{}),
-	}
+	}, nil
 }
 
 // WaitClose blocks until the CloseNotifier is closed or the provided context is canceled.
@@ -46,5 +46,5 @@ func (c *CloseNotifier) WaitClose(ctx context.Context) {
 func (c *CloseNotifier) Close() error {
 	defer close(c.done)
 
-	return c.ConnCloseWriter.Close()
+	return c.WithWriteCloser.Close()
 }

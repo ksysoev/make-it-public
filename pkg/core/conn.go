@@ -27,13 +27,6 @@ var (
 	ErrConnClosed      = errors.New("connection closed")
 )
 
-type Conn interface {
-	Read(p []byte) (n int, err error)
-	Write(p []byte) (n int, err error)
-	Close() error
-	CloseWrite() error
-}
-
 func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error {
 	ctx, cancelTimeout := timeoutContext(ctx, connectionTimeout)
 
@@ -96,7 +89,10 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 			}
 		}
 	case proto.StateBound:
-		notifier := conn.NewCloseNotifier(revConn)
+		notifier, err := conn.NewCloseNotifier(revConn)
+		if err != nil {
+			return fmt.Errorf("failed to create close notifier: %w", err)
+		}
 
 		s.connmng.ResolveRequest(servConn.ID(), notifier)
 		slog.InfoContext(ctx, "rev conn established", slog.String("keyID", connKeyID))
@@ -156,13 +152,8 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	eg, ctx := errgroup.WithContext(ctx)
 	connNopCloser := conn.NewContextConnNopCloser(ctx, cliConn)
 
-	destConn, ok := revConn.(Conn)
-	if !ok {
-		return fmt.Errorf("failed to cast reverse connection to custom Conn interface %T", revConn)
-	}
-
-	eg.Go(pipeToDest(connNopCloser, destConn))
-	eg.Go(pipeToSource(destConn, connNopCloser))
+	eg.Go(pipeToDest(connNopCloser, revConn))
+	eg.Go(pipeToSource(revConn, connNopCloser))
 
 	go func() {
 		select {
@@ -184,7 +175,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 // It manages specific error conditions such as closed or reset connections.
 // Returns a function that executes the copy process, returning ErrConnClosed for io.ErrClosedPipe or connection reset errors.
 // Also returns a wrapped error for other errors encountered during the copy process, or nil if the operation completes successfully.
-func pipeToDest(src io.Reader, dst Conn) func() error {
+func pipeToDest(src io.Reader, dst conn.WithWriteCloser) func() error {
 	return func() error {
 		_, err := io.Copy(dst, src)
 
@@ -203,7 +194,7 @@ func pipeToDest(src io.Reader, dst Conn) func() error {
 // It logs the completion of the copy operation and handles specific error conditions.
 // Returns a function that executes the copy process, returning ErrConnClosed if the source connection is closed or reset,
 // or a wrapped error if other errors occur during the copying process.
-func pipeToSource(src Conn, dst io.Writer) func() error {
+func pipeToSource(src conn.WithWriteCloser, dst io.Writer) func() error {
 	return func() error {
 		n, err := io.Copy(dst, src)
 

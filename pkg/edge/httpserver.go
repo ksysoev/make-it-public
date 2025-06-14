@@ -91,7 +91,6 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	server := &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
-		WriteTimeout:      5 * time.Second,
 	}
 
 	go func() {

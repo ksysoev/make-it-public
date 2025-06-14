@@ -149,8 +149,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 		return fmt.Errorf("failed to write initial request: %w", ErrFailedToConnect)
 	}
 
-	// Create error group for managing both copy operations
-	eg, ctx := errgroup.WithContext(context.TODO())
+	eg, ctx := errgroup.WithContext(ctx)
 	connNopCloser := conn.NewContextConnNopCloser(ctx, cliConn)
 	respBytesWritten := int64(0)
 
@@ -235,9 +234,9 @@ func closeOnContextDone(reqCtx, parentCtx context.Context, c conn.WithWriteClose
 
 		select {
 		case <-reqCtx.Done():
-			slog.DebugContext(reqCtx, "closing connection, request context done")
+			slog.DebugContext(reqCtx, "closing connection, request context done", slog.Any("error", reqCtx.Err()))
 		case <-parentCtx.Done():
-			slog.DebugContext(reqCtx, "closing connection, parent context done")
+			slog.DebugContext(reqCtx, "closing connection, parent context done", slog.Any("error", parentCtx.Err()))
 		}
 
 		slog.DebugContext(reqCtx, "closing connection, context done")

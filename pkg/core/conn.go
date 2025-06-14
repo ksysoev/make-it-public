@@ -151,16 +151,22 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	// Create error group for managing both copy operations
 	eg, ctx := errgroup.WithContext(ctx)
 	connNopCloser := conn.NewContextConnNopCloser(ctx, cliConn)
+	respBytesWritten := int64(0)
 
 	eg.Go(pipeToDest(connNopCloser, revConn))
-	eg.Go(pipeToSource(revConn, connNopCloser))
+	eg.Go(pipeToSource(revConn, connNopCloser, &respBytesWritten))
 
 	guard := closeOnContextDone(ctx, req.ParentContext(), revConn)
-
 	defer guard.Wait()
 
-	if err := eg.Wait(); !errors.Is(err, ErrConnClosed) {
-		return err
+	err = eg.Wait()
+
+	if respBytesWritten <= 0 {
+		return fmt.Errorf("no data written to reverse connection: %w", ErrFailedToConnect)
+	}
+
+	if err != nil && !errors.Is(err, ErrConnClosed) {
+		return fmt.Errorf("failed to copy data: %w", err)
 	}
 
 	return nil
@@ -181,7 +187,11 @@ func pipeToDest(src io.Reader, dst conn.WithWriteCloser) func() error {
 			return fmt.Errorf("error copying from reverse connection: %w", err)
 		}
 
-		return dst.CloseWrite()
+		if err := dst.CloseWrite(); err != nil && !errors.Is(err, net.ErrClosed) {
+			return fmt.Errorf("failed to close write end of reverse connection: %w", err)
+		}
+
+		return nil
 	}
 }
 
@@ -189,13 +199,11 @@ func pipeToDest(src io.Reader, dst conn.WithWriteCloser) func() error {
 // It logs the completion of the copy operation and handles specific error conditions.
 // Returns a function that executes the copy process, returning ErrConnClosed if the source connection is closed or reset,
 // or a wrapped error if other errors occur during the copying process.
-func pipeToSource(src conn.WithWriteCloser, dst io.Writer) func() error {
+func pipeToSource(src conn.WithWriteCloser, dst io.Writer, written *int64) func() error {
 	return func() error {
-		n, err := io.Copy(dst, src)
+		var err error
 
-		if n <= 0 {
-			return fmt.Errorf("error copying from reverse connection: %w", ErrFailedToConnect)
-		}
+		*written, err = io.Copy(dst, src)
 
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):

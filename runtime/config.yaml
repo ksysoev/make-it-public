@@ -1,16 +1,13 @@
 http:
   public:
     schema: "http"
-    domain: "make-it-public.dev"
+    domain: "make-it-public.com"
     port: 8080
   listen: ":8080"
 reverse_proxy:
   listen: ":8081"
-  cert: "../my.crt"
-  key: "../my.key"
 api:
   listen: ":8082"
-  swagger_file_path: "/docs/swagger.json"
   scheme: "http"
 
 auth:

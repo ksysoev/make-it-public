@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"net"
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
@@ -27,7 +26,7 @@ type AuthRepo interface {
 type ConnManager interface {
 	RequestConnection(ctx context.Context, keyID string) (conn.Request, error)
 	AddConnection(keyID string, conn ControlConn)
-	ResolveRequest(id uuid.UUID, conn net.Conn)
+	ResolveRequest(id uuid.UUID, conn conn.WithWriteCloser)
 	RemoveConnection(keyID string, id uuid.UUID)
 	CancelRequest(id uuid.UUID)
 }

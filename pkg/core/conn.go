@@ -24,6 +24,7 @@ const (
 var (
 	ErrFailedToConnect = errors.New("failed to connect")
 	ErrKeyIDNotFound   = errors.New("keyID not found")
+	ErrConnClosed      = errors.New("connection closed")
 )
 
 func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error {
@@ -88,7 +89,10 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 			}
 		}
 	case proto.StateBound:
-		notifier := conn.NewCloseNotifier(revConn)
+		notifier, err := conn.NewCloseNotifier(revConn)
+		if err != nil {
+			return fmt.Errorf("failed to create close notifier: %w", err)
+		}
 
 		s.connmng.ResolveRequest(servConn.ID(), notifier)
 		slog.InfoContext(ctx, "rev conn established", slog.String("keyID", connKeyID))
@@ -147,51 +151,93 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	// Create error group for managing both copy operations
 	eg, ctx := errgroup.WithContext(ctx)
 	connNopCloser := conn.NewContextConnNopCloser(ctx, cliConn)
-	hasResp := false
+	respBytesWritten := int64(0)
 
-	eg.Go(pipeConn(connNopCloser, revConn, nil))
-	eg.Go(pipeConn(revConn, connNopCloser, &hasResp))
-	eg.Go(func() error {
-		select {
-		case <-ctx.Done():
-		case <-req.ParentContext().Done(): // Pare
-		}
+	eg.Go(pipeToDest(connNopCloser, revConn))
+	eg.Go(pipeToSource(revConn, connNopCloser, &respBytesWritten))
 
-		return revConn.Close()
-	})
+	guard := closeOnContextDone(ctx, req.ParentContext(), revConn)
+	defer guard.Wait()
 
-	if err := eg.Wait(); !errors.Is(err, io.EOF) {
-		return err
+	err = eg.Wait()
+
+	if respBytesWritten <= 0 {
+		return fmt.Errorf("no data written to reverse connection: %w", ErrFailedToConnect)
 	}
 
-	if !hasResp {
-		slog.DebugContext(ctx, "no response received from reverse connection")
-		return ErrFailedToConnect
+	if err != nil && !errors.Is(err, ErrConnClosed) {
+		return fmt.Errorf("failed to copy data: %w", err)
 	}
 
 	return nil
 }
 
-// pipeConn transfers data from a source reader to a destination writer in a streaming manner.
-// It sets hasResp to true if data is successfully transferred and hasResp is not nil.
-// Returns an error if copying fails, with specific error handling for closed connections and reset errors.
-func pipeConn(src io.Reader, dst io.Writer, hasResp *bool) func() error {
+// pipeToDest copies data from the source Reader to the destination Conn in a streaming manner.
+// It manages specific error conditions such as closed or reset connections.
+// Returns a function that executes the copy process, returning ErrConnClosed for io.ErrClosedPipe or connection reset errors.
+// Also returns a wrapped error for other errors encountered during the copy process, or nil if the operation completes successfully.
+func pipeToDest(src io.Reader, dst conn.WithWriteCloser) func() error {
 	return func() error {
-		n, err := io.Copy(dst, src)
-
-		if hasResp != nil && n > 0 {
-			*hasResp = true
-		}
+		_, err := io.Copy(dst, src)
 
 		switch {
 		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
-			return io.EOF
+			return ErrConnClosed
 		case err != nil:
 			return fmt.Errorf("error copying from reverse connection: %w", err)
 		}
 
-		return io.EOF
+		if err := dst.CloseWrite(); err != nil && !errors.Is(err, net.ErrClosed) {
+			return fmt.Errorf("failed to close write end of reverse connection: %w", err)
+		}
+
+		return nil
 	}
+}
+
+// pipeToSource copies data from the source connection to the destination writer in a streaming manner.
+// It logs the completion of the copy operation and handles specific error conditions.
+// Returns a function that executes the copy process, returning ErrConnClosed if the source connection is closed or reset,
+// or a wrapped error if other errors occur during the copying process.
+func pipeToSource(src conn.WithWriteCloser, dst io.Writer, written *int64) func() error {
+	return func() error {
+		var err error
+
+		*written, err = io.Copy(dst, src)
+
+		switch {
+		case errors.Is(err, net.ErrClosed), errors.Is(err, syscall.ECONNRESET):
+			return ErrConnClosed
+		case err != nil:
+			return fmt.Errorf("error copying to reverse connection: %w", err)
+		}
+
+		return ErrConnClosed
+	}
+}
+
+// closeOnContextDone closes the provided connection when either of the given contexts is done.
+// It initiates a goroutine that waits for completion signals from reqCtx or parentCtx.
+// Accepts reqCtx as the request-level context, parentCtx as the parent context, and c as the connection to close.
+// Returns a *sync.WaitGroup which can be used to wait until the closing operation is complete.
+func closeOnContextDone(reqCtx, parentCtx context.Context, c conn.WithWriteCloser) *sync.WaitGroup {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		select {
+		case <-reqCtx.Done():
+		case <-parentCtx.Done(): // Pare
+		}
+
+		if err := c.Close(); err != nil {
+			slog.DebugContext(reqCtx, "failed to close connection", slog.Any("error", err))
+		}
+	}()
+
+	return wg
 }
 
 // timeoutContext creates a new context with a specified timeout duration.

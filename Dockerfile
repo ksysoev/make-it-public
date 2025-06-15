@@ -1,4 +1,4 @@
-FROM golang:1.23.0-alpine AS builder
+FROM golang:1.24.4-alpine AS builder
 
 ARG MIT_SERVER=${MIT_SERVER}
 ARG VERSION=${VERSION}

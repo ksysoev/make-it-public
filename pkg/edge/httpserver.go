@@ -128,10 +128,14 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() { _ = clientConn.Close() }()
 
-	ctx := r.Context()
-
 	keyID := middleware.GetKeyID(r)
 	clientIP := middleware.GetClientIP(r)
+
+	// Prevent context cancellation from affecting the hijacked connection handling
+	ctx := context.WithoutCancel(r.Context())
+	ctx, cancel := context.WithCancel(ctx)
+
+	defer cancel()
 
 	err = s.connService.HandleHTTPConnection(ctx, keyID, clientConn, func(conn net.Conn) error {
 		return r.Write(conn)

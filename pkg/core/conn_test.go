@@ -260,7 +260,7 @@ func TestPipeToDest_SuccessfulCopy(t *testing.T) {
 	dst.EXPECT().CloseWrite().Return(nil)
 
 	// Execute the function
-	pipeFunc := pipeToDest(src, dst)
+	pipeFunc := pipeToDest(t.Context(), src, dst)
 	err := pipeFunc()
 
 	// Verify results
@@ -278,7 +278,7 @@ func TestPipeToDest_NetErrClosed(t *testing.T) {
 	dst.EXPECT().Write(mock.Anything).Return(0, net.ErrClosed)
 
 	// Execute the function
-	pipeFunc := pipeToDest(src, dst)
+	pipeFunc := pipeToDest(t.Context(), src, dst)
 	err := pipeFunc()
 
 	// Verify results
@@ -296,7 +296,7 @@ func TestPipeToDest_EconnReset(t *testing.T) {
 	dst.EXPECT().Write(mock.Anything).Return(0, syscall.ECONNRESET)
 
 	// Execute the function
-	pipeFunc := pipeToDest(src, dst)
+	pipeFunc := pipeToDest(t.Context(), src, dst)
 	err := pipeFunc()
 
 	// Verify results
@@ -315,7 +315,7 @@ func TestPipeToDest_OtherCopyError(t *testing.T) {
 	dst.EXPECT().Write(mock.Anything).Return(0, customErr)
 
 	// Execute the function
-	pipeFunc := pipeToDest(src, dst)
+	pipeFunc := pipeToDest(t.Context(), src, dst)
 	err := pipeFunc()
 
 	// Verify results
@@ -339,7 +339,7 @@ func TestPipeToDest_CloseWriteError(t *testing.T) {
 	dst.EXPECT().CloseWrite().Return(closeErr)
 
 	// Execute the function
-	pipeFunc := pipeToDest(src, dst)
+	pipeFunc := pipeToDest(t.Context(), src, dst)
 	err := pipeFunc()
 
 	// Verify results
@@ -361,7 +361,7 @@ func TestPipeToDest_CloseWriteNetErrClosed(t *testing.T) {
 	dst.EXPECT().CloseWrite().Return(net.ErrClosed)
 
 	// Execute the function
-	pipeFunc := pipeToDest(src, dst)
+	pipeFunc := pipeToDest(t.Context(), src, dst)
 	err := pipeFunc()
 
 	// Verify results
@@ -390,7 +390,7 @@ func TestPipeToSource_SuccessfulCopy(t *testing.T) {
 	var written int64
 
 	// Execute the function
-	pipeFunc := pipeToSource(src, &buf, &written)
+	pipeFunc := pipeToSource(t.Context(), src, &buf, &written)
 	err := pipeFunc()
 
 	// Verify results
@@ -413,7 +413,7 @@ func TestPipeToSource_NetErrClosed(t *testing.T) {
 	var written int64
 
 	// Execute the function
-	pipeFunc := pipeToSource(src, &buf, &written)
+	pipeFunc := pipeToSource(t.Context(), src, &buf, &written)
 	err := pipeFunc()
 
 	// Verify results
@@ -435,7 +435,7 @@ func TestPipeToSource_EconnReset(t *testing.T) {
 	var written int64
 
 	// Execute the function
-	pipeFunc := pipeToSource(src, &buf, &written)
+	pipeFunc := pipeToSource(t.Context(), src, &buf, &written)
 	err := pipeFunc()
 
 	// Verify results
@@ -458,7 +458,7 @@ func TestPipeToSource_OtherError(t *testing.T) {
 	var written int64
 
 	// Execute the function
-	pipeFunc := pipeToSource(src, &buf, &written)
+	pipeFunc := pipeToSource(t.Context(), src, &buf, &written)
 	err := pipeFunc()
 
 	// Verify results

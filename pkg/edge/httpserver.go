@@ -131,7 +131,10 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	keyID := middleware.GetKeyID(r)
 	clientIP := middleware.GetClientIP(r)
 
-	// Prevent context cancellation from affecting the hijacked connection handling
+	// Prevent context cancellation from affecting the hijacked connection handling.
+	// context.WithoutCancel is used to ensure that the original request context's cancellation
+	// does not propagate to the hijacked connection. Immediately following this, context.WithCancel
+	// is used to create a new cancellable context for managing the lifecycle of the hijacked connection.
 	ctx := context.WithoutCancel(r.Context())
 	ctx, cancel := context.WithCancel(ctx)
 

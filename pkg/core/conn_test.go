@@ -475,7 +475,7 @@ func TestCloseOnContextDone_ReqCtxCancellation(t *testing.T) {
 
 	mockConn.EXPECT().Close().Return(nil)
 
-	wg := closeOnContextDone(reqCtx, parentCtx, mockConn)
+	wg := closeOnContextDone(reqCtx, parentCtx, t.Context(), mockConn)
 
 	reqCancel()
 	wg.Wait()
@@ -488,7 +488,7 @@ func TestCloseOnContextDone_ParentCtxCancellation(t *testing.T) {
 
 	mockConn.EXPECT().Close().Return(nil)
 
-	wg := closeOnContextDone(reqCtx, parentCtx, mockConn)
+	wg := closeOnContextDone(reqCtx, parentCtx, t.Context(), mockConn)
 
 	parentCancel()
 
@@ -504,7 +504,7 @@ func TestCloseOnContextDone_CloseError(t *testing.T) {
 	closeErr := errors.New("close error")
 	mockConn.EXPECT().Close().Return(closeErr)
 
-	wg := closeOnContextDone(reqCtx, parentCtx, mockConn)
+	wg := closeOnContextDone(reqCtx, parentCtx, t.Context(), mockConn)
 
 	reqCancel()
 

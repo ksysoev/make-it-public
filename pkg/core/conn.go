@@ -149,14 +149,14 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 		return fmt.Errorf("failed to write initial request: %w", ErrFailedToConnect)
 	}
 
-	eg, ctx := errgroup.WithContext(ctx)
-	connNopCloser := conn.NewContextConnNopCloser(ctx, cliConn)
+	eg, grpctx := errgroup.WithContext(context.Background())
+	connNopCloser := conn.NewContextConnNopCloser(grpctx, cliConn)
 	respBytesWritten := int64(0)
 
 	eg.Go(pipeToDest(ctx, connNopCloser, revConn))
 	eg.Go(pipeToSource(ctx, revConn, connNopCloser, &respBytesWritten))
 
-	guard := closeOnContextDone(ctx, req.ParentContext(), revConn)
+	guard := closeOnContextDone(ctx, req.ParentContext(), grpctx, revConn)
 	defer guard.Wait()
 
 	err = eg.Wait()
@@ -225,7 +225,7 @@ func pipeToSource(ctx context.Context, src conn.WithWriteCloser, dst io.Writer, 
 // It initiates a goroutine that waits for completion signals from reqCtx or parentCtx.
 // Accepts reqCtx as the request-level context, parentCtx as the parent context, and c as the connection to close.
 // Returns a *sync.WaitGroup which can be used to wait until the closing operation is complete.
-func closeOnContextDone(reqCtx, parentCtx context.Context, c conn.WithWriteCloser) *sync.WaitGroup {
+func closeOnContextDone(reqCtx, parentCtx, group context.Context, c conn.WithWriteCloser) *sync.WaitGroup {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
@@ -237,6 +237,8 @@ func closeOnContextDone(reqCtx, parentCtx context.Context, c conn.WithWriteClose
 			slog.DebugContext(reqCtx, "closing connection, request context done", slog.Any("error", reqCtx.Err()))
 		case <-parentCtx.Done():
 			slog.DebugContext(reqCtx, "closing connection, parent context done", slog.Any("error", parentCtx.Err()))
+		case <-group.Done():
+			slog.DebugContext(reqCtx, "closing connection, group context done", slog.Any("error", group.Err()))
 		}
 
 		slog.DebugContext(reqCtx, "closing connection, context done")

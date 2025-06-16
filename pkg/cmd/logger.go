@@ -63,26 +63,21 @@ func initLogger(arg *args) error {
 	return nil
 }
 
+// createReplacer creates a function to selectively modify log attributes when the application is in interactive mode.
+// It disables attributes like "time", "app", "ver", and "level" if the arg.Interactive flag is true.
+// Accepts arg configuration options for interactive mode.
+// Returns a function that filters out specific log attributes or nil if interactive mode is disabled.
 func createReplacer(arg *args) func(group []string, a slog.Attr) slog.Attr {
 	if !arg.Interactive {
 		return nil
 	}
 
-	return func(group []string, a slog.Attr) slog.Attr {
-		if a.Key == "time" {
+	return func(_ []string, a slog.Attr) slog.Attr {
+		switch a.Key {
+		case "time", "app", "ver", "level":
 			return slog.Attr{}
+		default:
+			return a
 		}
-		if a.Key == "app" {
-			return slog.Attr{}
-		}
-		if a.Key == "ver" {
-			return slog.Attr{}
-		}
-
-		if a.Key == "level" {
-			return slog.Attr{}
-		}
-
-		return a
 	}
 }

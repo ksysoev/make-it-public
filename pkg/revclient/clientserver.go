@@ -57,7 +57,7 @@ func (s *ClientServer) Run(ctx context.Context) error {
 			slog.ErrorContext(ctx, "failed to parse payload for event urlToConnectUpdated", "error", err)
 		}
 
-		slog.InfoContext(ctx, "Client url to connect", "url", url)
+		slog.InfoContext(ctx, "mit client is connected", "url", url)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create event handler: %w", err)

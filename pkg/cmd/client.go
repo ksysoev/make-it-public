@@ -42,7 +42,7 @@ func RunClientCommand(ctx context.Context, args *args) error {
 
 	revcli := revclient.NewClientServer(cfg, tkn)
 
-	slog.InfoContext(ctx, "revclient started", "server", args.Server)
+	slog.InfoContext(ctx, "mit client started", "server", args.Server)
 	eg.Go(func() error { return revcli.Run(ctx) })
 
 	return eg.Wait()

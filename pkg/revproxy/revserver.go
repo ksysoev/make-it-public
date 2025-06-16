@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/ksysoev/make-it-public/pkg/core/watcher"
+	"github.com/ksysoev/make-it-public/pkg/watcher"
 )
 
 type Config struct {

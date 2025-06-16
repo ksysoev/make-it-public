@@ -58,11 +58,11 @@ func TestInitLogger(t *testing.T) {
 
 func TestCreateReplacer(t *testing.T) {
 	tests := []struct {
+		inputAttr   slog.Attr
+		expected    slog.Attr
 		name        string
 		arg         args
 		inputGroup  []string
-		inputAttr   slog.Attr
-		expected    slog.Attr
 		expectedNil bool
 	}{
 		{
@@ -115,10 +115,12 @@ func TestCreateReplacer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			replacer := createReplacer(&tt.arg)
+
 			if tt.expectedNil {
 				assert.Nil(t, replacer)
 				return
 			}
+
 			assert.NotNil(t, replacer)
 			output := replacer(tt.inputGroup, tt.inputAttr)
 			assert.Equal(t, tt.expected, output)

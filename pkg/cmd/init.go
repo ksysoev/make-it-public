@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"log/slog"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -12,15 +13,17 @@ type BuildInfo struct {
 	Version       string
 }
 type args struct {
-	Server     string `mapstructure:"server"`
-	Expose     string `mapstructure:"expose"`
-	Token      string `mapstructure:"token"`
-	ConfigPath string `mapstructure:"config"`
-	LogLevel   string `mapstructure:"log_level"`
-	Version    string
-	NoTLS      bool `mapstructure:"no_tls"`
-	Insecure   bool `mapstructure:"insecure"`
-	TextFormat bool `mapstructure:"log_text"`
+	Server      string `mapstructure:"server"`
+	Expose      string `mapstructure:"expose"`
+	Token       string `mapstructure:"token"`
+	ConfigPath  string `mapstructure:"config"`
+	LogLevel    string `mapstructure:"log_level"`
+	Version     string
+	NoTLS       bool `mapstructure:"no_tls"`
+	Insecure    bool `mapstructure:"insecure"`
+	TextFormat  bool `mapstructure:"log_text"`
+	LocalServer bool `mapstructure:"local"`
+	Interactive bool `mapstructure:"interactive"`
 }
 
 // InitCommand initializes the root command of the CLI application with its subcommands and flags.
@@ -40,11 +43,15 @@ func InitCommand(build BuildInfo) cobra.Command {
 		},
 	}
 
+	isInteractive := os.Stdout != nil && (os.Stdout.Fd() == 1 || os.Stdout.Fd() == 2) && os.Getenv("TERM") != ""
+
 	cmd.Flags().StringVar(&arg.Server, "server", build.DefaultServer, "server address")
 	cmd.Flags().StringVar(&arg.Expose, "expose", "", "expose service")
 	cmd.Flags().StringVar(&arg.Token, "token", "", "token")
 	cmd.Flags().BoolVar(&arg.NoTLS, "no-tls", false, "disable TLS")
 	cmd.Flags().BoolVar(&arg.Insecure, "insecure", false, "skip TLS verification")
+	cmd.Flags().BoolVar(&arg.LocalServer, "dummy", false, "run local dummy web server that will print incoming requests(experimental feature)")
+	cmd.Flags().BoolVar(&arg.Interactive, "interactive", isInteractive, "run in interactive mode")
 
 	cmd.PersistentFlags().StringVar(&arg.LogLevel, "log-level", "info", "log level (debug, info, warn, error)")
 	cmd.PersistentFlags().BoolVar(&arg.TextFormat, "log-text", true, "log in text format, otherwise JSON")

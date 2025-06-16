@@ -57,7 +57,7 @@ func (s *ClientServer) Run(ctx context.Context) error {
 			slog.ErrorContext(ctx, "failed to parse payload for event urlToConnectUpdated", "error", err)
 		}
 
-		slog.InfoContext(ctx, "Client url to connect", "url", url)
+		slog.InfoContext(ctx, "mit client is connected", "url", url)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create event handler: %w", err)
@@ -128,20 +128,20 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 	}
 
 	slog.InfoContext(ctx, "new incoming connection", "clientIP", connMeta.IP)
-	defer slog.InfoContext(ctx, "closing connection", "clientIP", connMeta.IP)
+	defer slog.DebugContext(ctx, "closing connection", "clientIP", connMeta.IP)
 
 	d := net.Dialer{
 		Timeout: 5 * time.Second,
 	}
 
-	destConn, err := d.DialContext(ctx, "tcp", s.cfg.DestAddr)
+	dConn, err := d.DialContext(ctx, "tcp", s.cfg.DestAddr)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to dial", "err", err)
 		return
 	}
 
-	conn1, ok := conn.(Conn)
-	conn2, ok2 := destConn.(Conn)
+	destConn, ok2 := dConn.(Conn)
+	revConn, ok := conn.(Conn)
 
 	if !ok || !ok2 {
 		slog.ErrorContext(ctx, "failed to cast connections to custom Conn interface")
@@ -150,14 +150,14 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	eg.Go(pipeConn(ctx, conn1, conn2))
-	eg.Go(pipeConn(ctx, conn2, conn1))
+	eg.Go(pipeConn(ctx, revConn, destConn))
+	eg.Go(pipeConn(ctx, destConn, revConn))
 
 	go func() {
 		<-ctx.Done()
 
-		_ = conn2.Close()
-		_ = conn1.Close()
+		_ = destConn.Close()
+		_ = revConn.Close()
 	}()
 
 	if err := eg.Wait(); err != nil {

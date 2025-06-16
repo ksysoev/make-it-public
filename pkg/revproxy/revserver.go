@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/ksysoev/make-it-public/pkg/watcher"
 )
 
 type Config struct {
@@ -21,10 +22,19 @@ type ConnService interface {
 	HandleReverseConn(ctx context.Context, conn net.Conn) error
 }
 
+type Certificate struct {
+	Cert         *tls.Certificate
+	CertFilePath string
+	KeyFilePath  string
+}
+
+//nolint:govet // linter mistakes Mutex to be smaller
 type RevServer struct {
-	connService ConnService
-	cert        *tls.Certificate
+	certMu      sync.RWMutex
 	listen      string
+	connService ConnService
+	cert        *Certificate
+	certWatcher *watcher.FileWatcher
 }
 
 func New(cfg *Config, connService ConnService) (*RevServer, error) {
@@ -36,7 +46,10 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 		return nil, fmt.Errorf("both cert and key are required for TLS")
 	}
 
-	var cert *tls.Certificate
+	var (
+		cert        *Certificate
+		certWatcher *watcher.FileWatcher
+	)
 
 	if cfg.Cert != "" {
 		c, err := tls.LoadX509KeyPair(cfg.Cert, cfg.Key)
@@ -44,13 +57,25 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
 		}
 
-		cert = &c
+		cert = &Certificate{
+			Cert:         &c,
+			CertFilePath: cfg.Cert,
+			KeyFilePath:  cfg.Key,
+		}
+
+		certWatcher, err = watcher.NewFileWatcher(cfg.Cert)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to create file watcher for TLS certificate: %w", err)
+		}
 	}
 
 	return &RevServer{
 		connService: connService,
 		listen:      cfg.Listen,
 		cert:        cert,
+		certWatcher: certWatcher,
+		certMu:      sync.RWMutex{},
 	}, nil
 }
 
@@ -58,16 +83,57 @@ func (r *RevServer) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	wg := sync.WaitGroup{}
+
+	if r.cert != nil {
+		subscriber := r.certWatcher.Subscribe()
+		defer r.certWatcher.Unsubscribe(subscriber)
+
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case notification := <-subscriber:
+					slog.InfoContext(ctx, "TLS certificate file changed", slog.String("path", notification.Path))
+
+					newCert, err := tls.LoadX509KeyPair(r.cert.CertFilePath, r.cert.KeyFilePath)
+					if err != nil {
+						slog.ErrorContext(ctx, "failed to reload TLS certificate", slog.Any("error", err))
+						continue
+					}
+
+					r.certMu.Lock()
+
+					r.cert = &Certificate{
+						Cert:         &newCert,
+						CertFilePath: r.cert.CertFilePath,
+						KeyFilePath:  r.cert.KeyFilePath}
+
+					slog.InfoContext(ctx, "TLS certificate reloaded successfully")
+
+					r.certMu.Unlock()
+				}
+			}
+		}()
+	}
+
 	var (
 		l   net.Listener
 		err error
 	)
 
 	if r.cert != nil {
+		r.certMu.Lock()
 		l, err = tls.Listen("tcp", r.listen, &tls.Config{
-			Certificates: []tls.Certificate{*r.cert},
+			Certificates: []tls.Certificate{*r.cert.Cert},
 			MinVersion:   tls.VersionTLS13,
 		})
+		r.certMu.Unlock()
 	} else {
 		l, err = net.Listen("tcp", r.listen)
 	}
@@ -83,8 +149,6 @@ func (r *RevServer) Run(ctx context.Context) error {
 			slog.ErrorContext(ctx, "failed to close listener", slog.Any("error", err))
 		}
 	}()
-
-	wg := sync.WaitGroup{}
 
 	defer wg.Wait()
 

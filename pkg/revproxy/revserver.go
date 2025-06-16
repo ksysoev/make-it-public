@@ -28,7 +28,7 @@ type Certificate struct {
 	KeyFilePath  string
 }
 
-//nolint:govet // linter mistakes Mutex to be smallers
+//nolint:govet // linter mistakes Mutex to be smaller
 type RevServer struct {
 	certMu      sync.RWMutex
 	listen      string

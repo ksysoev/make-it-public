@@ -14,6 +14,7 @@ type Notification struct {
 
 type Subscriber chan Notification
 
+//nolint:govet // linter mistakes Mutex to be smaller
 type FileWatcher struct {
 	mu          sync.Mutex
 	wg          sync.WaitGroup

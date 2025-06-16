@@ -95,22 +95,21 @@ func TestWatcher_RunError(t *testing.T) {
 		Events: make(chan fsnotify.Event),
 		Errors: make(chan error, 1),
 	}
-	w, err := NewFileWatcher()
-
+	fw, err := NewFileWatcher()
 	assert.NoError(t, err)
 
-	w.watcher = &fsnotify.Watcher{
+	fw.watcher = &fsnotify.Watcher{
 		Events: mw.Events,
 		Errors: mw.Errors,
 	}
 
-	var wg sync.WaitGroup
+	fw.wg.Add(1)
 
+	wg := sync.WaitGroup{}
 	wg.Add(1)
-
 	go func() {
 		defer wg.Done()
-		w.run()
+		fw.run()
 	}()
 
 	mw.Errors <- errors.New("test error")

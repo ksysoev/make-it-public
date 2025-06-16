@@ -18,6 +18,8 @@ type FileWatcher struct {
 	watcher     *fsnotify.Watcher
 	subscribers map[Subscriber]struct{}
 	mu          sync.Mutex
+	done        chan struct{}
+	wg          sync.WaitGroup
 }
 
 func NewFileWatcher(paths ...string) (*FileWatcher, error) {
@@ -37,8 +39,11 @@ func NewFileWatcher(paths ...string) (*FileWatcher, error) {
 		watcher:     w,
 		subscribers: make(map[Subscriber]struct{}),
 		mu:          sync.Mutex{},
+		done:        make(chan struct{}),
+		wg:          sync.WaitGroup{},
 	}
 
+	fw.wg.Add(1)
 	go fw.run()
 
 	return fw, nil
@@ -62,6 +67,7 @@ func (fw *FileWatcher) Unsubscribe(ch Subscriber) {
 }
 
 func (fw *FileWatcher) run() {
+	defer fw.wg.Done()
 	for {
 		select {
 		case event, ok := <-fw.watcher.Events:
@@ -78,6 +84,8 @@ func (fw *FileWatcher) run() {
 			}
 
 			slog.Error(fmt.Sprintf("Watcher error: %v", err))
+		case <-fw.done:
+			return
 		}
 	}
 }
@@ -95,5 +103,11 @@ func (fw *FileWatcher) notifyAll(n Notification) {
 }
 
 func (fw *FileWatcher) Close() error {
-	return fw.watcher.Close()
+	close(fw.done)
+
+	err := fw.watcher.Close()
+
+	fw.wg.Wait()
+
+	return err
 }

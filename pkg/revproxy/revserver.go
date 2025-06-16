@@ -25,7 +25,7 @@ type ConnService interface {
 type Certificate struct {
 	Cert         *tls.Certificate
 	CertFilePath string
-	Key          string
+	KeyFilePath  string
 }
 
 //nolint:govet // linter mistakes Mutex to be smallers
@@ -60,7 +60,7 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 		cert = &Certificate{
 			Cert:         &c,
 			CertFilePath: cfg.Cert,
-			Key:          cfg.Key,
+			KeyFilePath:  cfg.Key,
 		}
 
 		certWatcher, err = watcher.NewFileWatcher(cfg.Cert)
@@ -95,7 +95,7 @@ func (r *RevServer) Run(ctx context.Context) error {
 				case notification := <-subscriber:
 					slog.InfoContext(ctx, "TLS certificate file changed", slog.String("path", notification.Path))
 
-					newCert, err := tls.LoadX509KeyPair(r.cert.CertFilePath, r.cert.Key)
+					newCert, err := tls.LoadX509KeyPair(r.cert.CertFilePath, r.cert.KeyFilePath)
 					if err != nil {
 						slog.ErrorContext(ctx, "failed to reload TLS certificate", slog.Any("error", err))
 						continue
@@ -106,7 +106,7 @@ func (r *RevServer) Run(ctx context.Context) error {
 					r.cert = &Certificate{
 						Cert:         &newCert,
 						CertFilePath: r.cert.CertFilePath,
-						Key:          r.cert.Key}
+						KeyFilePath:  r.cert.KeyFilePath}
 
 					slog.InfoContext(ctx, "TLS certificate reloaded successfully")
 

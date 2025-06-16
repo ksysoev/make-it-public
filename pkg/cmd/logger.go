@@ -39,7 +39,8 @@ func initLogger(arg *args) error {
 	}
 
 	options := &slog.HandlerOptions{
-		Level: logLevel,
+		Level:       logLevel,
+		ReplaceAttr: createReplacer(arg),
 	}
 
 	var logHandler slog.Handler
@@ -60,4 +61,28 @@ func initLogger(arg *args) error {
 	slog.SetDefault(logger)
 
 	return nil
+}
+
+func createReplacer(arg *args) func(group []string, a slog.Attr) slog.Attr {
+	if !arg.Interactive {
+		return nil
+	}
+
+	return func(group []string, a slog.Attr) slog.Attr {
+		if a.Key == "time" {
+			return slog.Attr{}
+		}
+		if a.Key == "app" {
+			return slog.Attr{}
+		}
+		if a.Key == "ver" {
+			return slog.Attr{}
+		}
+
+		if a.Key == "level" {
+			return slog.Attr{}
+		}
+
+		return a
+	}
 }

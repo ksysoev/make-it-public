@@ -22,6 +22,9 @@ type Server struct {
 	addr    string
 }
 
+// New creates and initializes a new Server instance.
+// It sets up a custom JSON formatter with specific colors for formatting JSON data during HTTP request handling.
+// Returns a pointer to the newly created Server with an initialized readiness channel and JSON formatter.
 func New() *Server {
 	f := colorjson.NewFormatter()
 	f.Indent = 2
@@ -37,6 +40,11 @@ func New() *Server {
 	}
 }
 
+// Run starts the server and listens for incoming HTTP connections.
+// It initializes a TCP listener on a random port, announces readiness by closing the isReady channel,
+// and serves HTTP requests using the Server instance.
+// Accepts ctx to manage the server lifecycle and handle shutdown signals.
+// Returns an error if the listener fails to start or the server encounters issues during execution.
 func (s *Server) Run(ctx context.Context) error {
 	l, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
@@ -65,11 +73,17 @@ func (s *Server) Run(ctx context.Context) error {
 	return srv.Serve(l)
 }
 
+// Addr waits for the server to be ready and retrieves the bound address as a string.
+// It blocks until the readiness signal is received by reading from isReady channel.
+// Returns the server's address in "host:port" format.
 func (s *Server) Addr() string {
 	<-s.isReady
 	return s.addr
 }
 
+// ServeHTTP handles incoming HTTP requests, logs request details, and optionally formats the request body for output.
+// It logs the HTTP method, URL, protocol, and headers to the standard output. If a request body exists, it formats
+// and logs the content based on the "Content-Type" header. Responds with an HTTP 200 status and "ok" message.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tx := color.New(color.FgGreen)
 	tx.SetWriter(os.Stdout)
@@ -101,7 +115,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(`ok`))
 }
 
-// printBody selects the appropriate formatter based on content type
+// printBody processes and outputs the given data based on its content type.
+// It determines the appropriate formatting method by parsing and evaluating the content type string.
+// Accepts data as a byte slice representing the request body and contentType as a string indicating the MIME type.
+// Returns an error if the content type is unsupported or if a formatting operation fails.
 func (s *Server) printBody(data []byte, contentType string) error {
 	// Parse the content type, ignoring parameters like charset
 	contentType = strings.TrimSpace(strings.Split(contentType, ";")[0])
@@ -116,6 +133,10 @@ func (s *Server) printBody(data []byte, contentType string) error {
 	}
 }
 
+// printText outputs the given byte slice as a green-colored string to the standard output.
+// It sets the writer to apply the green foreground color, writes the string representation of data,
+// and resets the writer after execution.
+// Returns an error if the writing operation fails.
 func (s *Server) printText(data []byte) error {
 	tx := color.New(color.FgGreen)
 	tx.SetWriter(os.Stdout)
@@ -127,6 +148,8 @@ func (s *Server) printText(data []byte) error {
 	return err
 }
 
+// printJSON unmarshals raw JSON data, reformats it using the server's formatter, and writes it to the standard output.
+// It returns an error if JSON unmarshalling or formatting fails, or if there is an issue writing to output.
 func (s *Server) printJSON(data []byte) error {
 	var parsedData any
 
@@ -144,6 +167,10 @@ func (s *Server) printJSON(data []byte) error {
 	return err
 }
 
+// printHeaders formats and writes sorted HTTP headers to the specified output writer.
+// It iterates over the provided headers, sorts them alphabetically, and writes each header-value pair to the writer.
+// Accepts headers as an http.Header object and out as an io.Writer for output.
+// Returns no value but may fail silently if there are errors in writing to the output.
 func printHeaders(headers http.Header, out io.Writer) {
 	headerNames := make([]string, 0, len(headers))
 	for header := range headers {

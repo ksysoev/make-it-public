@@ -83,11 +83,17 @@ func (r *RevServer) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	wg := sync.WaitGroup{}
+
 	if r.cert != nil {
 		subscriber := r.certWatcher.Subscribe()
 		defer r.certWatcher.Unsubscribe(subscriber)
 
+		wg.Add(1)
+
 		go func() {
+			defer wg.Done()
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -143,8 +149,6 @@ func (r *RevServer) Run(ctx context.Context) error {
 			slog.ErrorContext(ctx, "failed to close listener", slog.Any("error", err))
 		}
 	}()
-
-	wg := sync.WaitGroup{}
 
 	defer wg.Wait()
 

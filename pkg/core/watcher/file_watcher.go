@@ -15,11 +15,11 @@ type Notification struct {
 type Subscriber chan Notification
 
 type FileWatcher struct {
+	mu          sync.Mutex
+	wg          sync.WaitGroup
 	watcher     *fsnotify.Watcher
 	subscribers map[Subscriber]struct{}
-	mu          sync.Mutex
 	done        chan struct{}
-	wg          sync.WaitGroup
 }
 
 func NewFileWatcher(paths ...string) (*FileWatcher, error) {
@@ -68,6 +68,7 @@ func (fw *FileWatcher) Unsubscribe(ch Subscriber) {
 
 func (fw *FileWatcher) run() {
 	defer fw.wg.Done()
+
 	for {
 		select {
 		case event, ok := <-fw.watcher.Events:

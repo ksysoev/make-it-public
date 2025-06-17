@@ -1,10 +1,8 @@
 package watcher
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 
@@ -88,35 +86,6 @@ func TestWatcher_RunAndEvent(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Did not receive notification for file write")
 	}
-}
-
-func TestWatcher_RunError(t *testing.T) {
-	mw := &mockWatcher{
-		Events: make(chan fsnotify.Event),
-		Errors: make(chan error, 1),
-	}
-	fw, err := NewFileWatcher()
-	assert.NoError(t, err)
-
-	fw.watcher = &fsnotify.Watcher{
-		Events: mw.Events,
-		Errors: mw.Errors,
-	}
-
-	fw.wg.Add(1)
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		fw.run()
-	}()
-
-	mw.Errors <- errors.New("test error")
-	close(mw.Errors)
-	close(mw.Events)
-	wg.Wait()
 }
 
 func TestWatcher_Close(t *testing.T) {

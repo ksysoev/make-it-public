@@ -6,20 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/stretchr/testify/assert"
 )
-
-type mockWatcher struct {
-	Events      chan fsnotify.Event
-	Errors      chan error
-	CloseCalled bool
-}
-
-func (m *mockWatcher) Close() error {
-	m.CloseCalled = true
-	return nil
-}
 
 func TestNewWatcher_AddError(t *testing.T) {
 	_, err := NewFileWatcher("/non-existent-path-xyz")
@@ -32,7 +20,7 @@ func TestWatcher_SubscribeAndUnsubscribe(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	sub := w.Subscribe()
 
@@ -49,7 +37,7 @@ func TestWatcher_NotifyAll(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	sub := w.Subscribe()
 	defer w.Unsubscribe(sub)
@@ -71,7 +59,7 @@ func TestWatcher_RunAndEvent(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	sub := w.Subscribe()
 	defer w.Unsubscribe(sub)

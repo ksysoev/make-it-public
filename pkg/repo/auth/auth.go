@@ -29,6 +29,7 @@ type Redis interface {
 	Exists(ctx context.Context, keys ...string) *redis.IntCmd
 	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
+	Ping(ctx context.Context) *redis.StatusCmd
 	Close() error
 }
 
@@ -52,6 +53,14 @@ func New(cfg *Config) *Repo {
 		keyPrefix: cfg.KeyPrefix,
 		salt:      []byte(cfg.Salt),
 	}
+}
+
+func (r *Repo) CheckHealth(ctx context.Context) error {
+	if err := r.db.Ping(ctx).Err(); err != nil {
+		return fmt.Errorf("failed to connect to Redis: %w", err)
+	}
+
+	return nil
 }
 
 // IsKeyExists checks if a key exists in the database using the specified keyID and keyPrefix.

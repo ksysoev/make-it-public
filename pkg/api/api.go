@@ -30,6 +30,7 @@ type API struct {
 type Service interface {
 	GenerateToken(ctx context.Context, keyID string, ttl int) (*token.Token, error)
 	DeleteToken(ctx context.Context, tokenID string) error
+	CheckHealth(ctx context.Context) error
 }
 
 const (
@@ -89,26 +90,30 @@ func (a *API) Run(ctx context.Context) error {
 	return nil
 }
 
-// healthCheckHandler handles a basic health check endpoint that returns the status of the service as a JSON response.
-// It writes a JSON-encoded "healthy" status to the response and sets the appropriate Content-Type header.
-// Returns an HTTP 500 status code if JSON encoding fails, logging the error context for debugging.
+// healthCheckHandler handles health check requests and validates the service's health status.
+// It queries the service's health and responds with "healthy" if all checks are successful.
+// Returns HTTP 500 if the health check fails or if writing the response encounters an error.
 // @Summary Health Check
 // @Description Returns the health status of the API.
 // @Tags Health
-// @Accept json
-// @Produce json
-// @Success 200 {object} map[string]string
+// @Produce text/plain
+// @Success 200 {string} string "healthy"
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /health [get]
 func (a *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	resp := map[string]string{"status": "healthy"}
+	if err := a.svc.CheckHealth(r.Context()); err != nil {
+		slog.ErrorContext(r.Context(), "Health check failed", "error", err)
 
-	w.Header().Set("Content-Type", "application/json")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
-	err := json.NewEncoder(w).Encode(resp)
+		return
+	}
 
-	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+
+	if _, err := w.Write([]byte("healthy")); err != nil {
+		slog.ErrorContext(r.Context(), "Failed to write response", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 		return

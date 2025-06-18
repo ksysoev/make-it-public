@@ -21,6 +21,7 @@ type AuthRepo interface {
 	SaveToken(ctx context.Context, t *token.Token) error
 	DeleteToken(ctx context.Context, tokenID string) error
 	IsKeyExists(ctx context.Context, keyID string) (bool, error)
+	CheckHealth(ctx context.Context) error
 }
 
 type ConnManager interface {
@@ -57,4 +58,8 @@ func New(connmng ConnManager, auth AuthRepo) *Service {
 // Returns no values, but any errors from the generator function should be handled internally by its caller.
 func (s *Service) SetEndpointGenerator(generator func(string) (string, error)) {
 	s.endpointGenerator = generator
+}
+
+func (s *Service) CheckHealth(ctx context.Context) error {
+	return s.auth.CheckHealth(ctx)
 }

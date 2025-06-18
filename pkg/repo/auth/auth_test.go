@@ -312,3 +312,46 @@ func TestNew(t *testing.T) {
 		})
 	}
 }
+
+func TestHealthCheck(t *testing.T) {
+	tests := []struct {
+		mockSetup func(m redismock.ClientMock)
+		name      string
+		expectErr bool
+	}{
+		{
+			name: "successful health check",
+			mockSetup: func(m redismock.ClientMock) {
+				m.ExpectPing().SetVal("PONG")
+			},
+			expectErr: false,
+		},
+		{
+			name: "redis connection error",
+			mockSetup: func(m redismock.ClientMock) {
+				m.ExpectPing().SetErr(assert.AnError)
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rdb, mockRDB := redismock.NewClientMock()
+			tt.mockSetup(mockRDB)
+
+			r := &Repo{
+				db:        rdb,
+				keyPrefix: "prefix::",
+			}
+
+			err := r.CheckHealth(context.Background())
+			if tt.expectErr {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, assert.AnError)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

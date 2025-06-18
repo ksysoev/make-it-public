@@ -28,13 +28,12 @@ type Certificate struct {
 	KeyFilePath  string
 }
 
-//nolint:govet // linter mistakes Mutex to be smaller
 type RevServer struct {
-	certMu      sync.RWMutex
-	listen      string
 	connService ConnService
 	cert        *Certificate
 	certWatcher *watcher.FileWatcher
+	listen      string
+	certMu      sync.RWMutex
 }
 
 func New(cfg *Config, connService ConnService) (*RevServer, error) {

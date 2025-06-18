@@ -44,6 +44,8 @@ services:
     command: ["server", "run", "all" ]
     volumes:
       - caddy_data:/data:ro
+    healthcheck:
+      test: ["CMD", "/mit",  "server", "check"]
     depends_on:
       - redis
 

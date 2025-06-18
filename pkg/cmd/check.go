@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -13,7 +14,7 @@ import (
 // Accepts ctx for managing the lifecycle and arg for configuration options.
 // Returns an error if the logger fails to initialize, the configuration cannot be loaded, the API address is invalid,
 // or the health check HTTP request fails, including non-200 HTTP response statuses.
-func RunHealthCheck(_ context.Context, arg *args) error {
+func RunHealthCheck(ctx context.Context, arg *args) error {
 	if err := initLogger(arg); err != nil {
 		return fmt.Errorf("failed to init logger: %w", err)
 	}
@@ -46,6 +47,8 @@ func RunHealthCheck(_ context.Context, arg *args) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("health check failed with status code: %d", resp.StatusCode)
 	}
+
+	slog.InfoContext(ctx, "health check passed", "status", resp.StatusCode)
 
 	return nil
 }

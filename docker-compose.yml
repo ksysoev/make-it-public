@@ -36,14 +36,16 @@ services:
       - HTTP_LISTEN=:8080
       - HTTP_PROXY_PROTO=true
       - REVERSE_PROXY_LISTEN=:8081
-      - REVERSE_PROXY_CERT=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.crt
-      - REVERSE_PROXY_KEY=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.key
+#      - REVERSE_PROXY_CERT=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.crt
+#      - REVERSE_PROXY_KEY=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.key
       - API_LISTEN=:8082
       - LOG_LEVEL=info
       - LOG_TEXT=false
     command: ["server", "run", "all" ]
     volumes:
       - caddy_data:/data:ro
+    healthcheck:
+      test: ["CMD", "/mit",  "server", "check"]
     depends_on:
       - redis
 

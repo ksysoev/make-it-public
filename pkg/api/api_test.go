@@ -25,30 +25,32 @@ func (m *mockResponseWriter) Write(_ []byte) (int, error) {
 }
 
 func TestHealthCheckHandler(t *testing.T) {
-	api := New(Config{Listen: ":8082"}, nil)
+	svc := NewMockService(t)
+	svc.EXPECT().CheckHealth(mock.Anything).Return(nil).Once()
+
+	api := New(Config{Listen: ":8082"}, svc)
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(api.healthCheckHandler)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code, "Expected status code 200")
-
-	expectedResponse := map[string]string{"status": "healthy"}
-
-	var actualResponse map[string]string
-	err := json.Unmarshal(rr.Body.Bytes(), &actualResponse)
-
-	assert.NoError(t, err, "Response body should be valid JSON")
-	assert.Equal(t, expectedResponse, actualResponse, "Response body does not match expected")
+	assert.Equal(t, rr.Body.String(), "healthy", "Response body does not match expected")
 }
 
-func TestHealthCheckHandler_JSONEncodeError(_ *testing.T) {
-	api := New(Config{Listen: ":0"}, nil)
+func TestHealthCheckHandler_Error(t *testing.T) {
+	svc := NewMockService(t)
+	svc.EXPECT().CheckHealth(mock.Anything).Return(assert.AnError).Once()
+
+	api := New(Config{Listen: ":0"}, svc)
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
-	mockWriter := &mockResponseWriter{ResponseWriter: httptest.NewRecorder()}
+	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(api.healthCheckHandler)
 
-	handler.ServeHTTP(mockWriter, req)
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code, "Expected status code 500")
+	assert.Equal(t, rr.Body.String(), "Internal Server Error\n", "Response body does not match expected")
 }
 
 func TestGenerateTokenHandler(t *testing.T) {
@@ -169,31 +171,24 @@ func TestGenerateTokenHandler(t *testing.T) {
 }
 
 func TestAPIRun(t *testing.T) {
-	// TODO: make it run on :0 port to avoid port conflicts
-	api := New(Config{Listen: ":58083"}, nil)
+	svc := NewMockService(t)
+	api := New(Config{Listen: ":58083"}, svc)
 	ctx, cancel := context.WithCancel(context.Background())
-
-	defer cancel()
+	done := make(chan struct{})
 
 	go func() {
 		err := api.Run(ctx)
 		assert.NoError(t, err, "API server should shut down gracefully")
+		close(done)
 	}()
 
-	time.Sleep(100 * time.Millisecond)
+	cancel()
 
-	resp, err := http.Get("http://localhost:58083/health")
-
-	assert.NoError(t, err, "Health check request should not return an error")
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "Health check should return status 200")
-	assert.Equal(t, resp.Header.Get("Content-Type"), "application/json", "Content-Type should be application/json")
-
-	var response map[string]string
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	assert.NoError(t, err, "Response body should be valid JSON")
-	assert.Equal(t, response["status"], "healthy", "Response body should contain status 'healthy'")
-
-	_ = resp.Body.Close()
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		assert.Fail(t, "API server did not shut down in time")
+	}
 }
 
 func TestRevokeTokenHandler(t *testing.T) {

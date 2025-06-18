@@ -118,6 +118,17 @@ func initRunCommand(arg *args) *cobra.Command {
 
 	cmd.AddCommand(cmdRunAll)
 
+	cmdRunCheck := &cobra.Command{
+		Use:   "check",
+		Short: "Check local server health status",
+		Long:  "Check the health status of the local server to ensure it is running correctly.",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return RunHealthCheck(cmd.Context(), arg)
+		},
+	}
+
+	cmd.AddCommand(cmdRunCheck)
+
 	return &cmd
 }
 

@@ -111,6 +111,7 @@ func (a *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
+
 	if _, err := w.Write([]byte("healthy")); err != nil {
 		slog.ErrorContext(r.Context(), "Failed to write response", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)

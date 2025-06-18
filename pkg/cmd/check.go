@@ -35,13 +35,15 @@ func RunHealthCheck(ctx context.Context, arg *args) error {
 	}
 
 	port := addrParts[1]
+	cl := http.Client{Timeout: 5 * time.Second}
 
-	cl := http.Client{
-		Timeout: 5 * time.Second,
-	}
 	resp, err := cl.Get(fmt.Sprintf("http://localhost:%s/health", port))
 	if err != nil {
 		return fmt.Errorf("failed to perform health check: %w", err)
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		slog.ErrorContext(ctx, "failed to close response body", slog.Any("error", err))
 	}
 
 	if resp.StatusCode != http.StatusOK {

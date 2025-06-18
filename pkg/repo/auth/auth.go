@@ -55,8 +55,8 @@ func New(cfg *Config) *Repo {
 	}
 }
 
-func (repo *Repo) CheckHealth(ctx context.Context) error {
-	if err := repo.db.Ping(ctx).Err(); err != nil {
+func (r *Repo) CheckHealth(ctx context.Context) error {
+	if err := r.db.Ping(ctx).Err(); err != nil {
 		return fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 

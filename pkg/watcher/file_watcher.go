@@ -14,13 +14,12 @@ type Notification struct {
 
 type Subscriber chan Notification
 
-//nolint:govet // linter mistakes Mutex to be smaller
 type FileWatcher struct {
-	mu          sync.Mutex
-	wg          sync.WaitGroup
 	watcher     *fsnotify.Watcher
 	subscribers map[Subscriber]struct{}
 	done        chan struct{}
+	wg          sync.WaitGroup
+	mu          sync.Mutex
 }
 
 func NewFileWatcher(paths ...string) (*FileWatcher, error) {
@@ -31,7 +30,7 @@ func NewFileWatcher(paths ...string) (*FileWatcher, error) {
 
 	for _, path := range paths {
 		if err := w.Add(path); err != nil {
-			w.Close()
+			_ = w.Close()
 			return nil, err
 		}
 	}

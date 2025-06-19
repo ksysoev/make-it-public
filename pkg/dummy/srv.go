@@ -16,16 +16,23 @@ import (
 	"github.com/fatih/color"
 )
 
+type Response struct {
+	Status      int
+	Body        string
+	ContentType string
+}
+
 type Server struct {
 	isReady chan struct{}
 	jsonFmt *colorjson.Formatter
 	addr    string
+	resp    Response
 }
 
 // New creates and initializes a new Server instance.
 // It sets up a custom JSON formatter with specific colors for formatting JSON data during HTTP request handling.
 // Returns a pointer to the newly created Server with an initialized readiness channel and JSON formatter.
-func New() *Server {
+func New(resp Response) *Server {
 	f := colorjson.NewFormatter()
 	f.Indent = 2
 	f.KeyColor = color.New(color.FgMagenta)
@@ -37,6 +44,7 @@ func New() *Server {
 	return &Server{
 		isReady: make(chan struct{}),
 		jsonFmt: f,
+		resp:    resp,
 	}
 }
 
@@ -111,8 +119,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`ok`))
+	w.WriteHeader(s.resp.Status)
+	if s.resp.ContentType != "" {
+		w.Header().Set("Content-Type", s.resp.ContentType)
+	}
+	_, _ = w.Write([]byte(s.resp.Body))
 }
 
 // printBody processes and outputs the given data based on its content type.

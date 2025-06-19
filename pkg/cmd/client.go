@@ -26,7 +26,24 @@ func RunClientCommand(ctx context.Context, args *args) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	if exposeAddr == "" && args.LocalServer {
-		lclSrv := dummy.New()
+		if args.Status < 200 || args.Status >= 600 {
+			return fmt.Errorf("invalid status code: %d", args.Status)
+		}
+
+		resp := dummy.Response{
+			Status: args.Status,
+		}
+
+		switch {
+		case args.JSONResponse != "":
+			resp.Body = args.JSONResponse
+			resp.ContentType = "application/json"
+		case args.Reponse != "":
+			resp.Body = args.Reponse
+			resp.ContentType = "text/plain"
+		}
+
+		lclSrv := dummy.New(resp)
 
 		eg.Go(func() error { return lclSrv.Run(ctx) })
 

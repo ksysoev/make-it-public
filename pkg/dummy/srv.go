@@ -35,9 +35,10 @@ type Server struct {
 	resp    Response
 }
 
-// New creates and initializes a new Server instance.
-// It sets up a custom JSON formatter with specific colors for formatting JSON data during HTTP request handling.
-// Returns a pointer to the newly created Server with an initialized readiness channel and JSON formatter.
+// New creates and initializes a new Server instance configured with the provided settings.
+// It validates the Config parameters and determines the response type (JSON or plain text).
+// Accepts cfg Config containing the response body, JSON string, and HTTP status code.
+// Returns a pointer to the Server instance and an error if the configuration is invalid (e.g., status code out of range, both body and JSON set).
 func New(cfg Config) (*Server, error) {
 	if cfg.Status < 200 || cfg.Status >= 600 {
 		return nil, fmt.Errorf("invalid status code: %d", cfg.Status)

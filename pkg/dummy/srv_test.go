@@ -19,13 +19,59 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	server, err := New(Config{Status: 200})
+	tests := []struct {
+		name        string
+		config      Config
+		expectError bool
+	}{
+		{
+			name:        "Valid status code",
+			config:      Config{Status: 200},
+			expectError: false,
+		},
+		{
+			name:        "Invalid low status code",
+			config:      Config{Status: 199},
+			expectError: true,
+		},
+		{
+			name:        "Invalid high status code",
+			config:      Config{Status: 600},
+			expectError: true,
+		},
+		{
+			name:        "Valid status with body",
+			config:      Config{Status: 201, Body: "Created"},
+			expectError: false,
+		},
+		{
+			name:        "Valid status with JSON",
+			config:      Config{Status: 200, JSON: `{"message": "success"}`},
+			expectError: false,
+		},
+		{
+			name:        "Body and JSON together",
+			config:      Config{Status: 200, Body: "Conflict", JSON: `{"message": "error"}`},
+			expectError: true,
+		},
+	}
 
-	require.NoError(t, err, "Failed to create server")
-	assert.NotNil(t, server, "Server should not be nil")
-	assert.NotNil(t, server.isReady, "isReady channel should not be nil")
-	assert.NotNil(t, server.jsonFmt, "jsonFmt should not be nil")
-	assert.Empty(t, server.addr, "addr should be empty initially")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server, err := New(tt.config)
+
+			if tt.expectError {
+				assert.Error(t, err, "Expected an error for invalid config")
+				assert.Nil(t, server, "Server should be nil on error")
+			} else {
+				require.NoError(t, err, "Failed to create server")
+				assert.NotNil(t, server, "Server should not be nil")
+				assert.NotNil(t, server.isReady, "isReady channel should not be nil")
+				assert.NotNil(t, server.jsonFmt, "jsonFmt should not be nil")
+				assert.Empty(t, server.addr, "addr should be empty initially")
+			}
+		})
+	}
 }
 
 func TestRun(t *testing.T) {

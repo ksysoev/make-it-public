@@ -16,16 +16,49 @@ import (
 	"github.com/fatih/color"
 )
 
+type Config struct {
+	Body   string `mapstructure:"body"`
+	JSON   string `mapstructure:"json"`
+	Status int    `mapstructure:"status"`
+}
+
+type Response struct {
+	Body        string
+	ContentType string
+	Status      int
+}
+
 type Server struct {
 	isReady chan struct{}
 	jsonFmt *colorjson.Formatter
 	addr    string
+	resp    Response
 }
 
-// New creates and initializes a new Server instance.
-// It sets up a custom JSON formatter with specific colors for formatting JSON data during HTTP request handling.
-// Returns a pointer to the newly created Server with an initialized readiness channel and JSON formatter.
-func New() *Server {
+// New creates and initializes a new Server instance configured with the provided settings.
+// It validates the Config parameters and determines the response type (JSON or plain text).
+// Accepts cfg Config containing the response body, JSON string, and HTTP status code.
+// Returns a pointer to the Server instance and an error if the configuration is invalid (e.g., status code out of range, both body and JSON set).
+func New(cfg Config) (*Server, error) {
+	if cfg.Status < 200 || cfg.Status >= 600 {
+		return nil, fmt.Errorf("invalid status code: %d", cfg.Status)
+	}
+
+	resp := Response{
+		Status: cfg.Status,
+	}
+
+	switch {
+	case cfg.JSON != "" && cfg.Body != "":
+		return nil, fmt.Errorf("cannot specify both body and json responses at the same time")
+	case cfg.JSON != "":
+		resp.Body = cfg.JSON
+		resp.ContentType = "application/json"
+	case cfg.Body != "":
+		resp.Body = cfg.Body
+		resp.ContentType = "text/plain"
+	}
+
 	f := colorjson.NewFormatter()
 	f.Indent = 2
 	f.KeyColor = color.New(color.FgMagenta)
@@ -37,7 +70,8 @@ func New() *Server {
 	return &Server{
 		isReady: make(chan struct{}),
 		jsonFmt: f,
-	}
+		resp:    resp,
+	}, nil
 }
 
 // Run starts the server and listens for incoming HTTP connections.
@@ -111,8 +145,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`ok`))
+	if s.resp.ContentType != "" {
+		w.Header().Set("Content-Type", s.resp.ContentType)
+	}
+
+	w.WriteHeader(s.resp.Status)
+
+	if _, err := w.Write([]byte(s.resp.Body)); err != nil {
+		fmt.Printf("Error writing response: %v\n", err)
+	}
 }
 
 // printBody processes and outputs the given data based on its content type.

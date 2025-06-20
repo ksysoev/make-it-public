@@ -18,8 +18,8 @@ import (
 
 type Config struct {
 	Body   string `mapstructure:"body"`
-	Status int    `mapstructure:"status"`
 	JSON   string `mapstructure:"json"`
+	Status int    `mapstructure:"status"`
 }
 
 type Response struct {

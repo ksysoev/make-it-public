@@ -35,7 +35,7 @@ func TestHealthCheckHandler(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code, "Expected status code 200")
-	assert.Equal(t, rr.Body.String(), "healthy", "Response body does not match expected")
+	assert.Equal(t, rr.Body.String(), "healthy", "Body body does not match expected")
 }
 
 func TestHealthCheckHandler_Error(t *testing.T) {
@@ -50,7 +50,7 @@ func TestHealthCheckHandler_Error(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusInternalServerError, rr.Code, "Expected status code 500")
-	assert.Equal(t, rr.Body.String(), "Internal Server Error\n", "Response body does not match expected")
+	assert.Equal(t, rr.Body.String(), "Internal Server Error\n", "Body body does not match expected")
 }
 
 func TestGenerateTokenHandler(t *testing.T) {

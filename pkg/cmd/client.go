@@ -26,26 +26,15 @@ func RunClientCommand(ctx context.Context, args *args) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	if exposeAddr == "" && args.LocalServer {
-		if args.Status < 200 || args.Status >= 600 {
-			return fmt.Errorf("invalid status code: %d", args.Status)
-		}
-
-		resp := dummy.Response{
+		lclSrv, err := dummy.New(dummy.Config{
 			Status: args.Status,
-		}
+			JSON:   args.JSON,
+			Body:   args.Body,
+		})
 
-		switch {
-		case args.JSONResponse != "" && args.Response != "":
-			return fmt.Errorf("cannot specify both body and json responses at the same time")
-		case args.JSONResponse != "":
-			resp.Body = args.JSONResponse
-			resp.ContentType = "application/json"
-		case args.Response != "":
-			resp.Body = args.Response
-			resp.ContentType = "text/plain"
+		if err != nil {
+			return fmt.Errorf("failed to create local server: %w", err)
 		}
-
-		lclSrv := dummy.New(resp)
 
 		eg.Go(func() error { return lclSrv.Run(ctx) })
 

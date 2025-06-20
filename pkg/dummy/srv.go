@@ -16,6 +16,12 @@ import (
 	"github.com/fatih/color"
 )
 
+type Config struct {
+	Body   string `mapstructure:"body"`
+	Status int    `mapstructure:"status"`
+	JSON   string `mapstructure:"json"`
+}
+
 type Response struct {
 	Body        string
 	ContentType string
@@ -32,7 +38,26 @@ type Server struct {
 // New creates and initializes a new Server instance.
 // It sets up a custom JSON formatter with specific colors for formatting JSON data during HTTP request handling.
 // Returns a pointer to the newly created Server with an initialized readiness channel and JSON formatter.
-func New(resp Response) *Server {
+func New(cfg Config) (*Server, error) {
+	if cfg.Status < 200 || cfg.Status >= 600 {
+		return nil, fmt.Errorf("invalid status code: %d", cfg.Status)
+	}
+
+	resp := Response{
+		Status: cfg.Status,
+	}
+
+	switch {
+	case cfg.JSON != "" && cfg.Body != "":
+		return nil, fmt.Errorf("cannot specify both body and json responses at the same time")
+	case cfg.JSON != "":
+		resp.Body = cfg.JSON
+		resp.ContentType = "application/json"
+	case cfg.Body != "":
+		resp.Body = cfg.Body
+		resp.ContentType = "text/plain"
+	}
+
 	f := colorjson.NewFormatter()
 	f.Indent = 2
 	f.KeyColor = color.New(color.FgMagenta)
@@ -45,7 +70,7 @@ func New(resp Response) *Server {
 		isReady: make(chan struct{}),
 		jsonFmt: f,
 		resp:    resp,
-	}
+	}, nil
 }
 
 // Run starts the server and listens for incoming HTTP connections.

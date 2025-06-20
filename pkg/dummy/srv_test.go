@@ -19,8 +19,9 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	server := New(Response{Status: 200})
+	server, err := New(Config{Status: 200})
 
+	require.NoError(t, err, "Failed to create server")
 	assert.NotNil(t, server, "Server should not be nil")
 	assert.NotNil(t, server.isReady, "isReady channel should not be nil")
 	assert.NotNil(t, server.jsonFmt, "jsonFmt should not be nil")
@@ -28,7 +29,9 @@ func TestNew(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	server := New(Response{Status: 200, Body: "ok"})
+	server, err := New(Config{Status: 200, Body: "ok"})
+
+	require.NoError(t, err, "Failed to create server")
 
 	// Create a context that we can cancel
 	ctx, cancel := context.WithCancel(context.Background())
@@ -73,7 +76,9 @@ func TestRun(t *testing.T) {
 }
 
 func TestAddr(t *testing.T) {
-	server := New(Response{Status: 200})
+	server, err := New(Config{Status: 200})
+
+	require.NoError(t, err, "Failed to create server")
 
 	// Create a context that we can cancel
 	ctx, cancel := context.WithCancel(context.Background())
@@ -130,7 +135,9 @@ func TestServeHTTP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := New(Response{Status: 200, Body: "ok"})
+			server, err := New(Config{Status: 200, Body: "ok"})
+
+			require.NoError(t, err, "Failed to create server")
 
 			// Create a request
 			var bodyReader io.Reader
@@ -226,7 +233,9 @@ func TestPrintBody(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := New(Response{Status: 200})
+			server, err := New(Config{Status: 200})
+
+			require.NoError(t, err, "Failed to create server")
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
@@ -234,7 +243,7 @@ func TestPrintBody(t *testing.T) {
 			os.Stdout = w
 
 			// Call printBody
-			err := server.printBody(tt.data, tt.contentType)
+			err = server.printBody(tt.data, tt.contentType)
 
 			// Restore stdout
 			require.NoError(t, w.Close())
@@ -285,7 +294,9 @@ func TestPrintText(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := New(Response{Status: 200})
+			server, err := New(Config{Status: 200})
+
+			require.NoError(t, err, "Failed to create server")
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
@@ -293,7 +304,7 @@ func TestPrintText(t *testing.T) {
 			os.Stdout = w
 
 			// Call printText
-			err := server.printText(tt.data)
+			err = server.printText(tt.data)
 
 			// Restore stdout
 			require.NoError(t, w.Close())
@@ -336,7 +347,9 @@ func TestPrintJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := New(Response{Status: 200})
+			server, err := New(Config{Status: 200})
+
+			require.NoError(t, err, "Failed to create server")
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
@@ -344,7 +357,7 @@ func TestPrintJSON(t *testing.T) {
 			os.Stdout = w
 
 			// Call printJSON
-			err := server.printJSON(tt.data)
+			err = server.printJSON(tt.data)
 
 			// Restore stdout
 			require.NoError(t, w.Close())

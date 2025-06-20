@@ -61,8 +61,8 @@ func TestCreateReplacer(t *testing.T) {
 		inputAttr   slog.Attr
 		expected    slog.Attr
 		name        string
-		arg         args
 		inputGroup  []string
+		arg         args
 		expectedNil bool
 	}{
 		{

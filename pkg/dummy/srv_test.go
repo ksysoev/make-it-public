@@ -19,7 +19,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	server := New()
+	server := New(Response{Status: 200})
 
 	assert.NotNil(t, server, "Server should not be nil")
 	assert.NotNil(t, server.isReady, "isReady channel should not be nil")
@@ -28,7 +28,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	server := New()
+	server := New(Response{Status: 200, Body: "ok"})
 
 	// Create a context that we can cancel
 	ctx, cancel := context.WithCancel(context.Background())
@@ -73,7 +73,7 @@ func TestRun(t *testing.T) {
 }
 
 func TestAddr(t *testing.T) {
-	server := New()
+	server := New(Response{Status: 200})
 
 	// Create a context that we can cancel
 	ctx, cancel := context.WithCancel(context.Background())
@@ -130,7 +130,7 @@ func TestServeHTTP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := New()
+			server := New(Response{Status: 200, Body: "ok"})
 
 			// Create a request
 			var bodyReader io.Reader
@@ -226,7 +226,7 @@ func TestPrintBody(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := New()
+			server := New(Response{Status: 200})
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
@@ -285,7 +285,7 @@ func TestPrintText(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := New()
+			server := New(Response{Status: 200})
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
@@ -336,7 +336,7 @@ func TestPrintJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := New()
+			server := New(Response{Status: 200})
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout

@@ -17,9 +17,9 @@ import (
 )
 
 type Response struct {
-	Status      int
 	Body        string
 	ContentType string
+	Status      int
 }
 
 type Server struct {
@@ -120,10 +120,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(s.resp.Status)
+
 	if s.resp.ContentType != "" {
 		w.Header().Set("Content-Type", s.resp.ContentType)
 	}
-	_, _ = w.Write([]byte(s.resp.Body))
+
+	if _, err := w.Write([]byte(s.resp.Body)); err != nil {
+		fmt.Printf("Error writing response: %v\n", err)
+	}
 }
 
 // printBody processes and outputs the given data based on its content type.

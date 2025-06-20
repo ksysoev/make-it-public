@@ -38,8 +38,8 @@ func RunClientCommand(ctx context.Context, args *args) error {
 		case args.JSONResponse != "":
 			resp.Body = args.JSONResponse
 			resp.ContentType = "application/json"
-		case args.Reponse != "":
-			resp.Body = args.Reponse
+		case args.Response != "":
+			resp.Body = args.Response
 			resp.ContentType = "text/plain"
 		}
 

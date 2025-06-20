@@ -13,20 +13,20 @@ type BuildInfo struct {
 	Version       string
 }
 type args struct {
-	Server       string `mapstructure:"server"`
+	Response     string `mapstructure:"response"`
 	Expose       string `mapstructure:"expose"`
 	Token        string `mapstructure:"token"`
 	ConfigPath   string `mapstructure:"config"`
 	LogLevel     string `mapstructure:"log_level"`
 	Version      string
-	NoTLS        bool   `mapstructure:"no_tls"`
-	Insecure     bool   `mapstructure:"insecure"`
-	TextFormat   bool   `mapstructure:"log_text"`
-	LocalServer  bool   `mapstructure:"local"`
-	Interactive  bool   `mapstructure:"interactive"`
-	Reponse      string `mapstructure:"response"`
+	Server       string `mapstructure:"server"`
 	JSONResponse string `mapstructure:"json_response"`
 	Status       int    `mapstructure:"status"`
+	NoTLS        bool   `mapstructure:"no_tls"`
+	Interactive  bool   `mapstructure:"interactive"`
+	LocalServer  bool   `mapstructure:"local"`
+	TextFormat   bool   `mapstructure:"log_text"`
+	Insecure     bool   `mapstructure:"insecure"`
 }
 
 // InitCommand initializes the root command of the CLI application with its subcommands and flags.
@@ -54,7 +54,7 @@ func InitCommand(build BuildInfo) cobra.Command {
 	cmd.Flags().BoolVar(&arg.NoTLS, "no-tls", false, "disable TLS")
 	cmd.Flags().BoolVar(&arg.Insecure, "insecure", false, "skip TLS verification")
 	cmd.Flags().BoolVar(&arg.LocalServer, "dummy", false, "run local dummy web server that will print incoming requests(experimental feature)")
-	cmd.Flags().StringVar(&arg.Reponse, "response", "", "response to send back to the client by the dummy server")
+	cmd.Flags().StringVar(&arg.Response, "response", "", "response to send back to the client by the dummy server")
 	cmd.Flags().StringVar(&arg.JSONResponse, "json-response", "", "JSON response to send back to the client by the dummy server")
 	cmd.Flags().IntVar(&arg.Status, "status", 200, "HTTP status code to return by the dummy server")
 	cmd.Flags().BoolVar(&arg.Interactive, "interactive", isInteractive, "run in interactive mode")

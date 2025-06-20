@@ -54,8 +54,8 @@ func InitCommand(build BuildInfo) cobra.Command {
 	cmd.Flags().BoolVar(&arg.NoTLS, "no-tls", false, "disable TLS")
 	cmd.Flags().BoolVar(&arg.Insecure, "insecure", false, "skip TLS verification")
 	cmd.Flags().BoolVar(&arg.LocalServer, "dummy", false, "run local dummy web server that will print incoming requests(experimental feature)")
-	cmd.Flags().StringVar(&arg.Response, "response", "", "response to send back to the client by the dummy server")
-	cmd.Flags().StringVar(&arg.JSONResponse, "json-response", "", "JSON response to send back to the client by the dummy server")
+	cmd.Flags().StringVar(&arg.Response, "body", "", "response to send back to the client by the dummy server")
+	cmd.Flags().StringVar(&arg.JSONResponse, "json", "", "JSON response to send back to the client by the dummy server")
 	cmd.Flags().IntVar(&arg.Status, "status", 200, "HTTP status code to return by the dummy server")
 	cmd.Flags().BoolVar(&arg.Interactive, "interactive", isInteractive, "run in interactive mode")
 

@@ -35,6 +35,8 @@ func RunClientCommand(ctx context.Context, args *args) error {
 		}
 
 		switch {
+		case args.JSONResponse != "" && args.Response != "":
+			return fmt.Errorf("cannot specify both body and json responses at the same time")
 		case args.JSONResponse != "":
 			resp.Body = args.JSONResponse
 			resp.ContentType = "application/json"

@@ -84,6 +84,8 @@ func (r *RevServer) Run(ctx context.Context) error {
 
 	wg := sync.WaitGroup{}
 
+	defer wg.Wait()
+
 	if r.cert != nil {
 		subscriber := r.certWatcher.Subscribe()
 		defer r.certWatcher.Unsubscribe(subscriber)

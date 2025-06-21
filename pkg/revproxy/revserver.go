@@ -149,6 +149,16 @@ func (r *RevServer) Run(ctx context.Context) error {
 		}
 	}()
 
+	return r.processConnections(ctx, l)
+}
+
+// processConnections manages incoming network connections and delegates handling to the ConnService.
+// It continuously accepts connections from the provided net.Listener, spawns a new goroutine to handle each connection,
+// and waits for all spawned goroutines to complete on termination.
+// Accepts ctx for operation context and listener l to listen for incoming connections.
+// Returns an error if accepting connections fails or the listener is closed unexpectedly.
+func (r *RevServer) processConnections(ctx context.Context, l net.Listener) error {
+	wg := sync.WaitGroup{}
 	defer wg.Wait()
 
 	for {

@@ -29,8 +29,8 @@ type Certificate struct {
 
 type RevServer struct {
 	connService ConnService
-	listen      string
 	cert        *Certificate
+	listen      string
 }
 
 func New(cfg *Config, connService ConnService) (*RevServer, error) {
@@ -67,11 +67,11 @@ func (r *RevServer) Run(ctx context.Context) error {
 	)
 
 	if r.cert != nil {
-		cert, err := loadTLSCertificate(ctx, r.cert.CertPath, r.cert.KeyPath, func() {
+		cert, errCert := loadTLSCertificate(ctx, r.cert.CertPath, r.cert.KeyPath, func() {
 			slog.InfoContext(ctx, "TLS certificate is updated, restarting service", slog.String("cert", r.cert.CertPath), slog.String("key", r.cert.KeyPath))
 			cancel() // Cancel the context to stop the current listener
 		})
-		if err != nil {
+		if errCert != nil {
 			return fmt.Errorf("failed to load TLS certificate: %w", err)
 		}
 

@@ -168,15 +168,16 @@ func TestRunWithError(t *testing.T) {
 
 func TestLoadTLSCertificate(t *testing.T) {
 	tests := []struct {
-		name          string
 		setup         func(t *testing.T) (string, string, func())
 		onUpdate      func()
-		expectError   bool
+		name          string
 		expectedError string
+		expectError   bool
 	}{
 		{
 			name: "valid TLS certificate and key",
 			setup: func(t *testing.T) (string, string, func()) {
+				t.Helper()
 				tmpDir := t.TempDir()
 				certPath := filepath.Join(tmpDir, "cert.pem")
 				keyPath := filepath.Join(tmpDir, "key.pem")
@@ -193,6 +194,7 @@ func TestLoadTLSCertificate(t *testing.T) {
 		{
 			name: "missing TLS certificate file",
 			setup: func(t *testing.T) (string, string, func()) {
+				t.Helper()
 				tmpDir := t.TempDir()
 				keyPath := filepath.Join(tmpDir, "key.pem")
 				require.NoError(t, os.WriteFile(keyPath, []byte("key"), 0o600))
@@ -206,6 +208,7 @@ func TestLoadTLSCertificate(t *testing.T) {
 		{
 			name: "missing TLS key file",
 			setup: func(t *testing.T) (string, string, func()) {
+				t.Helper()
 				tmpDir := t.TempDir()
 				certPath := filepath.Join(tmpDir, "cert.pem")
 				require.NoError(t, os.WriteFile(certPath, []byte("cert"), 0o600))
@@ -219,6 +222,7 @@ func TestLoadTLSCertificate(t *testing.T) {
 		{
 			name: "invalid TLS certificate content",
 			setup: func(t *testing.T) (string, string, func()) {
+				t.Helper()
 				tmpDir := t.TempDir()
 				certPath := filepath.Join(tmpDir, "cert.pem")
 				keyPath := filepath.Join(tmpDir, "key.pem")
@@ -256,9 +260,8 @@ func TestLoadTLSCertificate(t *testing.T) {
 	}
 }
 
-// Helper function to generate a self-signed certificate for testing
-//
-//nolint:unparam // err is always nil in this test implementation, but would be used in a real implementation
+// generateSelfSignedCert generates a self-signed TLS certificate and private key.
+// It returns the certificate and key as byte slices and no errors are returned since it’s a controlled dummy function.
 func generateSelfSignedCert() (cert, key []byte) {
 	// This is a placeholder. In a real implementation, you would generate
 	// a self-signed certificate here. For the purpose of this test, we'll

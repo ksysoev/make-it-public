@@ -132,6 +132,9 @@ func (r *RevServer) processConnections(ctx context.Context, l net.Listener) erro
 	}
 }
 
+// loadTLSCertificate loads a TLS certificate and optionally monitors the specified files for changes to reload the certificate.
+// It requires certFile and keyFile paths to load the certificate. The onUpdate callback is triggered on file changes if provided.
+// Returns a pointer to the loaded tls.Certificate and an error if loading fails or file watcher creation fails.
 func loadTLSCertificate(ctx context.Context, certFile, keyFile string, onUpdate func()) (*tls.Certificate, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {

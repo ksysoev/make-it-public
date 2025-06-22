@@ -67,7 +67,10 @@ func (r *RevServer) Run(ctx context.Context) error {
 	)
 
 	if r.cert != nil {
-		cert, err := loadTLSCertificate(ctx, r.cert.CertPath, r.cert.KeyPath, func() {})
+		cert, err := loadTLSCertificate(ctx, r.cert.CertPath, r.cert.KeyPath, func() {
+			slog.InfoContext(ctx, "TLS certificate is updated, restarting service", slog.String("cert", r.cert.CertPath), slog.String("key", r.cert.KeyPath))
+			cancel() // Cancel the context to stop the current listener
+		})
 		if err != nil {
 			return fmt.Errorf("failed to load TLS certificate: %w", err)
 		}
@@ -158,7 +161,6 @@ func loadTLSCertificate(ctx context.Context, certFile, keyFile string, onUpdate 
 						continue
 					}
 
-					slog.InfoContext(ctx, "TLS certificate is updated")
 					onUpdate()
 				}
 			}

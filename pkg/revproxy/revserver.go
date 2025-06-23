@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/ksysoev/make-it-public/pkg/watcher"
+	"github.com/ksysoev/make-it-public/pkg/revproxy/watcher"
 )
 
 type Config struct {
@@ -23,17 +23,14 @@ type ConnService interface {
 }
 
 type Certificate struct {
-	Cert         *tls.Certificate
-	CertFilePath string
-	KeyFilePath  string
+	CertPath string
+	KeyPath  string
 }
 
 type RevServer struct {
 	connService ConnService
 	cert        *Certificate
-	certWatcher *watcher.FileWatcher
 	listen      string
-	certMu      sync.RWMutex
 }
 
 func New(cfg *Config, connService ConnService) (*RevServer, error) {
@@ -45,81 +42,24 @@ func New(cfg *Config, connService ConnService) (*RevServer, error) {
 		return nil, fmt.Errorf("both cert and key are required for TLS")
 	}
 
-	var (
-		cert        *Certificate
-		certWatcher *watcher.FileWatcher
-	)
+	srv := &RevServer{
+		connService: connService,
+		listen:      cfg.Listen,
+	}
 
-	if cfg.Cert != "" {
-		c, err := tls.LoadX509KeyPair(cfg.Cert, cfg.Key)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
-		}
-
-		cert = &Certificate{
-			Cert:         &c,
-			CertFilePath: cfg.Cert,
-			KeyFilePath:  cfg.Key,
-		}
-
-		certWatcher, err = watcher.NewFileWatcher(cfg.Cert)
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to create file watcher for TLS certificate: %w", err)
+	if cfg.Cert != "" && cfg.Key != "" {
+		srv.cert = &Certificate{
+			CertPath: cfg.Cert,
+			KeyPath:  cfg.Key,
 		}
 	}
 
-	return &RevServer{
-		connService: connService,
-		listen:      cfg.Listen,
-		cert:        cert,
-		certWatcher: certWatcher,
-		certMu:      sync.RWMutex{},
-	}, nil
+	return srv, nil
 }
 
 func (r *RevServer) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
-	wg := sync.WaitGroup{}
-
-	if r.cert != nil {
-		subscriber := r.certWatcher.Subscribe()
-		defer r.certWatcher.Unsubscribe(subscriber)
-
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case notification := <-subscriber:
-					slog.InfoContext(ctx, "TLS certificate file changed", slog.String("path", notification.Path))
-
-					newCert, err := tls.LoadX509KeyPair(r.cert.CertFilePath, r.cert.KeyFilePath)
-					if err != nil {
-						slog.ErrorContext(ctx, "failed to reload TLS certificate", slog.Any("error", err))
-						continue
-					}
-
-					r.certMu.Lock()
-
-					r.cert = &Certificate{
-						Cert:         &newCert,
-						CertFilePath: r.cert.CertFilePath,
-						KeyFilePath:  r.cert.KeyFilePath}
-
-					slog.InfoContext(ctx, "TLS certificate reloaded successfully")
-
-					r.certMu.Unlock()
-				}
-			}
-		}()
-	}
 
 	var (
 		l   net.Listener
@@ -127,12 +67,18 @@ func (r *RevServer) Run(ctx context.Context) error {
 	)
 
 	if r.cert != nil {
-		r.certMu.Lock()
+		cert, errCert := loadTLSCertificate(ctx, r.cert.CertPath, r.cert.KeyPath, func() {
+			slog.InfoContext(ctx, "TLS certificate is updated, restarting service", slog.String("cert", r.cert.CertPath), slog.String("key", r.cert.KeyPath))
+			cancel() // Cancel the context to stop the current listener
+		})
+		if errCert != nil {
+			return fmt.Errorf("failed to load TLS certificate: %w", err)
+		}
+
 		l, err = tls.Listen("tcp", r.listen, &tls.Config{
-			Certificates: []tls.Certificate{*r.cert.Cert},
+			Certificates: []tls.Certificate{*cert},
 			MinVersion:   tls.VersionTLS13,
 		})
-		r.certMu.Unlock()
 	} else {
 		l, err = net.Listen("tcp", r.listen)
 	}
@@ -149,6 +95,16 @@ func (r *RevServer) Run(ctx context.Context) error {
 		}
 	}()
 
+	return r.processConnections(ctx, l)
+}
+
+// processConnections manages incoming network connections and delegates handling to the ConnService.
+// It continuously accepts connections from the provided net.Listener, spawns a new goroutine to handle each connection,
+// and waits for all spawned goroutines to complete on termination.
+// Accepts ctx for operation context and listener l to listen for incoming connections.
+// Returns an error if accepting connections fails or the listener is closed unexpectedly.
+func (r *RevServer) processConnections(ctx context.Context, l net.Listener) error {
+	wg := sync.WaitGroup{}
 	defer wg.Wait()
 
 	for {
@@ -174,4 +130,45 @@ func (r *RevServer) Run(ctx context.Context) error {
 			}
 		}()
 	}
+}
+
+// loadTLSCertificate loads a TLS certificate and optionally monitors the specified files for changes to reload the certificate.
+// It requires certFile and keyFile paths to load the certificate. The onUpdate callback is triggered on file changes if provided.
+// Returns a pointer to the loaded tls.Certificate and an error if loading fails or file watcher creation fails.
+func loadTLSCertificate(ctx context.Context, certFile, keyFile string, onUpdate func()) (*tls.Certificate, error) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+	}
+
+	if onUpdate != nil {
+		w, err := watcher.NewFileWatcher(certFile, keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create file watcher for TLS certificate: %w", err)
+		}
+
+		subscriber := w.Subscribe()
+		go func() {
+			defer w.Unsubscribe(subscriber)
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case notification := <-subscriber:
+					slog.DebugContext(ctx, "TLS certificate file changed", slog.String("path", notification.Path))
+
+					_, err := tls.LoadX509KeyPair(certFile, keyFile)
+					if err != nil {
+						slog.ErrorContext(ctx, "failed to reload TLS certificate", slog.Any("error", err))
+						continue
+					}
+
+					onUpdate()
+				}
+			}
+		}()
+	}
+
+	return &cert, nil
 }

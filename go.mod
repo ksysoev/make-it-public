@@ -24,6 +24,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/swaggo/files/v2 v2.0.0 // indirect
+	golang.org/x/mod v0.25.0 // indirect
 )
 
 require (
@@ -50,7 +51,7 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/swaggo/http-swagger/v2 v2.0.2
-	github.com/swaggo/swag v1.16.4
+	github.com/swaggo/swag v1.16.5
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect

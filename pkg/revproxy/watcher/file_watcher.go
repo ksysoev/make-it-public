@@ -44,6 +44,7 @@ func NewFileWatcher(paths ...string) (*FileWatcher, error) {
 	}
 
 	fw.wg.Add(1)
+
 	go fw.run()
 
 	return fw, nil

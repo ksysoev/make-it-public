@@ -66,6 +66,7 @@ func TestConnReq_WaitConn(t *testing.T) {
 
 			if tt.sendConn {
 				conn := &net.TCPConn{}
+
 				go func() {
 					time.Sleep(10 * time.Millisecond)
 					connReq.SendConn(ctx, conn)

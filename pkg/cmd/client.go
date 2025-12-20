@@ -31,7 +31,6 @@ func RunClientCommand(ctx context.Context, args *args) error {
 			JSON:   args.JSON,
 			Body:   args.Body,
 		})
-
 		if err != nil {
 			return fmt.Errorf("failed to create local server: %w", err)
 		}

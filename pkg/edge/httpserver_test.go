@@ -115,6 +115,7 @@ func TestRun(t *testing.T) {
 
 	// Start the server in a goroutine
 	errCh := make(chan error, 1)
+
 	go func() {
 		errCh <- server.Run(ctx)
 	}()
@@ -274,6 +275,7 @@ func TestSendResponse(t *testing.T) {
 
 			// Read the response
 			var buf bytes.Buffer
+
 			_, err := io.Copy(&buf, clientReader)
 			require.NoError(t, err)
 

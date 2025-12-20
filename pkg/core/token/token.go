@@ -64,8 +64,8 @@ func GenerateToken(keyID string, ttl int) (*Token, error) {
 	}
 
 	bufferLen := calculateSecretBuffer(len(keyID))
-	secret, err := generateSecret(bufferLen)
 
+	secret, err := generateSecret(bufferLen)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token secret: %w", err)
 	}
@@ -131,7 +131,6 @@ func generateID() (string, error) {
 // Returns the generated secret string and an error if random number generation fails.
 func generateSecret(bufferLen int) (string, error) {
 	indices, err := randomIntSlice(len(lowerCase+upperCase+numbers), bufferLen)
-
 	if err != nil {
 		return "", err
 	}
@@ -149,8 +148,8 @@ func generateSecret(bufferLen int) (string, error) {
 // It uses cryptographic randomness as the source and returns an error if random number generation fails.
 func randomIntSlice(maxLen, length int) ([]int, error) {
 	b := make([]byte, length)
-	_, err := rand.Read(b)
 
+	_, err := rand.Read(b)
 	if err != nil {
 		return nil, err
 	}

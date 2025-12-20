@@ -24,7 +24,6 @@ var (
 func (s *Service) GenerateToken(ctx context.Context, keyID string, ttl int) (*token.Token, error) {
 	for i := 0; i < attemptsToGenerateToken; i++ {
 		t, err := token.GenerateToken(keyID, ttl)
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate token: %w", err)
 		}

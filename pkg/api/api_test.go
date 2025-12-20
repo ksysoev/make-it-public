@@ -86,6 +86,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.Equal(t, http.StatusCreated, rec.Code)
 
 		var response GenerateTokenResponse
+
 		err := json.Unmarshal(rec.Body.Bytes(), &response)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, response.KeyID)
@@ -113,6 +114,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		assert.Equal(t, http.StatusCreated, rec.Code)
 
 		var response GenerateTokenResponse
+
 		err := json.Unmarshal(rec.Body.Bytes(), &response)
 		assert.NoError(t, err)
 		assert.Equal(t, "test-key-id", response.KeyID)

@@ -126,6 +126,7 @@ func TestRun(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
+
 	go func() {
 		errCh <- server.Run(ctx)
 	}()

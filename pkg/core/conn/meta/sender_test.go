@@ -66,8 +66,8 @@ func TestWriteAndReadData(t *testing.T) {
 
 			// Read data from the buffer
 			var result interface{}
-			err = ReadData(&buf, &result)
 
+			err = ReadData(&buf, &result)
 			if err != nil {
 				t.Fatalf("ReadData failed: %v", err)
 			}
@@ -91,8 +91,8 @@ func TestWriteDataExceedingMaxSize(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := WriteData(&buf, string(largeData))
 
+	err := WriteData(&buf, string(largeData))
 	if err == nil {
 		t.Errorf("Expected error for data exceeding max size, got nil")
 	}

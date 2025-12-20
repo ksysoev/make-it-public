@@ -148,6 +148,7 @@ func loadTLSCertificate(ctx context.Context, certFile, keyFile string, onUpdate 
 		}
 
 		subscriber := w.Subscribe()
+
 		go func() {
 			defer w.Unsubscribe(subscriber)
 

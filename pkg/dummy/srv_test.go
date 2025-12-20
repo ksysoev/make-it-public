@@ -85,6 +85,7 @@ func TestRun(t *testing.T) {
 
 	// Start the server in a goroutine
 	errCh := make(chan error, 1)
+
 	go func() {
 		errCh <- server.Run(ctx)
 	}()
@@ -214,11 +215,13 @@ func TestServeHTTP(t *testing.T) {
 
 			// Read captured output
 			var buf bytes.Buffer
+
 			_, _ = io.Copy(&buf, r)
 			output := buf.String()
 
 			// Verify response
 			resp := w.Result()
+
 			defer func() { _ = resp.Body.Close() }()
 
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -298,6 +301,7 @@ func TestPrintBody(t *testing.T) {
 
 			// Read captured output
 			var buf bytes.Buffer
+
 			_, _ = io.Copy(&buf, r)
 			output := buf.String()
 
@@ -359,6 +363,7 @@ func TestPrintText(t *testing.T) {
 
 			// Read captured output
 			var buf bytes.Buffer
+
 			_, _ = io.Copy(&buf, r)
 			output := buf.String()
 
@@ -412,6 +417,7 @@ func TestPrintJSON(t *testing.T) {
 
 			// Read captured output
 			var buf bytes.Buffer
+
 			_, _ = io.Copy(&buf, r)
 			output := buf.String()
 
@@ -422,6 +428,7 @@ func TestPrintJSON(t *testing.T) {
 
 				// Parse the original JSON to verify it's in the output
 				var originalData interface{}
+
 				err := json.Unmarshal(tt.data, &originalData)
 				require.NoError(t, err)
 

@@ -34,6 +34,6 @@ jobs:
           cat coverage.out | grep -v "make-it-public/cmd" | grep -v "_mock.go" > coverage.final.out
           mv coverage.final.out coverage.out
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

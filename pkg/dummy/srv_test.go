@@ -74,6 +74,16 @@ func TestNew(t *testing.T) {
 			config:      Config{Status: 200, Headers: []string{"X-Custom-Header: value with spaces"}},
 			expectError: false,
 		},
+		{
+			name:        "Valid header with empty value",
+			config:      Config{Status: 200, Headers: []string{"X-Empty-Header:"}},
+			expectError: false,
+		},
+		{
+			name:        "Valid header with only spaces as value",
+			config:      Config{Status: 200, Headers: []string{"X-Spaces-Header:   "}},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -590,6 +600,17 @@ func TestCustomHeadersInResponse(t *testing.T) {
 			},
 			expectedHeaders: map[string]string{
 				"Content-Type": "text/plain",
+			},
+		},
+		{
+			name: "Empty header value",
+			config: Config{
+				Status:  200,
+				Body:    "test",
+				Headers: []string{"X-Empty-Value:"},
+			},
+			expectedHeaders: map[string]string{
+				"X-Empty-Value": "",
 			},
 		},
 	}

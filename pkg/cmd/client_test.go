@@ -49,6 +49,36 @@ func TestRunClientCommand(t *testing.T) {
 			},
 			wantErr: "failed to split host and port: address test-server: missing port in address",
 		},
+		{
+			name: "local dummy server with invalid headers",
+			args: args{
+				Token:       "dGVzdDp0ZXN0",
+				Server:      "test-server:8080",
+				LocalServer: true,
+				NoTLS:       false,
+				Insecure:    false,
+				LogLevel:    "info",
+				Status:      200,
+				Body:        "test",
+				Headers:     []string{"invalid-header-format"},
+			},
+			wantErr: "failed to create local server: invalid header format: invalid-header-format (expected 'Name:Value')",
+		},
+		{
+			name: "local dummy server with valid headers",
+			args: args{
+				Token:       "dGVzdDp0ZXN0",
+				Server:      "test-server:8080",
+				LocalServer: true,
+				NoTLS:       false,
+				Insecure:    false,
+				LogLevel:    "info",
+				Status:      200,
+				Body:        "test",
+				Headers:     []string{"X-Custom-Header:value"},
+			},
+			wantErr: "lookup test-server",
+		},
 	}
 
 	for _, tt := range tests {

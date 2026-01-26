@@ -258,6 +258,7 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   3600 * 24, // 24 hours
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
+		Secure:   true,
 	}
 	http.SetCookie(w, &cookie)
 

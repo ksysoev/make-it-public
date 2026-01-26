@@ -66,7 +66,7 @@ func New(cfg Config, connService ConnService) (*HTTPServer, error) {
 // Accepts ctx to control the server's lifecycle and handle graceful shutdowns.
 // Returns an error if the server fails to start, listen, or encounters unexpected termination issues.
 func (s *HTTPServer) Run(ctx context.Context) error {
-	var mw []func(next http.Handler) http.Handler
+	mw := make([]func(next http.Handler) http.Handler, 0, 6)
 
 	mw = append(mw,
 		middleware.NewFishingProtection(),

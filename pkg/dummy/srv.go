@@ -16,36 +16,41 @@ import (
 	"github.com/fatih/color"
 )
 
+const contentTypeJSON = "application/json"
+
 type Config struct {
-	Body   string `mapstructure:"body"`
-	JSON   string `mapstructure:"json"`
-	Status int    `mapstructure:"status"`
+	Body    string   `mapstructure:"body"`
+	JSON    string   `mapstructure:"json"`
+	Headers []string `mapstructure:"headers"`
+	Status  int      `mapstructure:"status"`
 }
 
 type Response struct {
+	Headers     http.Header
 	Body        string
 	ContentType string
 	Status      int
 }
 
 type Server struct {
-	isReady chan struct{}
 	jsonFmt *colorjson.Formatter
-	addr    string
+	isReady chan struct{}
 	resp    Response
+	addr    string
 }
 
 // New creates and initializes a new Server instance configured with the provided settings.
 // It validates the Config parameters and determines the response type (JSON or plain text).
-// Accepts cfg Config containing the response body, JSON string, and HTTP status code.
-// Returns a pointer to the Server instance and an error if the configuration is invalid (e.g., status code out of range, both body and JSON set).
+// Accepts cfg Config containing the response body, JSON string, HTTP status code, and custom headers.
+// Returns a pointer to the Server instance and an error if the configuration is invalid (e.g., status code out of range, both body and JSON set, malformed headers).
 func New(cfg Config) (*Server, error) {
 	if cfg.Status < 200 || cfg.Status >= 600 {
 		return nil, fmt.Errorf("invalid status code: %d", cfg.Status)
 	}
 
 	resp := Response{
-		Status: cfg.Status,
+		Status:  cfg.Status,
+		Headers: make(http.Header),
 	}
 
 	switch {
@@ -53,10 +58,27 @@ func New(cfg Config) (*Server, error) {
 		return nil, fmt.Errorf("cannot specify both body and json responses at the same time")
 	case cfg.JSON != "":
 		resp.Body = cfg.JSON
-		resp.ContentType = "application/json"
+		resp.ContentType = contentTypeJSON
 	case cfg.Body != "":
 		resp.Body = cfg.Body
 		resp.ContentType = "text/plain"
+	}
+
+	// Parse custom headers
+	for _, header := range cfg.Headers {
+		parts := strings.SplitN(header, ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid header format: %s (expected 'Name:Value')", header)
+		}
+
+		headerName := strings.TrimSpace(parts[0])
+		headerValue := strings.TrimSpace(parts[1])
+
+		if headerName == "" {
+			return nil, fmt.Errorf("header name cannot be empty")
+		}
+
+		resp.Headers.Add(headerName, headerValue)
 	}
 
 	f := colorjson.NewFormatter()
@@ -117,7 +139,7 @@ func (s *Server) Addr() string {
 
 // ServeHTTP handles incoming HTTP requests, logs request details, and optionally formats the request body for output.
 // It logs the HTTP method, URL, protocol, and headers to the standard output. If a request body exists, it formats
-// and logs the content based on the "Content-Type" header. Responds with an HTTP 200 status and "ok" message.
+// and logs the content based on the "Content-Type" header. Responds with configured status, headers, and body.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tx := color.New(color.FgGreen)
 	tx.SetWriter(os.Stdout)
@@ -145,7 +167,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if s.resp.ContentType != "" {
+	// Apply custom headers first
+	for name, values := range s.resp.Headers {
+		for _, value := range values {
+			w.Header().Add(name, value)
+		}
+	}
+
+	// Set Content-Type if specified (can be overridden by custom headers)
+	if s.resp.ContentType != "" && w.Header().Get("Content-Type") == "" {
 		w.Header().Set("Content-Type", s.resp.ContentType)
 	}
 
@@ -165,7 +195,7 @@ func (s *Server) printBody(data []byte, contentType string) error {
 	contentType = strings.TrimSpace(strings.Split(contentType, ";")[0])
 
 	switch {
-	case contentType == "application/json":
+	case contentType == contentTypeJSON:
 		return s.printJSON(data)
 	case strings.HasPrefix(contentType, "text/"):
 		return s.printText(data)

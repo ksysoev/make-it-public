@@ -54,6 +54,26 @@ func TestNew(t *testing.T) {
 			config:      Config{Status: 200, Body: "Conflict", JSON: `{"message": "error"}`},
 			expectError: true,
 		},
+		{
+			name:        "Valid custom headers",
+			config:      Config{Status: 200, Headers: []string{"X-Custom-Header:value1", "X-Another-Header:value2"}},
+			expectError: false,
+		},
+		{
+			name:        "Invalid header format - missing colon",
+			config:      Config{Status: 200, Headers: []string{"X-Custom-Header"}},
+			expectError: true,
+		},
+		{
+			name:        "Invalid header format - empty name",
+			config:      Config{Status: 200, Headers: []string{":value"}},
+			expectError: true,
+		},
+		{
+			name:        "Valid header with spaces",
+			config:      Config{Status: 200, Headers: []string{"X-Custom-Header: value with spaces"}},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -69,6 +89,11 @@ func TestNew(t *testing.T) {
 				assert.NotNil(t, server.isReady, "isReady channel should not be nil")
 				assert.NotNil(t, server.jsonFmt, "jsonFmt should not be nil")
 				assert.Empty(t, server.addr, "addr should be empty initially")
+
+				// Verify headers were parsed correctly
+				if len(tt.config.Headers) > 0 {
+					assert.NotNil(t, server.resp.Headers, "Headers should not be nil")
+				}
 			}
 		})
 	}
@@ -512,6 +537,86 @@ func TestPrintHeaders(t *testing.T) {
 					assert.True(t, index > lastIndex, "Headers should be sorted")
 					lastIndex = index
 				}
+			}
+		})
+	}
+}
+
+func TestCustomHeadersInResponse(t *testing.T) {
+	tests := []struct {
+		expectedHeaders map[string]string
+		name            string
+		config          Config
+	}{
+		{
+			name: "Single custom header",
+			config: Config{
+				Status:  200,
+				Body:    "ok",
+				Headers: []string{"X-Custom-Header:custom-value"},
+			},
+			expectedHeaders: map[string]string{
+				"X-Custom-Header": "custom-value",
+			},
+		},
+		{
+			name: "Multiple custom headers",
+			config: Config{
+				Status:  201,
+				Body:    "created",
+				Headers: []string{"X-Request-ID:12345", "X-API-Version:v1"},
+			},
+			expectedHeaders: map[string]string{
+				"X-Request-ID":  "12345",
+				"X-API-Version": "v1",
+			},
+		},
+		{
+			name: "Header with spaces in value",
+			config: Config{
+				Status:  200,
+				Headers: []string{"X-Message: Hello World"},
+			},
+			expectedHeaders: map[string]string{
+				"X-Message": "Hello World",
+			},
+		},
+		{
+			name: "Override Content-Type with custom header",
+			config: Config{
+				Status:  200,
+				JSON:    `{"test": "data"}`,
+				Headers: []string{"Content-Type:text/plain"},
+			},
+			expectedHeaders: map[string]string{
+				"Content-Type": "text/plain",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server, err := New(tt.config)
+			require.NoError(t, err, "Failed to create server")
+
+			// Create a test request
+			req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+			w := httptest.NewRecorder()
+
+			// Call ServeHTTP
+			server.ServeHTTP(w, req)
+
+			// Verify response status
+			resp := w.Result()
+
+			defer func() { _ = resp.Body.Close() }()
+
+			assert.Equal(t, tt.config.Status, resp.StatusCode)
+
+			// Verify custom headers are present
+			for headerName, expectedValue := range tt.expectedHeaders {
+				actualValue := resp.Header.Get(headerName)
+				assert.Equal(t, expectedValue, actualValue, "Header %s should have value %s", headerName, expectedValue)
 			}
 		})
 	}

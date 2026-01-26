@@ -27,9 +27,10 @@ func RunClientCommand(ctx context.Context, args *args) error {
 
 	if exposeAddr == "" && args.LocalServer {
 		lclSrv, err := dummy.New(dummy.Config{
-			Status: args.Status,
-			JSON:   args.JSON,
-			Body:   args.Body,
+			Status:  args.Status,
+			JSON:    args.JSON,
+			Body:    args.Body,
+			Headers: args.Headers,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create local server: %w", err)

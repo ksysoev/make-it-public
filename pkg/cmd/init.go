@@ -19,14 +19,15 @@ type args struct {
 	ConfigPath  string `mapstructure:"config"`
 	LogLevel    string `mapstructure:"log_level"`
 	Version     string
-	Server      string `mapstructure:"server"`
-	JSON        string `mapstructure:"json"`
-	Status      int    `mapstructure:"status"`
-	NoTLS       bool   `mapstructure:"no_tls"`
-	Interactive bool   `mapstructure:"interactive"`
-	LocalServer bool   `mapstructure:"local"`
-	TextFormat  bool   `mapstructure:"log_text"`
-	Insecure    bool   `mapstructure:"insecure"`
+	Server      string   `mapstructure:"server"`
+	JSON        string   `mapstructure:"json"`
+	Headers     []string `mapstructure:"headers"`
+	Status      int      `mapstructure:"status"`
+	NoTLS       bool     `mapstructure:"no_tls"`
+	Interactive bool     `mapstructure:"interactive"`
+	LocalServer bool     `mapstructure:"local"`
+	TextFormat  bool     `mapstructure:"log_text"`
+	Insecure    bool     `mapstructure:"insecure"`
 }
 
 // InitCommand initializes the root command of the CLI application with its subcommands and flags.
@@ -57,6 +58,7 @@ func InitCommand(build BuildInfo) cobra.Command {
 	cmd.Flags().StringVar(&arg.Body, "body", "", "response to send back to the client by the dummy server")
 	cmd.Flags().StringVar(&arg.JSON, "json", "", "JSON response to send back to the client by the dummy server")
 	cmd.Flags().IntVar(&arg.Status, "status", 200, "HTTP status code to return by the dummy server")
+	cmd.Flags().StringArrayVar(&arg.Headers, "headers", []string{}, "custom HTTP headers to return by the dummy server (format: 'Name:Value')")
 	cmd.Flags().BoolVar(&arg.Interactive, "interactive", isInteractive, "run in interactive mode")
 
 	cmd.PersistentFlags().StringVar(&arg.LogLevel, "log-level", "info", "log level (debug, info, warn, error)")

@@ -35,8 +35,8 @@ type Response struct {
 type Server struct {
 	jsonFmt *colorjson.Formatter
 	isReady chan struct{}
-	resp    Response
 	addr    string
+	resp    Response
 }
 
 // New creates and initializes a new Server instance configured with the provided settings.

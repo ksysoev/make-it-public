@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -19,10 +20,11 @@ import (
 const contentTypeJSON = "application/json"
 
 type Config struct {
-	Body    string   `mapstructure:"body"`
-	JSON    string   `mapstructure:"json"`
-	Headers []string `mapstructure:"headers"`
-	Status  int      `mapstructure:"status"`
+	Body        string   `mapstructure:"body"`
+	JSON        string   `mapstructure:"json"`
+	Headers     []string `mapstructure:"headers"`
+	Status      int      `mapstructure:"status"`
+	Interactive bool     `mapstructure:"interactive"`
 }
 
 type Response struct {
@@ -33,10 +35,11 @@ type Response struct {
 }
 
 type Server struct {
-	jsonFmt *colorjson.Formatter
-	isReady chan struct{}
-	addr    string
-	resp    Response
+	jsonFmt     *colorjson.Formatter
+	isReady     chan struct{}
+	addr        string
+	resp        Response
+	interactive bool
 }
 
 // New creates and initializes a new Server instance configured with the provided settings.
@@ -90,9 +93,10 @@ func New(cfg Config) (*Server, error) {
 	f.NullColor = color.New(color.FgRed)
 
 	return &Server{
-		isReady: make(chan struct{}),
-		jsonFmt: f,
-		resp:    resp,
+		isReady:     make(chan struct{}),
+		jsonFmt:     f,
+		resp:        resp,
+		interactive: cfg.Interactive,
 	}, nil
 }
 
@@ -138,33 +142,30 @@ func (s *Server) Addr() string {
 }
 
 // ServeHTTP handles incoming HTTP requests, logs request details, and optionally formats the request body for output.
-// It logs the HTTP method, URL, protocol, and headers to the standard output. If a request body exists, it formats
-// and logs the content based on the "Content-Type" header. Responds with configured status, headers, and body.
+// In interactive mode, it logs the HTTP method, URL, protocol, and headers with colors to stdout.
+// In non-interactive mode, it uses structured logging (slog) for all request details.
+// Responds with configured status, headers, and body.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	tx := color.New(color.FgGreen)
-	tx.SetWriter(os.Stdout)
+	// Read the request body first (needed for both modes)
+	var (
+		bodyBytes []byte
+		bodyErr   error
+	)
 
-	_, _ = fmt.Fprintf(os.Stdout, "%s %s %s\n", r.Method, r.URL.String(), r.Proto)
-	printHeaders(r.Header, os.Stdout)
-
-	_, _ = fmt.Fprintln(os.Stdout)
-	tx.UnsetWriter(os.Stdout)
-
-	// Read the request body
 	if r.Body != nil {
 		defer func() { _ = r.Body.Close() }()
 
-		bodyBytes, err := io.ReadAll(r.Body)
-		if err != nil {
-			fmt.Printf("Error reading body: %v\n", err)
-		} else if len(bodyBytes) > 0 {
-			// Format the body based on content type
-			contentType := r.Header.Get("Content-Type")
-
-			if err := s.printBody(bodyBytes, contentType); err != nil {
-				fmt.Printf("Error formatting body: %v\n", err)
-			}
+		bodyBytes, bodyErr = io.ReadAll(r.Body)
+		if bodyErr != nil {
+			slog.Error("Error reading request body", "error", bodyErr)
 		}
+	}
+
+	// Log request based on mode
+	if s.interactive {
+		s.logInteractive(r, bodyBytes)
+	} else {
+		s.logStructured(r, bodyBytes)
 	}
 
 	// Apply custom headers first
@@ -182,8 +183,69 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(s.resp.Status)
 
 	if _, err := w.Write([]byte(s.resp.Body)); err != nil {
-		fmt.Printf("Error writing response: %v\n", err)
+		slog.Error("Error writing response", "error", err)
 	}
+}
+
+// logInteractive outputs the request in a colorized, human-readable format to stdout.
+func (s *Server) logInteractive(r *http.Request, bodyBytes []byte) {
+	tx := color.New(color.FgGreen)
+	tx.SetWriter(os.Stdout)
+
+	_, _ = fmt.Fprintf(os.Stdout, "%s %s %s\n", r.Method, r.URL.String(), r.Proto)
+	printHeaders(r.Header, os.Stdout)
+
+	_, _ = fmt.Fprintln(os.Stdout)
+	tx.UnsetWriter(os.Stdout)
+
+	if len(bodyBytes) > 0 {
+		contentType := r.Header.Get("Content-Type")
+
+		if err := s.printBody(bodyBytes, contentType); err != nil {
+			fmt.Printf("Error formatting body: %v\n", err)
+		}
+	}
+}
+
+// logStructured outputs the request using structured logging (slog).
+func (s *Server) logStructured(r *http.Request, bodyBytes []byte) {
+	// Convert headers to a loggable format
+	headers := make(map[string]string)
+	for name, values := range r.Header {
+		headers[name] = strings.Join(values, ", ")
+	}
+
+	// Build log attributes
+	attrs := []any{
+		slog.String("method", r.Method),
+		slog.String("url", r.URL.String()),
+		slog.String("proto", r.Proto),
+		slog.String("remote_addr", r.RemoteAddr),
+		slog.Any("headers", headers),
+	}
+
+	// Add body if present
+	if len(bodyBytes) > 0 {
+		contentType := r.Header.Get("Content-Type")
+
+		attrs = append(attrs,
+			slog.Int("body_size", len(bodyBytes)),
+			slog.String("content_type", contentType))
+
+		// For JSON, try to parse and log structured
+		if strings.Contains(contentType, "application/json") {
+			var jsonData any
+			if err := json.Unmarshal(bodyBytes, &jsonData); err == nil {
+				attrs = append(attrs, slog.Any("body", jsonData))
+			} else {
+				attrs = append(attrs, slog.String("body", string(bodyBytes)))
+			}
+		} else if strings.HasPrefix(contentType, "text/") {
+			attrs = append(attrs, slog.String("body", string(bodyBytes)))
+		}
+	}
+
+	slog.Info("incoming HTTP request", attrs...)
 }
 
 // printBody processes and outputs the given data based on its content type.
@@ -240,6 +302,7 @@ func (s *Server) printJSON(data []byte) error {
 
 // printHeaders formats and writes sorted HTTP headers to the specified output writer.
 // It iterates over the provided headers, sorts them alphabetically, and writes each header-value pair to the writer.
+// Header names are displayed in cyan color, while values are displayed in the default color.
 // Accepts headers as an http.Header object and out as an io.Writer for output.
 // Returns no value but may fail silently if there are errors in writing to the output.
 func printHeaders(headers http.Header, out io.Writer) {
@@ -250,10 +313,15 @@ func printHeaders(headers http.Header, out io.Writer) {
 
 	sort.Strings(headerNames)
 
+	headerNameColor := color.New(color.FgCyan)
+	headerValueColor := color.New(color.FgWhite)
+
 	for _, header := range headerNames {
 		values := headers[header]
 		for _, value := range values {
-			_, _ = fmt.Fprintf(out, "%s: %s\n", header, value)
+			_, _ = fmt.Fprintf(out, "%s: %s\n",
+				headerNameColor.Sprint(header),
+				headerValueColor.Sprint(value))
 		}
 	}
 }

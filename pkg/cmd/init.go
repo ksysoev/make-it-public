@@ -39,9 +39,11 @@ func InitCommand(build BuildInfo) cobra.Command {
 	}
 
 	cmd := cobra.Command{
-		Use:   "mit",
-		Short: "Make It Public Reverse Connect Proxy",
-		Long:  "Make It Public Reverse Connect Proxy is a tool for exposing local services to the internet.",
+		Use:           "mit",
+		Short:         "Make It Public Reverse Connect Proxy",
+		Long:          "Make It Public Reverse Connect Proxy is a tool for exposing local services to the internet.",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return RunClientCommand(cmd.Context(), &arg)
 		},

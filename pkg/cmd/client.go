@@ -71,6 +71,9 @@ func RunClientCommand(ctx context.Context, args *args) error {
 
 	// Start spinner while connecting
 	spinner := disp.ShowConnecting(args.Server)
+	if spinner != nil {
+		defer spinner.Stop()
+	}
 
 	// Create client with callbacks for display
 	revcli := revclient.NewClientServer(cfg, tkn,

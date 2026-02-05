@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/fatih/color"
 )
@@ -96,7 +97,7 @@ func (d *Display) printBannerLineColored(borderColor, contentColor *color.Color,
 	fmt.Fprint(d.out, "  ")
 	contentColor.Fprint(d.out, content)
 
-	padding := bannerWidth - 2 - len(content) - 2
+	padding := bannerWidth - 2 - utf8.RuneCountInString(content) - 2
 	if padding < 0 {
 		padding = 0
 	}
@@ -112,7 +113,7 @@ func (d *Display) printBannerLineWithPrefix(borderColor, prefixColor *color.Colo
 	prefixColor.Fprint(d.out, prefix)
 	fmt.Fprint(d.out, content)
 
-	padding := bannerWidth - 2 - len(prefix) - len(content) - 2
+	padding := bannerWidth - 2 - utf8.RuneCountInString(prefix) - utf8.RuneCountInString(content) - 2
 	if padding < 0 {
 		padding = 0
 	}
@@ -130,7 +131,7 @@ func (d *Display) printBannerKeyValue(borderColor, labelColor, valueColor *color
 	valueColor.Fprint(d.out, value)
 
 	// Calculate padding
-	contentLen := len(label) + 3 + len(value)
+	contentLen := utf8.RuneCountInString(label) + 3 + utf8.RuneCountInString(value)
 	padding := bannerWidth - 2 - contentLen - 2
 
 	if padding < 0 {

@@ -22,6 +22,12 @@ type Display struct {
 
 // New creates a new Display instance configured for the given terminal mode.
 // When interactive is false or NO_COLOR is set, colored output is disabled.
+//
+// IMPORTANT: This function modifies the global color.NoColor variable which affects
+// all Display instances in the application. This design assumes a single Display
+// instance will be created per application lifecycle. If multiple instances with
+// different color settings are needed, the Display struct should be refactored to
+// avoid relying on global state.
 func New(interactive bool) *Display {
 	noColor := os.Getenv("NO_COLOR") != "" || !interactive
 

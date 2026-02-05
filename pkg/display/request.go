@@ -3,6 +3,7 @@ package display
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/fatih/color"
 )
@@ -24,7 +25,7 @@ func (d *Display) ShowRequestSeparator(clientIP string) {
 	// Calculate padding to fill the line
 	// Format: ──── <clientIP> ───────────────────────────────────
 	prefixLen := 4 // "──── "
-	suffixStart := prefixLen + 1 + len(clientIP) + 1
+	suffixStart := prefixLen + 1 + utf8.RuneCountInString(clientIP) + 1
 	suffixLen := separatorWidth - suffixStart
 
 	if suffixLen < 0 {

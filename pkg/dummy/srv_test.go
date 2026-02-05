@@ -238,7 +238,9 @@ func TestServeHTTP(t *testing.T) {
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
-			r, w2, _ := os.Pipe()
+			r, w2, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+			defer r.Close()
 			os.Stdout = w2
 
 			// Call ServeHTTP
@@ -324,7 +326,9 @@ func TestPrintBody(t *testing.T) {
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
+			r, w, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+			defer r.Close()
 			os.Stdout = w
 
 			// Call printBody
@@ -386,7 +390,9 @@ func TestPrintText(t *testing.T) {
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
+			r, w, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+			defer r.Close()
 			os.Stdout = w
 
 			// Call printText
@@ -440,7 +446,9 @@ func TestPrintJSON(t *testing.T) {
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
+			r, w, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+			defer r.Close()
 			os.Stdout = w
 
 			// Call printJSON
@@ -665,7 +673,9 @@ func TestServeHTTPNonInteractive(t *testing.T) {
 			// In non-interactive mode, output should go to slog (not stdout)
 			// We can't easily capture slog output, but we can verify stdout is empty
 			oldStdout := os.Stdout
-			r, w2, _ := os.Pipe()
+			r, w2, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+			defer r.Close()
 			os.Stdout = w2
 
 			// Call ServeHTTP

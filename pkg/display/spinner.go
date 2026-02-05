@@ -11,11 +11,12 @@ import (
 
 // Spinner displays an animated spinner in the terminal during long-running operations.
 type Spinner struct {
-	out     io.Writer
-	done    chan struct{}
-	message string
-	mu      sync.Mutex
-	running bool
+	out       io.Writer
+	done      chan struct{}
+	message   string
+	mu        sync.Mutex
+	running   bool
+	closeOnce sync.Once
 }
 
 // spinnerFrames defines the ASCII animation frames for the spinner.
@@ -47,6 +48,13 @@ func (s *Spinner) Start() {
 	go s.animate()
 }
 
+// closeChannel safely closes the done channel, preventing double-close panics.
+func (s *Spinner) closeChannel() {
+	s.closeOnce.Do(func() {
+		close(s.done)
+	})
+}
+
 // Stop halts the spinner animation without displaying a final message.
 func (s *Spinner) Stop() {
 	s.mu.Lock()
@@ -57,7 +65,7 @@ func (s *Spinner) Stop() {
 	}
 
 	s.running = false
-	close(s.done)
+	s.closeChannel()
 
 	// Clear the current line
 	fmt.Fprint(s.out, "\r\033[K")
@@ -80,7 +88,7 @@ func (s *Spinner) Success(message string) {
 	}
 
 	s.running = false
-	close(s.done)
+	s.closeChannel()
 	s.mu.Unlock()
 
 	successColor := color.New(color.FgGreen, color.Bold)
@@ -107,7 +115,7 @@ func (s *Spinner) Fail(message string) {
 	}
 
 	s.running = false
-	close(s.done)
+	s.closeChannel()
 	s.mu.Unlock()
 
 	failColor := color.New(color.FgRed, color.Bold)

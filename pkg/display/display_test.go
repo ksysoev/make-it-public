@@ -13,9 +13,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
+// TestMain runs before all tests and ensures color state is properly managed.
+func TestMain(m *testing.M) {
+	// Save original color state
+	originalNoColor := color.NoColor
 	// Disable colors for consistent test output
 	color.NoColor = true
+
+	// Run tests
+	code := m.Run()
+
+	// Restore original color state
+	color.NoColor = originalNoColor
+
+	os.Exit(code)
 }
 
 func TestNew(t *testing.T) {

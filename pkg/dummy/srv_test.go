@@ -240,7 +240,9 @@ func TestServeHTTP(t *testing.T) {
 			oldStdout := os.Stdout
 			r, w2, err := os.Pipe()
 			require.NoError(t, err, "Failed to create pipe")
+
 			defer r.Close()
+
 			os.Stdout = w2
 
 			// Call ServeHTTP
@@ -328,7 +330,9 @@ func TestPrintBody(t *testing.T) {
 			oldStdout := os.Stdout
 			r, w, err := os.Pipe()
 			require.NoError(t, err, "Failed to create pipe")
+
 			defer r.Close()
+
 			os.Stdout = w
 
 			// Call printBody
@@ -392,7 +396,9 @@ func TestPrintText(t *testing.T) {
 			oldStdout := os.Stdout
 			r, w, err := os.Pipe()
 			require.NoError(t, err, "Failed to create pipe")
+
 			defer r.Close()
+
 			os.Stdout = w
 
 			// Call printText
@@ -448,7 +454,9 @@ func TestPrintJSON(t *testing.T) {
 			oldStdout := os.Stdout
 			r, w, err := os.Pipe()
 			require.NoError(t, err, "Failed to create pipe")
+
 			defer r.Close()
+
 			os.Stdout = w
 
 			// Call printJSON
@@ -675,7 +683,9 @@ func TestServeHTTPNonInteractive(t *testing.T) {
 			oldStdout := os.Stdout
 			r, w2, err := os.Pipe()
 			require.NoError(t, err, "Failed to create pipe")
+
 			defer r.Close()
+
 			os.Stdout = w2
 
 			// Call ServeHTTP

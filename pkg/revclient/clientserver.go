@@ -24,9 +24,31 @@ type Config struct {
 }
 
 type ClientServer struct {
-	token *token.Token
-	cfg   Config
-	wg    sync.WaitGroup
+	onConnected func(url string)
+	onRequest   func(clientIP string)
+	token       *token.Token
+	cfg         Config
+	wg          sync.WaitGroup
+}
+
+// Option is a functional option for configuring ClientServer.
+type Option func(*ClientServer)
+
+// WithOnConnected sets a callback function that is called when the client
+// successfully connects to the server. The callback receives the public URL.
+func WithOnConnected(fn func(url string)) Option {
+	return func(c *ClientServer) {
+		c.onConnected = fn
+	}
+}
+
+// WithOnRequest sets a callback function that is called for each incoming request.
+// The callback receives the client IP address. When set, it replaces the default
+// slog message for a cleaner interactive display.
+func WithOnRequest(fn func(clientIP string)) Option {
+	return func(c *ClientServer) {
+		c.onRequest = fn
+	}
 }
 
 type Conn interface {
@@ -34,11 +56,17 @@ type Conn interface {
 	CloseWrite() error
 }
 
-func NewClientServer(cfg Config, tkn *token.Token) *ClientServer {
-	return &ClientServer{
+func NewClientServer(cfg Config, tkn *token.Token, opts ...Option) *ClientServer {
+	cs := &ClientServer{
 		cfg:   cfg,
 		token: tkn,
 	}
+
+	for _, opt := range opts {
+		opt(cs)
+	}
+
+	return cs
 }
 
 func (s *ClientServer) Run(ctx context.Context) error {
@@ -55,9 +83,16 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		var url string
 		if err := event.ParsePayload(&url); err != nil {
 			slog.ErrorContext(ctx, "failed to parse payload for event urlToConnectUpdated", "error", err)
+			return
 		}
 
-		slog.InfoContext(ctx, "mit client is connected", "url", url)
+		// Call the onConnected callback if set (for interactive display)
+		if s.onConnected != nil {
+			s.onConnected(url)
+		} else {
+			// Fall back to slog for non-interactive mode
+			slog.InfoContext(ctx, "mit client is connected", "url", url)
+		}
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create event handler: %w", err)
@@ -127,7 +162,13 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	slog.InfoContext(ctx, "new incoming connection", "clientIP", connMeta.IP)
+	// Use callback for interactive display, otherwise use slog
+	if s.onRequest != nil {
+		s.onRequest(connMeta.IP)
+	} else {
+		slog.InfoContext(ctx, "new incoming connection", "clientIP", connMeta.IP)
+	}
+
 	defer slog.DebugContext(ctx, "closing connection", "clientIP", connMeta.IP)
 
 	d := net.Dialer{

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -217,7 +218,7 @@ func TestServeHTTP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server, err := New(Config{Status: 200, Body: "ok"})
+			server, err := New(Config{Status: 200, Body: "ok", Interactive: true})
 
 			require.NoError(t, err, "Failed to create server")
 
@@ -237,7 +238,11 @@ func TestServeHTTP(t *testing.T) {
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
-			r, w2, _ := os.Pipe()
+			r, w2, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+
+			defer r.Close()
+
 			os.Stdout = w2
 
 			// Call ServeHTTP
@@ -323,7 +328,11 @@ func TestPrintBody(t *testing.T) {
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
+			r, w, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+
+			defer r.Close()
+
 			os.Stdout = w
 
 			// Call printBody
@@ -385,7 +394,11 @@ func TestPrintText(t *testing.T) {
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
+			r, w, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+
+			defer r.Close()
+
 			os.Stdout = w
 
 			// Call printText
@@ -439,7 +452,11 @@ func TestPrintJSON(t *testing.T) {
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
+			r, w, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+
+			defer r.Close()
+
 			os.Stdout = w
 
 			// Call printJSON
@@ -547,6 +564,158 @@ func TestPrintHeaders(t *testing.T) {
 					assert.True(t, index > lastIndex, "Headers should be sorted")
 					lastIndex = index
 				}
+			}
+		})
+	}
+}
+
+func TestPrintHeadersWithColors(t *testing.T) {
+	t.Run("headers with color codes", func(t *testing.T) {
+		// Force color output for testing
+		oldNoColor := color.NoColor
+		color.NoColor = false
+
+		defer func() { color.NoColor = oldNoColor }()
+
+		var buf bytes.Buffer
+
+		headers := http.Header{
+			"Content-Type": []string{"application/json"},
+			"User-Agent":   []string{"test-agent"},
+		}
+
+		printHeaders(headers, &buf)
+
+		output := buf.String()
+
+		// Verify content is present (should work with or without colors)
+		assert.Contains(t, output, "Content-Type")
+		assert.Contains(t, output, "application/json")
+		assert.Contains(t, output, "User-Agent")
+		assert.Contains(t, output, "test-agent")
+
+		// Verify ANSI color codes are present when colors are enabled
+		// Cyan color code for header names
+		assert.Contains(t, output, "\x1b[36m", "Should contain cyan color code for header names")
+		// Reset/white color code for values
+		assert.Contains(t, output, "\x1b[", "Should contain ANSI escape sequences")
+	})
+
+	t.Run("headers without color codes when NO_COLOR is set", func(t *testing.T) {
+		// Disable color output for testing
+		oldNoColor := color.NoColor
+		color.NoColor = true
+
+		defer func() { color.NoColor = oldNoColor }()
+
+		var buf bytes.Buffer
+
+		headers := http.Header{
+			"Accept": []string{"text/html"},
+		}
+
+		printHeaders(headers, &buf)
+
+		output := buf.String()
+
+		// Verify content is present
+		assert.Contains(t, output, "Accept: text/html")
+
+		// Verify no ANSI color codes when colors are disabled
+		assert.NotContains(t, output, "\x1b[", "Should not contain ANSI escape sequences when colors disabled")
+	})
+}
+
+func TestServeHTTPNonInteractive(t *testing.T) {
+	tests := []struct {
+		name        string
+		method      string
+		url         string
+		body        string
+		contentType string
+		config      Config
+	}{
+		{
+			name:   "GET request in non-interactive mode",
+			config: Config{Status: 200, Body: "ok", Interactive: false},
+			method: http.MethodGet,
+			url:    "/api/test",
+		},
+		{
+			name:        "POST with JSON body in non-interactive mode",
+			config:      Config{Status: 201, JSON: `{"response": "created"}`, Interactive: false},
+			method:      http.MethodPost,
+			url:         "/api/data",
+			body:        `{"key": "value"}`,
+			contentType: "application/json",
+		},
+		{
+			name:        "PUT with text body in non-interactive mode",
+			config:      Config{Status: 200, Body: "updated", Interactive: false},
+			method:      http.MethodPut,
+			url:         "/api/update",
+			body:        "Plain text body",
+			contentType: "text/plain",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server, err := New(tt.config)
+			require.NoError(t, err, "Failed to create server")
+
+			// Create request
+			var bodyReader io.Reader
+			if tt.body != "" {
+				bodyReader = strings.NewReader(tt.body)
+			}
+
+			req := httptest.NewRequest(tt.method, tt.url, bodyReader)
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+
+			// Create response recorder
+			w := httptest.NewRecorder()
+
+			// In non-interactive mode, output should go to slog (not stdout)
+			// We can't easily capture slog output, but we can verify stdout is empty
+			oldStdout := os.Stdout
+			r, w2, err := os.Pipe()
+			require.NoError(t, err, "Failed to create pipe")
+
+			defer r.Close()
+
+			os.Stdout = w2
+
+			// Call ServeHTTP
+			server.ServeHTTP(w, req)
+
+			// Restore stdout
+			require.NoError(t, w2.Close())
+
+			os.Stdout = oldStdout
+
+			// Read captured stdout
+			var buf bytes.Buffer
+
+			_, _ = io.Copy(&buf, r)
+			output := buf.String()
+
+			// Verify stdout is empty (all output goes to slog)
+			assert.Empty(t, output, "In non-interactive mode, stdout should be empty")
+
+			// Verify HTTP response is correct
+			resp := w.Result()
+
+			defer func() { _ = resp.Body.Close() }()
+
+			assert.Equal(t, tt.config.Status, resp.StatusCode)
+
+			if tt.config.Body != "" {
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				assert.Equal(t, tt.config.Body, string(body))
 			}
 		})
 	}

@@ -7,7 +7,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/google/uuid v1.6.0
-	github.com/ksysoev/revdial v0.4.1
+	github.com/ksysoev/revdial v0.5.0
 	github.com/mailgun/proxyproto v1.0.0
 	github.com/mileusna/useragent v1.3.5
 	github.com/redis/go-redis/v9 v9.17.3
@@ -19,6 +19,7 @@ require (
 )
 
 require (
+	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

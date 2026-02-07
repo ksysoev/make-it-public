@@ -21,6 +21,7 @@ type Config struct {
 	DestAddr   string
 	NoTLS      bool
 	Insecure   bool
+	EnableV2   bool
 }
 
 type ClientServer struct {
@@ -115,8 +116,10 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		opts = append(opts, tlsConf)
 	}
 
-	// Enable V2 protocol for improved performance with multiplexing
-	opts = append(opts, revdial.WithEnableV2())
+	// Enable V2 protocol if configured for improved performance with multiplexing
+	if s.cfg.EnableV2 {
+		opts = append(opts, revdial.WithEnableV2())
+	}
 
 	listener, err := revdial.Listen(ctx, s.cfg.ServerAddr, opts...)
 	if err != nil {

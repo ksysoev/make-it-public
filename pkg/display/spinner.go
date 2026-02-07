@@ -17,6 +17,7 @@ type Spinner struct {
 	mu        sync.Mutex
 	running   bool
 	closeOnce sync.Once
+	wg        sync.WaitGroup
 }
 
 // spinnerFrames defines the ASCII animation frames for the spinner.
@@ -43,6 +44,7 @@ func (s *Spinner) Start() {
 	}
 
 	s.running = true
+	s.wg.Add(1)
 	s.mu.Unlock()
 
 	go s.animate()
@@ -58,14 +60,18 @@ func (s *Spinner) closeChannel() {
 // Stop halts the spinner animation without displaying a final message.
 func (s *Spinner) Stop() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if !s.running {
+		s.mu.Unlock()
 		return
 	}
 
 	s.running = false
 	s.closeChannel()
+	s.mu.Unlock()
+
+	// Wait for animation goroutine to finish
+	s.wg.Wait()
 
 	// Clear the current line
 	fmt.Fprint(s.out, "\r\033[K")
@@ -90,6 +96,9 @@ func (s *Spinner) Success(message string) {
 	s.running = false
 	s.closeChannel()
 	s.mu.Unlock()
+
+	// Wait for animation goroutine to finish
+	s.wg.Wait()
 
 	successColor := color.New(color.FgGreen, color.Bold)
 
@@ -118,6 +127,9 @@ func (s *Spinner) Fail(message string) {
 	s.closeChannel()
 	s.mu.Unlock()
 
+	// Wait for animation goroutine to finish
+	s.wg.Wait()
+
 	failColor := color.New(color.FgRed, color.Bold)
 
 	fmt.Fprint(s.out, "\r\033[K")
@@ -127,6 +139,8 @@ func (s *Spinner) Fail(message string) {
 
 // animate runs the spinner animation loop.
 func (s *Spinner) animate() {
+	defer s.wg.Done()
+
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 

@@ -80,6 +80,9 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		opts = append(opts, tlsConf)
 	}
 
+	// Enable V2 protocol for improved performance with multiplexing
+	opts = append(opts, revdial.WithEnableV2())
+
 	listener, err := revdial.Listen(ctx, s.cfg.ServerAddr, opts...)
 	if err != nil {
 		return err

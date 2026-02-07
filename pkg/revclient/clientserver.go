@@ -144,9 +144,6 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		return err
 	}
 
-	slog.InfoContext(ctx, "successfully connected to server",
-		slog.String("protocol", map[bool]string{true: "V2", false: "V1"}[s.cfg.EnableV2]))
-
 	go func() {
 		<-ctx.Done()
 

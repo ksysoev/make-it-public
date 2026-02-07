@@ -67,6 +67,7 @@ func RunClientCommand(ctx context.Context, args *args) error {
 		DestAddr:   exposeAddr,
 		NoTLS:      args.NoTLS,
 		Insecure:   args.Insecure,
+		EnableV2:   !args.DisableV2, // V2 enabled by default, use --disable-v2 for old servers
 	}
 
 	// Start spinner while connecting

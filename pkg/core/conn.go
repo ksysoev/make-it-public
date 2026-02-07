@@ -35,17 +35,23 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 
 	var connKeyID string
 
-	servConn := proto.NewServer(revConn, proto.WithUserPassAuth(func(keyID, secret string) bool {
-		valid, err := s.auth.Verify(ctx, keyID, secret)
-		if err == nil && valid {
-			connKeyID = keyID
-			return true
-		} else if err != nil {
-			slog.ErrorContext(ctx, "failed to verify user", slog.Any("error", err))
-		}
+	// Use NewServerV2 to support both V1 and V2 protocols
+	// V2 provides yamux multiplexing for better performance
+	baseOpts := []proto.ServerOption{
+		proto.WithUserPassAuth(func(keyID, secret string) bool {
+			valid, err := s.auth.Verify(ctx, keyID, secret)
+			if err == nil && valid {
+				connKeyID = keyID
+				return true
+			} else if err != nil {
+				slog.ErrorContext(ctx, "failed to verify user", slog.Any("error", err))
+			}
 
-		return false
-	}))
+			return false
+		}),
+	}
+
+	servConn := proto.NewServerV2(revConn, baseOpts)
 
 	err := servConn.Process()
 
@@ -55,6 +61,16 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 		slog.DebugContext(ctx, "failed to process connection", slog.Any("error", err))
 		return nil
 	}
+
+	// Log protocol version for debugging
+	protocolVersion := "V1"
+	if servConn.IsV2() {
+		protocolVersion = "V2"
+	}
+
+	slog.DebugContext(ctx, "connection processed",
+		slog.String("protocol", protocolVersion),
+		slog.String("keyID", connKeyID))
 
 	switch servConn.State() {
 	case proto.StateRegistered:
@@ -73,7 +89,14 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 
 		defer s.connmng.RemoveConnection(connKeyID, srvConn.ID())
 
-		slog.InfoContext(ctx, "control conn established", slog.String("keyID", connKeyID))
+		protocolVersion := "V1"
+		if servConn.IsV2() {
+			protocolVersion = "V2 (yamux multiplexed)"
+		}
+
+		slog.InfoContext(ctx, "control conn established",
+			slog.String("keyID", connKeyID),
+			slog.String("protocol", protocolVersion))
 
 		for {
 			select {

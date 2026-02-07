@@ -28,6 +28,7 @@ type args struct {
 	LocalServer bool     `mapstructure:"local"`
 	TextFormat  bool     `mapstructure:"log_text"`
 	Insecure    bool     `mapstructure:"insecure"`
+	DisableV2   bool     `mapstructure:"disable_v2"`
 }
 
 // InitCommand initializes the root command of the CLI application with its subcommands and flags.
@@ -56,6 +57,7 @@ func InitCommand(build BuildInfo) cobra.Command {
 	cmd.Flags().StringVar(&arg.Token, "token", "", "token")
 	cmd.Flags().BoolVar(&arg.NoTLS, "no-tls", false, "disable TLS")
 	cmd.Flags().BoolVar(&arg.Insecure, "insecure", false, "skip TLS verification")
+	cmd.Flags().BoolVar(&arg.DisableV2, "disable-v2", false, "disable V2 protocol (fallback to V1 for old servers)")
 	cmd.Flags().BoolVar(&arg.LocalServer, "dummy", false, "run local dummy web server that will print incoming requests(experimental feature)")
 	cmd.Flags().StringVar(&arg.Body, "body", "", "response to send back to the client by the dummy server")
 	cmd.Flags().StringVar(&arg.JSON, "json", "", "JSON response to send back to the client by the dummy server")

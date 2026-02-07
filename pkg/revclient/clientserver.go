@@ -73,6 +73,12 @@ func NewClientServer(cfg Config, tkn *token.Token, opts ...Option) *ClientServer
 func (s *ClientServer) Run(ctx context.Context) error {
 	opts := []revdial.ListenerOption{}
 
+	slog.DebugContext(ctx, "initializing revdial client",
+		slog.String("server", s.cfg.ServerAddr),
+		slog.Bool("v2_enabled", s.cfg.EnableV2),
+		slog.Bool("no_tls", s.cfg.NoTLS),
+		slog.Bool("insecure", s.cfg.Insecure))
+
 	authOpt, err := revdial.WithUserPass(s.token.ID, s.token.Secret)
 	if err != nil {
 		return fmt.Errorf("failed to create auth option: %w", err)
@@ -118,13 +124,28 @@ func (s *ClientServer) Run(ctx context.Context) error {
 
 	// Enable V2 protocol if configured for improved performance with multiplexing
 	if s.cfg.EnableV2 {
+		slog.DebugContext(ctx, "enabling V2 protocol with yamux multiplexing")
+
 		opts = append(opts, revdial.WithEnableV2())
+	} else {
+		slog.DebugContext(ctx, "V2 disabled, using V1 protocol (use without --disable-v2 to enable V2)")
 	}
+
+	slog.DebugContext(ctx, "connecting to server", slog.String("server", s.cfg.ServerAddr))
 
 	listener, err := revdial.Listen(ctx, s.cfg.ServerAddr, opts...)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to connect to server",
+			slog.Any("error", err),
+			slog.String("server", s.cfg.ServerAddr),
+			slog.Bool("v2_enabled", s.cfg.EnableV2),
+			slog.String("hint", "If connection fails, try using --disable-v2 flag for V1 fallback"))
+
 		return err
 	}
+
+	slog.InfoContext(ctx, "successfully connected to server",
+		slog.String("protocol", map[bool]string{true: "V2", false: "V1"}[s.cfg.EnableV2]))
 
 	go func() {
 		<-ctx.Done()

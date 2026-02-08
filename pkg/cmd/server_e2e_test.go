@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 	"testing"
 	"time"
 
@@ -15,104 +14,8 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/ksysoev/make-it-public/pkg/repo/connmng"
 	"github.com/ksysoev/make-it-public/pkg/revproxy"
-	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 )
-
-// MockRedis is a simple in-memory implementation of the Redis interface for testing
-type MockRedis struct {
-	data map[string]string
-	mu   sync.RWMutex
-}
-
-func NewMockRedis() *MockRedis {
-	return &MockRedis{
-		data: make(map[string]string),
-	}
-}
-
-func (m *MockRedis) Get(ctx context.Context, key string) *redis.StringCmd {
-	cmd := redis.NewStringCmd(ctx)
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if val, ok := m.data[key]; ok {
-		cmd.SetVal(val)
-	} else {
-		cmd.SetErr(redis.Nil)
-	}
-
-	return cmd
-}
-
-func (m *MockRedis) Exists(ctx context.Context, keys ...string) *redis.IntCmd {
-	cmd := redis.NewIntCmd(ctx)
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	count := int64(0)
-
-	for _, key := range keys {
-		if _, ok := m.data[key]; ok {
-			count++
-		}
-	}
-
-	cmd.SetVal(count)
-
-	return cmd
-}
-
-func (m *MockRedis) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
-	cmd := redis.NewBoolCmd(ctx)
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if _, exists := m.data[key]; !exists {
-		m.data[key] = fmt.Sprintf("%v", value)
-
-		cmd.SetVal(true)
-	} else {
-		cmd.SetVal(false)
-	}
-
-	return cmd
-}
-
-func (m *MockRedis) Del(ctx context.Context, keys ...string) *redis.IntCmd {
-	cmd := redis.NewIntCmd(ctx)
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	count := int64(0)
-
-	for _, key := range keys {
-		if _, ok := m.data[key]; ok {
-			delete(m.data, key)
-
-			count++
-		}
-	}
-
-	cmd.SetVal(count)
-
-	return cmd
-}
-
-func (m *MockRedis) Ping(ctx context.Context) *redis.StatusCmd {
-	cmd := redis.NewStatusCmd(ctx)
-	cmd.SetVal("PONG")
-
-	return cmd
-}
-
-func (m *MockRedis) Close() error {
-	return nil
-}
 
 // TestServerE2E tests the complete server lifecycle: start, verify running, and stop
 func TestServerE2E(t *testing.T) {

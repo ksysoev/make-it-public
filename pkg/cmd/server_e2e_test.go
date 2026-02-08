@@ -175,7 +175,22 @@ func TestServerE2E(t *testing.T) {
 
 	// Wait for server to start
 	<-serverStarted
-	time.Sleep(500 * time.Millisecond) // Give server time to bind ports
+
+	// Wait for all servers to be ready by polling their endpoints
+	if err := waitForHTTPServer(httpPort, 10*time.Second); err != nil {
+		cancel()
+		t.Fatalf("HTTP server did not become ready: %v", err)
+	}
+
+	if err := waitForTCPServer(revProxyPort, 10*time.Second); err != nil {
+		cancel()
+		t.Fatalf("Reverse proxy server did not become ready: %v", err)
+	}
+
+	if err := waitForHTTPServer(apiPort, 10*time.Second); err != nil {
+		cancel()
+		t.Fatalf("API server did not become ready: %v", err)
+	}
 
 	// Test 1: Verify HTTP server is running
 	t.Run("HTTP server is accessible", func(t *testing.T) {
@@ -278,6 +293,41 @@ func checkRedisAvailable(t *testing.T) bool {
 	conn.Close()
 
 	return true
+}
+
+// waitForHTTPServer waits for an HTTP server to become available by repeatedly attempting to connect
+func waitForHTTPServer(port int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{Timeout: 1 * time.Second}
+
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(fmt.Sprintf("http://localhost:%d/", port))
+		if err == nil {
+			resp.Body.Close()
+			return nil
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return fmt.Errorf("HTTP server on port %d did not become ready within %v", port, timeout)
+}
+
+// waitForTCPServer waits for a TCP server to become available by repeatedly attempting to dial
+func waitForTCPServer(port int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", port), 1*time.Second)
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return fmt.Errorf("TCP server on port %d did not become ready within %v", port, timeout)
 }
 
 // isClosedNetworkError checks if the error is a "use of closed network connection" error

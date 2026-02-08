@@ -33,6 +33,7 @@ func NewMockRedis() *MockRedis {
 
 func (m *MockRedis) Get(ctx context.Context, key string) *redis.StringCmd {
 	cmd := redis.NewStringCmd(ctx)
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -72,6 +73,7 @@ func (m *MockRedis) SetNX(ctx context.Context, key string, value interface{}, ex
 
 	if _, exists := m.data[key]; !exists {
 		m.data[key] = fmt.Sprintf("%v", value)
+
 		cmd.SetVal(true)
 	} else {
 		cmd.SetVal(false)
@@ -210,6 +212,7 @@ func TestServerE2E(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200 from health check, got %d", resp.StatusCode)
 		}
+
 		t.Log("API health check passed")
 	})
 
@@ -219,7 +222,9 @@ func TestServerE2E(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to connect to reverse proxy server: %v", err)
 		}
+
 		conn.Close()
+
 		t.Log("Reverse proxy server is listening")
 	})
 
@@ -249,11 +254,13 @@ func TestServerE2E(t *testing.T) {
 		time.Sleep(200 * time.Millisecond) // Brief pause to ensure ports are released
 
 		client := &http.Client{Timeout: 1 * time.Second}
+
 		resp, err := client.Get(fmt.Sprintf("http://localhost:%d/health", apiPort))
 		if err == nil {
 			resp.Body.Close()
 			t.Error("Expected API server to be stopped, but it's still accessible")
 		}
+
 		t.Log("Confirmed servers are stopped")
 	})
 }
@@ -289,7 +296,13 @@ func findAvailablePort(t *testing.T) int {
 		t.Fatalf("Failed to find available port: %v", err)
 	}
 
-	port := listener.Addr().(*net.TCPAddr).Port
+	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatal("Failed to get TCP address")
+	}
+
+	port := tcpAddr.Port
+
 	if err := listener.Close(); err != nil {
 		t.Logf("Failed to close listener: %v", err)
 	}

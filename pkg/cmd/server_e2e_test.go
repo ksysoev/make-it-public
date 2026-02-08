@@ -243,6 +243,7 @@ func TestServerE2E(t *testing.T) {
 					t.Logf("Server returned error during shutdown (may be expected): %v", err)
 				}
 			}
+
 			t.Log("Server stopped")
 		case <-time.After(10 * time.Second):
 			t.Fatal("Server did not stop within timeout")

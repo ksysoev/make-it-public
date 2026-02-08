@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
+	"github.com/ksysoev/revdial/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -509,4 +510,266 @@ func TestCloseOnContextDone_CloseError(t *testing.T) {
 	reqCancel()
 
 	wg.Wait()
+}
+
+// --- V2 tests ---
+
+func TestYamuxStreamWrapper_CloseWrite(t *testing.T) {
+	inner := conn.NewMockWithWriteCloser(t)
+	wrapper := &yamuxStreamWrapper{Conn: inner}
+
+	err := wrapper.CloseWrite()
+	assert.NoError(t, err, "CloseWrite should be a no-op and return nil")
+}
+
+func TestYamuxStreamWrapper_DelegatesRead(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	wrapper := &yamuxStreamWrapper{Conn: server}
+
+	go func() {
+		_, _ = client.Write([]byte("hello"))
+	}()
+
+	buf := make([]byte, 5)
+	n, err := wrapper.Read(buf)
+	require.NoError(t, err)
+	assert.Equal(t, 5, n)
+	assert.Equal(t, []byte("hello"), buf)
+}
+
+func TestYamuxStreamWrapper_DelegatesWrite(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	wrapper := &yamuxStreamWrapper{Conn: server}
+
+	go func() {
+		buf := make([]byte, 5)
+		_, _ = client.Read(buf)
+	}()
+
+	n, err := wrapper.Write([]byte("hello"))
+	require.NoError(t, err)
+	assert.Equal(t, 5, n)
+}
+
+func TestYamuxStreamWrapper_DelegatesClose(t *testing.T) {
+	server, client := net.Pipe()
+	defer client.Close()
+
+	wrapper := &yamuxStreamWrapper{Conn: server}
+
+	err := wrapper.Close()
+	assert.NoError(t, err)
+
+	// Verify the underlying connection is actually closed
+	_, err = server.Read(make([]byte, 1))
+	assert.Error(t, err)
+}
+
+func TestYamuxStreamWrapper_ImplementsWithWriteCloser(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	wrapper := &yamuxStreamWrapper{Conn: server}
+
+	// Verify it satisfies the WithWriteCloser interface
+	var _ conn.WithWriteCloser = wrapper
+}
+
+// buildBindMessage constructs the wire-format bind message that a V2 client sends on a yamux stream.
+// Format: [VersionV1 (1 byte)][CmdBind (1 byte)][UUID (16 bytes)]
+func buildBindMessage(id uuid.UUID) []byte {
+	msg := make([]byte, 0, 18)
+	msg = append(msg, proto.VersionV1(), proto.CmdBind())
+	msg = append(msg, id[:]...)
+
+	return msg
+}
+
+func TestHandleV2Stream_Success(t *testing.T) {
+	connManager := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+	service := New(connManager, authRepo)
+
+	streamServer, streamClient := net.Pipe()
+	defer streamClient.Close()
+
+	reqID := uuid.New()
+	bindMsg := buildBindMessage(reqID)
+
+	// ResolveRequest should be called with the correct UUID and a CloseNotifier wrapping the stream
+	connManager.EXPECT().ResolveRequest(reqID, mock.AnythingOfType("*conn.CloseNotifier")).Run(func(_ uuid.UUID, c conn.WithWriteCloser) {
+		// Close the notifier to unblock WaitClose
+		_ = c.Close()
+	}).Return()
+
+	// Write bind message from client side, then read response
+	go func() {
+		_, err := streamClient.Write(bindMsg)
+		assert.NoError(t, err)
+
+		// Read success response: [VersionV1][ResSuccess]
+		resp := make([]byte, 2)
+		_, err = io.ReadFull(streamClient, resp)
+		assert.NoError(t, err)
+		assert.Equal(t, proto.VersionV1(), resp[0])
+		assert.Equal(t, proto.ResSuccess(), resp[1])
+	}()
+
+	ctx := t.Context()
+	service.handleV2Stream(ctx, streamServer, "test-key")
+}
+
+func TestHandleV2Stream_InvalidVersion(t *testing.T) {
+	connManager := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+	service := New(connManager, authRepo)
+
+	streamServer, streamClient := net.Pipe()
+	defer streamClient.Close()
+
+	// Send invalid version byte (0xFF instead of VersionV1)
+	go func() {
+		_, _ = streamClient.Write([]byte{0xFF, proto.CmdBind()})
+	}()
+
+	ctx := t.Context()
+	service.handleV2Stream(ctx, streamServer, "test-key")
+
+	// Stream should be closed by handleV2Stream due to invalid version
+	_, err := streamServer.Read(make([]byte, 1))
+	assert.Error(t, err, "stream should be closed after invalid version")
+}
+
+func TestHandleV2Stream_InvalidCommand(t *testing.T) {
+	connManager := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+	service := New(connManager, authRepo)
+
+	streamServer, streamClient := net.Pipe()
+	defer streamClient.Close()
+
+	// Send valid version but wrong command (0xFF instead of CmdBind)
+	go func() {
+		_, _ = streamClient.Write([]byte{proto.VersionV1(), 0xFF})
+	}()
+
+	ctx := t.Context()
+	service.handleV2Stream(ctx, streamServer, "test-key")
+
+	// Stream should be closed
+	_, err := streamServer.Read(make([]byte, 1))
+	assert.Error(t, err, "stream should be closed after invalid command")
+}
+
+func TestHandleV2Stream_TruncatedUUID(t *testing.T) {
+	connManager := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+	service := New(connManager, authRepo)
+
+	streamServer, streamClient := net.Pipe()
+
+	// Send version + command + only 5 bytes of UUID, then close
+	go func() {
+		_, _ = streamClient.Write([]byte{proto.VersionV1(), proto.CmdBind()})
+		_, _ = streamClient.Write([]byte{1, 2, 3, 4, 5})
+		_ = streamClient.Close()
+	}()
+
+	ctx := t.Context()
+	service.handleV2Stream(ctx, streamServer, "test-key")
+
+	// Stream should be closed because UUID read failed
+	_, err := streamServer.Read(make([]byte, 1))
+	assert.Error(t, err, "stream should be closed after truncated UUID")
+}
+
+func TestHandleV2Stream_WriteResponseFails(t *testing.T) {
+	connManager := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+	service := New(connManager, authRepo)
+
+	streamServer, streamClient := net.Pipe()
+
+	reqID := uuid.New()
+	bindMsg := buildBindMessage(reqID)
+
+	// Write bind message then immediately close so the response write fails
+	go func() {
+		_, _ = streamClient.Write(bindMsg)
+		_ = streamClient.Close()
+	}()
+
+	ctx := t.Context()
+	service.handleV2Stream(ctx, streamServer, "test-key")
+
+	// Stream should be closed regardless
+	_, err := streamServer.Read(make([]byte, 1))
+	assert.Error(t, err, "stream should be closed after write failure")
+}
+
+func TestHandleV2Stream_EmptyStream(t *testing.T) {
+	connManager := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+	service := New(connManager, authRepo)
+
+	streamServer, streamClient := net.Pipe()
+
+	// Close immediately with no data
+	go func() {
+		_ = streamClient.Close()
+	}()
+
+	ctx := t.Context()
+	service.handleV2Stream(ctx, streamServer, "test-key")
+
+	// Should return without panic and stream should be closed
+	_, err := streamServer.Read(make([]byte, 1))
+	assert.Error(t, err, "stream should be closed after empty stream")
+}
+
+func TestAcceptV2Streams_ContextCancellation(t *testing.T) {
+	// Test that acceptV2Streams respects context cancellation.
+	// We use a mock ServerV2 to avoid race conditions in the revdial library.
+	connManager := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+	service := New(connManager, authRepo)
+
+	// Create a real ServerV2 that will block on AcceptStream
+	serverPipe, clientPipe := net.Pipe()
+	defer serverPipe.Close()
+	defer clientPipe.Close()
+
+	baseOpts := []proto.ServerOption{
+		proto.WithUserPassAuth(func(_, _ string) bool {
+			return true
+		}),
+	}
+	servConn := proto.NewServerV2(serverPipe, baseOpts)
+
+	// We don't actually need to complete V2 negotiation - just test that context cancellation works
+	// Create a cancelled context to test the immediate return path
+	acceptCtx, acceptCancel := context.WithCancel(t.Context())
+	acceptCancel() // Cancel immediately
+
+	done := make(chan struct{})
+
+	go func() {
+		service.acceptV2Streams(acceptCtx, servConn, "testkey")
+		close(done)
+	}()
+
+	// Verify it returns immediately due to cancelled context
+	select {
+	case <-done:
+		// acceptV2Streams exited as expected
+	case <-time.After(1 * time.Second):
+		t.Fatal("acceptV2Streams did not return after context cancellation")
+	}
 }

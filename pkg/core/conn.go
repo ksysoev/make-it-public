@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/ksysoev/make-it-public/pkg/core/conn/meta"
 	"github.com/ksysoev/revdial/proto"
@@ -97,6 +98,12 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 		slog.InfoContext(ctx, "control conn established",
 			slog.String("keyID", connKeyID),
 			slog.String("protocol", protocolVersion))
+
+		// For V2 connections, start accepting yamux streams in the background.
+		// The client opens new streams (instead of new TCP connections) for each data connection.
+		if servConn.IsV2() {
+			go s.acceptV2Streams(srvConn.Context(), servConn, connKeyID)
+		}
 
 		for {
 			select {
@@ -194,6 +201,142 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 		return fmt.Errorf("failed to copy data: %w", err)
 	}
 
+	return nil
+}
+
+// acceptV2Streams accepts yamux streams from a V2 connection and resolves pending connection requests.
+// Each stream carries a bind command with a UUID that maps to a pending request from HandleHTTPConnection.
+func (s *Service) acceptV2Streams(ctx context.Context, servConn *proto.ServerV2, keyID string) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		stream, err := servConn.AcceptStream()
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+
+			slog.ErrorContext(ctx, "failed to accept V2 stream",
+				slog.Any("error", err),
+				slog.String("keyID", keyID))
+
+			return
+		}
+
+		go s.handleV2Stream(ctx, stream, keyID)
+	}
+}
+
+// handleV2Stream reads a bind command from a yamux stream and resolves the corresponding connection request.
+// This mirrors the logic in revdial/dialer.go:handleV2Stream for the server-side stream handling.
+func (s *Service) handleV2Stream(ctx context.Context, stream net.Conn, keyID string) {
+	// Read version and command (2 bytes)
+	buf := make([]byte, 2)
+	if _, err := io.ReadFull(stream, buf); err != nil {
+		slog.ErrorContext(ctx, "failed to read command from V2 stream",
+			slog.Any("error", err),
+			slog.String("keyID", keyID))
+
+		_ = stream.Close()
+
+		return
+	}
+
+	if buf[0] != proto.VersionV1() {
+		slog.ErrorContext(ctx, "unexpected version in V2 stream",
+			slog.Int("version", int(buf[0])),
+			slog.String("keyID", keyID))
+
+		_ = stream.Close()
+
+		return
+	}
+
+	if buf[1] != proto.CmdBind() {
+		slog.ErrorContext(ctx, "unexpected command in V2 stream",
+			slog.Int("command", int(buf[1])),
+			slog.String("keyID", keyID))
+
+		_ = stream.Close()
+
+		return
+	}
+
+	// Read UUID (16 bytes)
+	uuidBuf := make([]byte, 16)
+	if _, err := io.ReadFull(stream, uuidBuf); err != nil {
+		slog.ErrorContext(ctx, "failed to read UUID from V2 stream",
+			slog.Any("error", err),
+			slog.String("keyID", keyID))
+
+		_ = stream.Close()
+
+		return
+	}
+
+	id, err := uuid.FromBytes(uuidBuf)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to parse UUID from V2 stream",
+			slog.Any("error", err),
+			slog.String("keyID", keyID))
+
+		_ = stream.Close()
+
+		return
+	}
+
+	// Send success response
+	if _, err := stream.Write([]byte{proto.VersionV1(), proto.ResSuccess()}); err != nil {
+		slog.ErrorContext(ctx, "failed to write bind response on V2 stream",
+			slog.Any("error", err),
+			slog.String("keyID", keyID))
+
+		_ = stream.Close()
+
+		return
+	}
+
+	slog.DebugContext(ctx, "V2 stream bound",
+		slog.String("keyID", keyID),
+		slog.String("connID", id.String()))
+
+	// Wrap the yamux stream to implement WithWriteCloser (CloseWrite)
+	wrappedStream := &yamuxStreamWrapper{Conn: stream}
+
+	notifier, err := conn.NewCloseNotifier(wrappedStream)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create close notifier for V2 stream",
+			slog.Any("error", err),
+			slog.String("keyID", keyID))
+
+		_ = stream.Close()
+
+		return
+	}
+
+	s.connmng.ResolveRequest(id, notifier)
+
+	slog.InfoContext(ctx, "V2 rev conn established", slog.String("keyID", keyID))
+
+	notifier.WaitClose(ctx)
+	slog.DebugContext(ctx, "V2 bound connection closed", slog.String("keyID", keyID))
+}
+
+// yamuxStreamWrapper wraps a yamux stream (net.Conn) to implement the WithWriteCloser interface.
+// Yamux streams don't natively support half-close (CloseWrite), so CloseWrite is a no-op.
+// The stream will be fully closed when Close() is called.
+type yamuxStreamWrapper struct {
+	net.Conn
+}
+
+// CloseWrite implements the conn.WithWriteCloser interface for yamux streams.
+// Yamux doesn't support half-close, so this is a no-op.
+// The full stream close happens via Close().
+func (w *yamuxStreamWrapper) CloseWrite() error {
 	return nil
 }
 

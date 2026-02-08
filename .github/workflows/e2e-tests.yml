@@ -36,9 +36,9 @@ jobs:
         run: go version
       - name: Wait for Redis
         run: |
-          echo "Waiting for Redis to be ready..."
-          timeout 30 bash -c 'until docker exec $(docker ps -q -f expose=6379) redis-cli ping; do sleep 1; done' || true
-          sleep 2
+          echo "Waiting for Redis to be ready on localhost:6379..."
+          sudo apt-get update && sudo apt-get install -y redis-tools
+          timeout 30 bash -c 'until redis-cli -h localhost -p 6379 ping | grep -q PONG; do sleep 1; done'
       - name: Run E2E Tests
         run: make test-e2e
       - name: Upload test results

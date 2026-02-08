@@ -21,8 +21,8 @@ import (
 
 // MockRedis is a simple in-memory implementation of the Redis interface for testing
 type MockRedis struct {
-	mu   sync.RWMutex
 	data map[string]string
+	mu   sync.RWMutex
 }
 
 func NewMockRedis() *MockRedis {
@@ -35,59 +35,76 @@ func (m *MockRedis) Get(ctx context.Context, key string) *redis.StringCmd {
 	cmd := redis.NewStringCmd(ctx)
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	if val, ok := m.data[key]; ok {
 		cmd.SetVal(val)
 	} else {
 		cmd.SetErr(redis.Nil)
 	}
+
 	return cmd
 }
 
 func (m *MockRedis) Exists(ctx context.Context, keys ...string) *redis.IntCmd {
 	cmd := redis.NewIntCmd(ctx)
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	count := int64(0)
+
 	for _, key := range keys {
 		if _, ok := m.data[key]; ok {
 			count++
 		}
 	}
+
 	cmd.SetVal(count)
+
 	return cmd
 }
 
 func (m *MockRedis) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd {
 	cmd := redis.NewBoolCmd(ctx)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	if _, exists := m.data[key]; !exists {
 		m.data[key] = fmt.Sprintf("%v", value)
 		cmd.SetVal(true)
 	} else {
 		cmd.SetVal(false)
 	}
+
 	return cmd
 }
 
 func (m *MockRedis) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	cmd := redis.NewIntCmd(ctx)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	count := int64(0)
+
 	for _, key := range keys {
 		if _, ok := m.data[key]; ok {
 			delete(m.data, key)
+
 			count++
 		}
 	}
+
 	cmd.SetVal(count)
+
 	return cmd
 }
 
 func (m *MockRedis) Ping(ctx context.Context) *redis.StatusCmd {
 	cmd := redis.NewStatusCmd(ctx)
 	cmd.SetVal("PONG")
+
 	return cmd
 }
 
@@ -161,6 +178,7 @@ func TestServerE2E(t *testing.T) {
 	// Test 1: Verify HTTP server is running
 	t.Run("HTTP server is accessible", func(t *testing.T) {
 		client := &http.Client{Timeout: 5 * time.Second}
+
 		resp, err := client.Get(fmt.Sprintf("http://localhost:%d/", httpPort))
 		if err != nil {
 			t.Fatalf("Failed to connect to HTTP server: %v", err)
@@ -171,6 +189,7 @@ func TestServerE2E(t *testing.T) {
 		if resp.StatusCode == 0 {
 			t.Error("Expected non-zero status code from HTTP server")
 		}
+
 		t.Logf("HTTP server responded with status: %d", resp.StatusCode)
 	})
 
@@ -181,6 +200,7 @@ func TestServerE2E(t *testing.T) {
 		}
 
 		client := &http.Client{Timeout: 5 * time.Second}
+
 		resp, err := client.Get(fmt.Sprintf("http://localhost:%d/health", apiPort))
 		if err != nil {
 			t.Fatalf("Failed to connect to API server: %v", err)
@@ -229,8 +249,9 @@ func TestServerE2E(t *testing.T) {
 		time.Sleep(200 * time.Millisecond) // Brief pause to ensure ports are released
 
 		client := &http.Client{Timeout: 1 * time.Second}
-		_, err := client.Get(fmt.Sprintf("http://localhost:%d/health", apiPort))
+		resp, err := client.Get(fmt.Sprintf("http://localhost:%d/health", apiPort))
 		if err == nil {
+			resp.Body.Close()
 			t.Error("Expected API server to be stopped, but it's still accessible")
 		}
 		t.Log("Confirmed servers are stopped")
@@ -240,11 +261,14 @@ func TestServerE2E(t *testing.T) {
 // checkRedisAvailable checks if Redis is available at the default address
 func checkRedisAvailable(t *testing.T) bool {
 	t.Helper()
+
 	conn, err := net.DialTimeout("tcp", "localhost:6379", 1*time.Second)
 	if err != nil {
 		return false
 	}
+
 	conn.Close()
+
 	return true
 }
 
@@ -259,21 +283,18 @@ func isClosedNetworkError(err error) bool {
 // findAvailablePort finds and returns an available TCP port for testing
 func findAvailablePort(t *testing.T) int {
 	t.Helper()
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Failed to find available port: %v", err)
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	listener.Close()
-	return port
-}
 
-// newAuthRepoWithMock creates an auth repo with mock Redis for testing
-func newAuthRepoWithMock(cfg *auth.Config, mockRedis *MockRedis) *auth.Repo {
-	return &auth.Repo{
-		// We're using package internals here - in a real scenario,
-		// you'd want to expose a constructor that accepts the Redis interface
+	port := listener.Addr().(*net.TCPAddr).Port
+	if err := listener.Close(); err != nil {
+		t.Logf("Failed to close listener: %v", err)
 	}
+
+	return port
 }
 
 // runServerWithConfig runs the server with the provided configuration

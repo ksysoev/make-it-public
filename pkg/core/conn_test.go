@@ -521,11 +521,11 @@ func TestYamuxStreamWrapper_CloseWrite(t *testing.T) {
 	wrapper := &yamuxStreamWrapper{Conn: server}
 
 	err := wrapper.CloseWrite()
-	assert.NoError(t, err, "CloseWrite should delegate to Close")
+	assert.NoError(t, err, "CloseWrite should close the write side of the connection")
 
-	// Verify the underlying connection was closed
-	_, err = server.Write([]byte("test"))
-	assert.Error(t, err, "write should fail after CloseWrite")
+	// Verify that further writes fail after CloseWrite (write side is closed)
+	_, err = wrapper.Write([]byte("test"))
+	assert.Error(t, err, "write should fail after CloseWrite when the write side is closed")
 }
 
 func TestYamuxStreamWrapper_DelegatesRead(t *testing.T) {

@@ -706,7 +706,6 @@ func TestHandleV2Stream_WriteResponseFails(t *testing.T) {
 		_ = streamClient.Close()
 	}()
 
-	// Give time for the write to land before the close propagates
 	ctx := t.Context()
 	service.handleV2Stream(ctx, streamServer, "test-key")
 

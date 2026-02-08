@@ -207,13 +207,17 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 // acceptV2Streams accepts yamux streams from a V2 connection and resolves pending connection requests.
 // Each stream carries a bind command with a UUID that maps to a pending request from HandleHTTPConnection.
 func (s *Service) acceptV2Streams(ctx context.Context, servConn *proto.ServerV2, keyID string) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
+	// Start a goroutine to close the session when context is canceled.
+	// This ensures AcceptStream() is unblocked, allowing for deterministic shutdown.
+	go func() {
+		<-ctx.Done()
 
+		if session := servConn.Session(); session != nil {
+			_ = session.Close()
+		}
+	}()
+
+	for {
 		stream, err := servConn.AcceptStream()
 		if err != nil {
 			if ctx.Err() != nil {
@@ -234,6 +238,20 @@ func (s *Service) acceptV2Streams(ctx context.Context, servConn *proto.ServerV2,
 // handleV2Stream reads a bind command from a yamux stream and resolves the corresponding connection request.
 // This mirrors the logic in revdial/dialer.go:handleV2Stream for the server-side stream handling.
 func (s *Service) handleV2Stream(ctx context.Context, stream net.Conn, keyID string) {
+	// Set a deadline for the initial bind handshake to prevent goroutine leaks
+	// from clients that open streams but never send data.
+	const handshakeTimeout = 10 * time.Second
+
+	if err := stream.SetReadDeadline(time.Now().Add(handshakeTimeout)); err != nil {
+		slog.ErrorContext(ctx, "failed to set read deadline on V2 stream",
+			slog.Any("error", err),
+			slog.String("keyID", keyID))
+
+		_ = stream.Close()
+
+		return
+	}
+
 	// Read version and command (2 bytes)
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(stream, buf); err != nil {
@@ -270,6 +288,17 @@ func (s *Service) handleV2Stream(ctx context.Context, stream net.Conn, keyID str
 	uuidBuf := make([]byte, 16)
 	if _, err := io.ReadFull(stream, uuidBuf); err != nil {
 		slog.ErrorContext(ctx, "failed to read UUID from V2 stream",
+			slog.Any("error", err),
+			slog.String("keyID", keyID))
+
+		_ = stream.Close()
+
+		return
+	}
+
+	// Clear the read deadline now that handshake is complete
+	if err := stream.SetReadDeadline(time.Time{}); err != nil {
+		slog.ErrorContext(ctx, "failed to clear read deadline on V2 stream",
 			slog.Any("error", err),
 			slog.String("keyID", keyID))
 

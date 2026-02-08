@@ -1,6 +1,25 @@
 test:
 	go test --race ./...
 
+test-e2e:
+	go test -v -run TestServerE2E ./pkg/cmd/
+
+test-e2e-with-redis:
+	@echo "Starting Redis container..."
+	@docker run -d --rm --name mit-test-redis -p 6379:6379 redis:alpine > /dev/null 2>&1 || true
+	@echo "Waiting for Redis to be ready..."
+	@sleep 3
+	@echo "Running E2E tests..."
+	@go test -v -run TestServerE2E ./pkg/cmd/ || (docker stop mit-test-redis > /dev/null 2>&1; exit 1)
+	@echo "Stopping Redis container..."
+	@docker stop mit-test-redis > /dev/null 2>&1
+
+test-coverage:
+	go test -coverprofile=coverage.out -covermode=atomic -v -race ./...
+
+build:
+	go build -v ./...
+
 lint:
 	golangci-lint run
 

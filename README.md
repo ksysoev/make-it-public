@@ -268,6 +268,59 @@ sequenceDiagram
 
 ---
 
+## Development
+
+### Running Tests
+
+The project includes several types of tests:
+
+```bash
+# Run all tests
+make test
+
+# Run tests with coverage
+make test-coverage
+
+# Run end-to-end tests (without Redis)
+make test-e2e
+
+# Run end-to-end tests with Redis (automatically starts/stops Redis in Docker)
+make test-e2e-with-redis
+
+# Run a single test file
+make test-file FILE=./pkg/api/api_test.go
+
+# Run a specific test function
+make test-func PKG=./pkg/api FUNC=TestFunctionName
+```
+
+#### End-to-End Tests
+
+The E2E test (`TestServerE2E`) validates the complete server lifecycle:
+- Starts all server components (HTTP server, reverse proxy, API server)
+- Verifies each component is accessible
+- Tests graceful shutdown
+- Confirms all services stop cleanly
+
+**Note**: The E2E test will skip health check tests if Redis is not available locally. You can use `make test-e2e-with-redis` to automatically start Redis in Docker, run the tests, and clean up:
+
+```bash
+# Run full E2E tests with Redis (requires Docker)
+make test-e2e-with-redis
+```
+
+Or manually start Redis:
+
+```bash
+# Start Redis using Docker
+docker run -d -p 6379:6379 redis:alpine
+
+# Run E2E tests
+make test-e2e
+```
+
+---
+
 ## Project Structure
 
 The project is organized into several modules:

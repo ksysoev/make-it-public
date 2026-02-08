@@ -356,17 +356,17 @@ func (s *Service) handleV2Stream(ctx context.Context, stream net.Conn, keyID str
 }
 
 // yamuxStreamWrapper wraps a yamux stream (net.Conn) to implement the WithWriteCloser interface.
-// Yamux streams don't natively support half-close (CloseWrite), so CloseWrite is a no-op.
-// The stream will be fully closed when Close() is called.
+// Yamux streams support half-close via Close(), which sends a FIN but still allows reading.
+// CloseWrite delegates to Close() to signal end-of-write to the peer.
 type yamuxStreamWrapper struct {
 	net.Conn
 }
 
 // CloseWrite implements the conn.WithWriteCloser interface for yamux streams.
-// Yamux doesn't support half-close, so this is a no-op.
-// The full stream close happens via Close().
+// Yamux Close() sends a FIN and transitions to half-closed state (streamLocalClose),
+// allowing the peer to receive EOF while reads on this side continue to work.
 func (w *yamuxStreamWrapper) CloseWrite() error {
-	return nil
+	return w.Close()
 }
 
 // pipeToDest copies data from the source Reader to the destination Conn in a streaming manner.

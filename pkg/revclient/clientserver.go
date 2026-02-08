@@ -57,6 +57,29 @@ type Conn interface {
 	CloseWrite() error
 }
 
+// connWrapper wraps a net.Conn that doesn't natively expose CloseWrite() (like yamux.Stream).
+// CloseWrite delegates to Close(), which for yamux sends a FIN and transitions to half-closed state.
+type connWrapper struct {
+	net.Conn
+}
+
+func (w *connWrapper) CloseWrite() error {
+	return w.Close()
+}
+
+// wrapConn wraps a net.Conn to satisfy the Conn interface.
+// If the connection already implements CloseWrite(), it returns the connection as-is.
+// Otherwise, it wraps it in a connWrapper whose CloseWrite is a best-effort
+// implementation that delegates to Close (which, for yamux streams, results
+// in a write-side half-close by sending FIN).
+func wrapConn(conn net.Conn) Conn {
+	if c, ok := conn.(Conn); ok {
+		return c
+	}
+
+	return &connWrapper{Conn: conn}
+}
+
 func NewClientServer(cfg Config, tkn *token.Token, opts ...Option) *ClientServer {
 	cs := &ClientServer{
 		cfg:   cfg,
@@ -205,13 +228,12 @@ func (s *ClientServer) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	destConn, ok2 := dConn.(Conn)
-	revConn, ok := conn.(Conn)
+	// Wrap connections to ensure they implement the Conn interface (with CloseWrite support)
+	destConn := wrapConn(dConn)
+	revConn := wrapConn(conn)
 
-	if !ok || !ok2 {
-		slog.ErrorContext(ctx, "failed to cast connections to custom Conn interface")
-		return
-	}
+	// Ensure destConn is fully closed after piping completes
+	defer func() { _ = destConn.Close() }()
 
 	eg, ctx := errgroup.WithContext(ctx)
 

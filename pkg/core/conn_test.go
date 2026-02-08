@@ -515,11 +515,17 @@ func TestCloseOnContextDone_CloseError(t *testing.T) {
 // --- V2 tests ---
 
 func TestYamuxStreamWrapper_CloseWrite(t *testing.T) {
-	inner := conn.NewMockWithWriteCloser(t)
-	wrapper := &yamuxStreamWrapper{Conn: inner}
+	server, client := net.Pipe()
+	defer client.Close()
+
+	wrapper := &yamuxStreamWrapper{Conn: server}
 
 	err := wrapper.CloseWrite()
-	assert.NoError(t, err, "CloseWrite should be a no-op and return nil")
+	assert.NoError(t, err, "CloseWrite should close the write side of the connection")
+
+	// Verify that further writes fail after CloseWrite (write side is closed)
+	_, err = wrapper.Write([]byte("test"))
+	assert.Error(t, err, "write should fail after CloseWrite when the write side is closed")
 }
 
 func TestYamuxStreamWrapper_DelegatesRead(t *testing.T) {

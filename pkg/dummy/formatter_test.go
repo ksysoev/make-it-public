@@ -64,10 +64,10 @@ func TestFormatterRegistry(t *testing.T) {
 
 func TestParseContentType(t *testing.T) {
 	tests := []struct {
+		expectedParams   map[string]string
 		name             string
 		contentType      string
 		expectedMedia    string
-		expectedParams   map[string]string
 		checkParamsCount bool
 	}{
 		{
@@ -122,12 +122,14 @@ func TestJSONFormatter(t *testing.T) {
 	// Disable colors for predictable output
 	oldNoColor := color.NoColor
 	color.NoColor = true
+
 	defer func() { color.NoColor = oldNoColor }()
 
 	formatter := NewJSONFormatter()
 
 	t.Run("format interactive valid JSON", func(t *testing.T) {
 		data := []byte(`{"name":"John","age":30,"active":true}`)
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -142,6 +144,7 @@ func TestJSONFormatter(t *testing.T) {
 
 	t.Run("format interactive invalid JSON", func(t *testing.T) {
 		data := []byte(`{"invalid":`)
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -177,12 +180,14 @@ func TestTextFormatter(t *testing.T) {
 	// Disable colors for predictable output
 	oldNoColor := color.NoColor
 	color.NoColor = true
+
 	defer func() { color.NoColor = oldNoColor }()
 
 	formatter := NewTextFormatter()
 
 	t.Run("format interactive", func(t *testing.T) {
 		data := []byte("Hello, World!")
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -206,12 +211,14 @@ func TestFormURLEncodedFormatter(t *testing.T) {
 	// Disable colors for predictable output
 	oldNoColor := color.NoColor
 	color.NoColor = true
+
 	defer func() { color.NoColor = oldNoColor }()
 
 	formatter := NewFormURLEncodedFormatter()
 
 	t.Run("format interactive simple form", func(t *testing.T) {
 		data := []byte("name=John&age=30&active=true")
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -225,6 +232,7 @@ func TestFormURLEncodedFormatter(t *testing.T) {
 
 	t.Run("format interactive with URL encoding", func(t *testing.T) {
 		data := []byte("message=Hello%20World&email=test%40example.com")
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -237,6 +245,7 @@ func TestFormURLEncodedFormatter(t *testing.T) {
 
 	t.Run("format interactive multiple values", func(t *testing.T) {
 		data := []byte("tags=go&tags=golang&tags=programming")
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -280,6 +289,7 @@ func TestFormURLEncodedFormatter(t *testing.T) {
 
 	t.Run("format interactive invalid form data", func(t *testing.T) {
 		data := []byte("invalid%")
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -291,12 +301,14 @@ func TestYAMLFormatter(t *testing.T) {
 	// Disable colors for predictable output
 	oldNoColor := color.NoColor
 	color.NoColor = true
+
 	defer func() { color.NoColor = oldNoColor }()
 
 	formatter := NewYAMLFormatter()
 
 	t.Run("format interactive valid YAML", func(t *testing.T) {
 		data := []byte("name: John\nage: 30\nactive: true\n")
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -312,6 +324,7 @@ func TestYAMLFormatter(t *testing.T) {
 
 	t.Run("format interactive nested YAML", func(t *testing.T) {
 		data := []byte("person:\n  name: John\n  age: 30\n")
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -325,6 +338,7 @@ func TestYAMLFormatter(t *testing.T) {
 
 	t.Run("format interactive invalid YAML", func(t *testing.T) {
 		data := []byte("invalid:\n  - unclosed\n  [")
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)
@@ -350,6 +364,7 @@ func TestMultipartFormatter(t *testing.T) {
 	// Disable colors for predictable output
 	oldNoColor := color.NoColor
 	color.NoColor = true
+
 	defer func() { color.NoColor = oldNoColor }()
 
 	formatter := NewMultipartFormatter()
@@ -366,6 +381,7 @@ func TestMultipartFormatter(t *testing.T) {
 				"------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n")
 
 		var buf bytes.Buffer
+
 		params := map[string]string{"boundary": boundary}
 
 		err := formatter.FormatInteractive(&buf, data, params)
@@ -386,6 +402,7 @@ func TestMultipartFormatter(t *testing.T) {
 				"------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n")
 
 		var buf bytes.Buffer
+
 		params := map[string]string{"boundary": boundary}
 
 		err := formatter.FormatInteractive(&buf, data, params)
@@ -400,6 +417,7 @@ func TestMultipartFormatter(t *testing.T) {
 
 	t.Run("format interactive missing boundary", func(t *testing.T) {
 		data := []byte("some data")
+
 		var buf bytes.Buffer
 
 		err := formatter.FormatInteractive(&buf, data, nil)

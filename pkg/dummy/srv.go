@@ -86,9 +86,10 @@ func New(cfg Config) (*Server, error) {
 	registry := NewFormatterRegistry()
 	registry.Register(contentTypeJSON, NewJSONFormatter())
 	registry.Register("application/x-www-form-urlencoded", NewFormURLEncodedFormatter())
-	registry.Register("application/yaml", NewYAMLFormatter())
-	registry.Register("application/x-yaml", NewYAMLFormatter())
-	registry.Register("text/yaml", NewYAMLFormatter())
+	yamlFormatter := NewYAMLFormatter()
+	registry.Register("application/yaml", yamlFormatter)
+	registry.Register("application/x-yaml", yamlFormatter)
+	registry.Register("text/yaml", yamlFormatter)
 	registry.Register("multipart/form-data", NewMultipartFormatter())
 	registry.RegisterPrefix("text/", NewTextFormatter())
 

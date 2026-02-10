@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"mime"
 	"mime/multipart"
 
 	"github.com/fatih/color"

@@ -142,19 +142,3 @@ func (f *MultipartFormatter) FormatStructured(data []byte, params map[string]str
 
 	return bodyKey, result, nil
 }
-
-// extractBoundary extracts the boundary parameter from a Content-Type header.
-// This is a helper function for parsing multipart content types.
-func extractBoundary(contentType string) (string, error) {
-	_, params, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse Content-Type: %w", err)
-	}
-
-	boundary := params["boundary"]
-	if boundary == "" {
-		return "", fmt.Errorf("missing boundary parameter")
-	}
-
-	return boundary, nil
-}

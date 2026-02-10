@@ -2,7 +2,6 @@ package dummy
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TylerBrock/colorjson"
 	"github.com/fatih/color"
 )
 
@@ -35,7 +33,7 @@ type Response struct {
 }
 
 type Server struct {
-	jsonFmt     *colorjson.Formatter
+	registry    *FormatterRegistry
 	isReady     chan struct{}
 	addr        string
 	resp        Response
@@ -84,17 +82,21 @@ func New(cfg Config) (*Server, error) {
 		resp.Headers.Add(headerName, headerValue)
 	}
 
-	f := colorjson.NewFormatter()
-	f.Indent = 2
-	f.KeyColor = color.New(color.FgMagenta)
-	f.StringColor = color.New(color.FgYellow)
-	f.BoolColor = color.New(color.FgBlue)
-	f.NumberColor = color.New(color.FgGreen)
-	f.NullColor = color.New(color.FgRed)
+	// Initialize formatter registry
+	registry := NewFormatterRegistry()
+	registry.Register(contentTypeJSON, NewJSONFormatter())
+	registry.Register("application/x-www-form-urlencoded", NewFormURLEncodedFormatter())
+
+	yamlFormatter := NewYAMLFormatter()
+	registry.Register("application/yaml", yamlFormatter)
+	registry.Register("application/x-yaml", yamlFormatter)
+	registry.Register("text/yaml", yamlFormatter)
+	registry.Register("multipart/form-data", NewMultipartFormatter())
+	registry.RegisterPrefix("text/", NewTextFormatter())
 
 	return &Server{
 		isReady:     make(chan struct{}),
-		jsonFmt:     f,
+		registry:    registry,
 		resp:        resp,
 		interactive: cfg.Interactive,
 	}, nil
@@ -232,17 +234,17 @@ func (s *Server) logStructured(r *http.Request, bodyBytes []byte) {
 			slog.Int("body_size", len(bodyBytes)),
 			slog.String("content_type", contentType))
 
-		// For JSON, try to parse and log structured
-		if strings.Contains(contentType, "application/json") {
-			var jsonData any
-			if err := json.Unmarshal(bodyBytes, &jsonData); err == nil {
-				attrs = append(attrs, slog.Any("body", jsonData))
+		// Try to format using registered formatters
+		mediaType, params := parseContentType(contentType)
+		if formatter, ok := s.registry.Get(mediaType); ok {
+			key, val, err := formatter.FormatStructured(bodyBytes, params)
+			if err == nil {
+				attrs = append(attrs, slog.Any(key, val))
 			} else {
 				attrs = append(attrs, slog.String("body", string(bodyBytes)))
 			}
-		} else if strings.HasPrefix(contentType, "text/") {
-			attrs = append(attrs, slog.String("body", string(bodyBytes)))
 		}
+		// If no formatter found, just log size/content-type (don't add body)
 	}
 
 	slog.Info("incoming HTTP request", attrs...)
@@ -253,51 +255,14 @@ func (s *Server) logStructured(r *http.Request, bodyBytes []byte) {
 // Accepts data as a byte slice representing the request body and contentType as a string indicating the MIME type.
 // Returns an error if the content type is unsupported or if a formatting operation fails.
 func (s *Server) printBody(data []byte, contentType string) error {
-	// Parse the content type, ignoring parameters like charset
-	contentType = strings.TrimSpace(strings.Split(contentType, ";")[0])
+	mediaType, params := parseContentType(contentType)
 
-	switch {
-	case contentType == contentTypeJSON:
-		return s.printJSON(data)
-	case strings.HasPrefix(contentType, "text/"):
-		return s.printText(data)
-	default:
-		return fmt.Errorf("unsupported content type: %s", contentType)
-	}
-}
-
-// printText outputs the given byte slice as a green-colored string to the standard output.
-// It sets the writer to apply the green foreground color, writes the string representation of data,
-// and resets the writer after execution.
-// Returns an error if the writing operation fails.
-func (s *Server) printText(data []byte) error {
-	tx := color.New(color.FgGreen)
-	tx.SetWriter(os.Stdout)
-
-	defer tx.UnsetWriter(os.Stdout)
-
-	_, err := tx.Fprintln(os.Stdout, string(data))
-
-	return err
-}
-
-// printJSON unmarshals raw JSON data, reformats it using the server's formatter, and writes it to the standard output.
-// It returns an error if JSON unmarshalling or formatting fails, or if there is an issue writing to output.
-func (s *Server) printJSON(data []byte) error {
-	var parsedData any
-
-	if err := json.Unmarshal(data, &parsedData); err != nil {
-		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+	formatter, ok := s.registry.Get(mediaType)
+	if !ok {
+		return fmt.Errorf("unsupported content type: %s", mediaType)
 	}
 
-	output, err := s.jsonFmt.Marshal(parsedData)
-	if err != nil {
-		return fmt.Errorf("failed to format JSON: %w", err)
-	}
-
-	_, err = fmt.Fprintf(os.Stdout, "%s\n", output)
-
-	return err
+	return formatter.FormatInteractive(os.Stdout, data, params)
 }
 
 // printHeaders formats and writes sorted HTTP headers to the specified output writer.

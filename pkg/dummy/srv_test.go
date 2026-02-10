@@ -98,7 +98,7 @@ func TestNew(t *testing.T) {
 				require.NoError(t, err, "Failed to create server")
 				assert.NotNil(t, server, "Server should not be nil")
 				assert.NotNil(t, server.isReady, "isReady channel should not be nil")
-				assert.NotNil(t, server.jsonFmt, "jsonFmt should not be nil")
+				assert.NotNil(t, server.registry, "registry should not be nil")
 				assert.Empty(t, server.addr, "addr should be empty initially")
 
 				// Verify headers were parsed correctly
@@ -388,9 +388,7 @@ func TestPrintText(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server, err := New(Config{Status: 200})
-
-			require.NoError(t, err, "Failed to create server")
+			formatter := NewTextFormatter()
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
@@ -401,8 +399,8 @@ func TestPrintText(t *testing.T) {
 
 			os.Stdout = w
 
-			// Call printText
-			err = server.printText(tt.data)
+			// Call FormatInteractive
+			err = formatter.FormatInteractive(os.Stdout, tt.data, nil)
 
 			// Restore stdout
 			require.NoError(t, w.Close())
@@ -446,9 +444,7 @@ func TestPrintJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server, err := New(Config{Status: 200})
-
-			require.NoError(t, err, "Failed to create server")
+			formatter := NewJSONFormatter()
 
 			// Temporarily redirect stdout to capture output
 			oldStdout := os.Stdout
@@ -459,8 +455,8 @@ func TestPrintJSON(t *testing.T) {
 
 			os.Stdout = w
 
-			// Call printJSON
-			err = server.printJSON(tt.data)
+			// Call FormatInteractive
+			err = formatter.FormatInteractive(os.Stdout, tt.data, nil)
 
 			// Restore stdout
 			require.NoError(t, w.Close())

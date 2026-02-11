@@ -79,6 +79,31 @@ func TestRunClientCommand(t *testing.T) {
 			},
 			wantErr: "lookup test-server",
 		},
+		{
+			name: "websocket echo server",
+			args: args{
+				Token:    "dGVzdDp0ZXN0",
+				Server:   "test-server:8080",
+				EchoWS:   true,
+				NoTLS:    false,
+				Insecure: false,
+				LogLevel: "info",
+			},
+			wantErr: "lookup test-server",
+		},
+		{
+			name: "both dummy and echo-ws flags",
+			args: args{
+				Token:       "dGVzdDp0ZXN0",
+				Server:      "test-server:8080",
+				LocalServer: true,
+				EchoWS:      true,
+				NoTLS:       false,
+				Insecure:    false,
+				LogLevel:    "info",
+			},
+			wantErr: "cannot use both --dummy and --echo-ws flags",
+		},
 	}
 
 	for _, tt := range tests {

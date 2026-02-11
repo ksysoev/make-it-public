@@ -34,6 +34,15 @@ func RunClientCommand(ctx context.Context, args *args) error {
 	exposeAddr := args.Expose
 	eg, ctx := errgroup.WithContext(ctx)
 
+	// Validate mutual exclusivity of --dummy and --echo-ws
+	if args.LocalServer && args.EchoWS {
+		disp.ShowError("Invalid configuration", nil,
+			"Cannot use both --dummy and --echo-ws flags at the same time.\n"+
+				"  Use --dummy for HTTP server or --echo-ws for WebSocket server")
+
+		return fmt.Errorf("cannot use both --dummy and --echo-ws flags")
+	}
+
 	if exposeAddr == "" && args.LocalServer {
 		lclSrv, err := dummy.New(dummy.Config{
 			Status:      args.Status,
@@ -52,14 +61,29 @@ func RunClientCommand(ctx context.Context, args *args) error {
 		exposeAddr = lclSrv.Addr()
 	}
 
+	if exposeAddr == "" && args.EchoWS {
+		wsSrv, err := dummy.NewWSEchoServer(dummy.WSConfig{
+			Interactive: args.Interactive,
+		})
+		if err != nil {
+			disp.ShowError("Failed to create WebSocket echo server", err, "")
+			return fmt.Errorf("failed to create websocket echo server: %w", err)
+		}
+
+		eg.Go(func() error { return wsSrv.Run(ctx) })
+
+		exposeAddr = wsSrv.Addr()
+	}
+
 	// Validate that we have something to expose
 	if exposeAddr == "" {
 		disp.ShowError("No service to expose", nil,
-			"Specify a local service with --expose or use --dummy for testing:\n"+
+			"Specify a local service with --expose or use --dummy/--echo-ws for testing:\n"+
 				"  mit --token <token> --expose localhost:8080\n"+
-				"  mit --token <token> --dummy")
+				"  mit --token <token> --dummy\n"+
+				"  mit --token <token> --echo-ws")
 
-		return fmt.Errorf("no service to expose: use --expose or --dummy flag")
+		return fmt.Errorf("no service to expose: use --expose, --dummy, or --echo-ws flag")
 	}
 
 	cfg := revclient.Config{

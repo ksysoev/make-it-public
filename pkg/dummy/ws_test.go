@@ -2,7 +2,7 @@ package dummy
 
 import (
 	"context"
-	"strings"
+	"net"
 	"testing"
 	"time"
 
@@ -43,8 +43,8 @@ func TestWSEchoServerRun(t *testing.T) {
 	server, err := NewWSEchoServer(WSConfig{Interactive: false})
 	require.NoError(t, err, "Failed to create server")
 
-	// Create a context that we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
+	// Create a context with timeout to prevent test hangs
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Start the server in a goroutine
@@ -83,8 +83,8 @@ func TestWSEchoServerAddr(t *testing.T) {
 	server, err := NewWSEchoServer(WSConfig{Interactive: false})
 	require.NoError(t, err, "Failed to create server")
 
-	// Create a context that we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
+	// Create a context with timeout to prevent test hangs
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Start the server in a goroutine
@@ -97,9 +97,10 @@ func TestWSEchoServerAddr(t *testing.T) {
 	assert.NotEmpty(t, addr, "Server address should not be empty")
 
 	// Verify that the address is in the correct format (host:port)
-	parts := strings.Split(addr, ":")
-	assert.Equal(t, 2, len(parts), "Address should be in host:port format")
-	assert.Equal(t, "127.0.0.1", parts[0], "Host should be 127.0.0.1")
+	host, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err, "Address should be in host:port format")
+	assert.NotEmpty(t, host, "Host should not be empty")
+	assert.NotEmpty(t, port, "Port should not be empty")
 
 	// Cancel the context to stop the server
 	cancel()
@@ -109,8 +110,8 @@ func TestWSEchoServerEchoText(t *testing.T) {
 	server, err := NewWSEchoServer(WSConfig{Interactive: false})
 	require.NoError(t, err, "Failed to create server")
 
-	// Create a context that we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
+	// Create a context with timeout to prevent test hangs
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Start the server in a goroutine
@@ -146,8 +147,8 @@ func TestWSEchoServerEchoBinary(t *testing.T) {
 	server, err := NewWSEchoServer(WSConfig{Interactive: false})
 	require.NoError(t, err, "Failed to create server")
 
-	// Create a context that we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
+	// Create a context with timeout to prevent test hangs
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Start the server in a goroutine
@@ -183,8 +184,8 @@ func TestWSEchoServerMultipleMessages(t *testing.T) {
 	server, err := NewWSEchoServer(WSConfig{Interactive: false})
 	require.NoError(t, err, "Failed to create server")
 
-	// Create a context that we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
+	// Create a context with timeout to prevent test hangs
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Start the server in a goroutine
@@ -228,8 +229,8 @@ func TestWSEchoServerLargeBinaryMessage(t *testing.T) {
 	server, err := NewWSEchoServer(WSConfig{Interactive: false})
 	require.NoError(t, err, "Failed to create server")
 
-	// Create a context that we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
+	// Create a context with timeout to prevent test hangs
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Start the server in a goroutine

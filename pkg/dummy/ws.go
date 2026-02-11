@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
@@ -140,12 +141,7 @@ func (s *WSEchoServer) logHandshakeStructured(r *http.Request) {
 	// Convert headers to a loggable format
 	headers := make(map[string]string)
 	for name, values := range r.Header {
-		headers[name] = values[0]
-		if len(values) > 1 {
-			for i := 1; i < len(values); i++ {
-				headers[name] += ", " + values[i]
-			}
-		}
+		headers[name] = strings.Join(values, ", ")
 	}
 
 	slog.Info("websocket handshake request",

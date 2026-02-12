@@ -192,7 +192,7 @@ func (a *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		Token: t.Encode(),
 		KeyID: t.ID,
 		TTL:   int(t.TTL.Seconds()),
-		Type:  string(t.Type),
+		Type:  t.Type.String(),
 	}
 
 	w.WriteHeader(http.StatusCreated)

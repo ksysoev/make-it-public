@@ -60,7 +60,7 @@ func RunGenerateToken(ctx context.Context, args *args, keyID string, keyTTL int,
 
 	fmt.Println("Key ID:", tok.ID)
 	fmt.Println("Token:", tok.Encode())
-	fmt.Println("Type:", tok.Type)
+	fmt.Println("Type:", tok.Type.String())
 	fmt.Println("Valid until:", time.Now().Add(tok.TTL).Format(time.RFC3339))
 
 	return nil

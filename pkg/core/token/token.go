@@ -31,6 +31,19 @@ const (
 	TokenTypeTCP TokenType = "t"
 )
 
+// String returns the user-facing string representation of the token type.
+// It maps internal codes to readable names: "w" -> "web", "t" -> "tcp".
+func (t TokenType) String() string {
+	switch t {
+	case TokenTypeWeb:
+		return "web"
+	case TokenTypeTCP:
+		return "tcp"
+	default:
+		return string(t)
+	}
+}
+
 type Token struct {
 	ID     string
 	Secret string // #nosec G117 -- This is a field name, not an exposed secret value
@@ -108,8 +121,8 @@ func GenerateToken(keyID string, ttl int, tokenType TokenType) (*Token, error) {
 }
 
 // Encode generates a base64-encoded string representation of the token.
-// It combines the token's Type prefix, ID, and Secret, separated by a colon, before encoding.
-// The format is: base64(<type><ID>:<Secret>) where <type> is 'w' or 't'.
+// It combines the token's Type, ID, and Secret, separated by colons, before encoding.
+// The format is: base64(<type>:<ID>:<Secret>) where <type> is 'w' or 't'.
 // Returns the encoded token string.
 func (t *Token) Encode() string {
 	tokenType := t.Type
@@ -117,14 +130,14 @@ func (t *Token) Encode() string {
 		tokenType = TokenTypeWeb
 	}
 
-	return base64.StdEncoding.EncodeToString([]byte(string(tokenType) + getTokenPair(t.ID, t.Secret)))
+	return base64.StdEncoding.EncodeToString([]byte(string(tokenType) + ":" + getTokenPair(t.ID, t.Secret)))
 }
 
 // Decode parses a base64-encoded string into a Token instance.
 // It validates the encoding and token format, ensuring data integrity.
-// The expected format is: base64(<type><ID>:<Secret>) where <type> is 'w' or 't'.
-// For backward compatibility, tokens without a type prefix default to TokenTypeWeb.
-// Accepts encoded which is a base64-encoded string containing token type prefix, ID and Secret.
+// The expected format is: base64(<type>:<ID>:<Secret>) where <type> is 'w' or 't'.
+// For backward compatibility, old format base64(<ID>:<Secret>) is also supported and defaults to TokenTypeWeb.
+// Accepts encoded which is a base64-encoded string containing token type, ID and Secret.
 // Returns a Token containing the Type, ID and Secret if decoding is successful.
 // Returns an error if the base64 string is invalid or the token format is malformed.
 func Decode(encoded string) (*Token, error) {
@@ -133,31 +146,36 @@ func Decode(encoded string) (*Token, error) {
 		return nil, err
 	}
 
-	parts := bytes.SplitN(data, []byte(":"), 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid token format")
-	}
+	parts := bytes.SplitN(data, []byte(":"), 3)
 
-	idPart := string(parts[0])
-	secretPart := string(parts[1])
-
-	// Extract type prefix from the ID portion
 	var tokenType TokenType
 
 	var tokenID string
 
-	if idPart != "" {
-		firstChar := TokenType(idPart[0:1])
-		if IsValidTokenType(firstChar) {
-			// Type prefix found, extract ID without prefix
-			tokenType = firstChar
-			tokenID = idPart[1:]
-		} else {
-			// No valid type prefix, backward compatibility: default to web
-			tokenType = TokenTypeWeb
-			tokenID = idPart
+	var secretPart string
+
+	switch len(parts) {
+	case 3:
+		// New format: <type>:<ID>:<Secret>
+		typeStr := string(parts[0])
+
+		tokenType = TokenType(typeStr)
+		if !IsValidTokenType(tokenType) {
+			return nil, fmt.Errorf("invalid token type: %s", typeStr)
 		}
-	} else {
+
+		tokenID = string(parts[1])
+		secretPart = string(parts[2])
+	case 2:
+		// Old format: <ID>:<Secret> - backward compatibility
+		tokenType = TokenTypeWeb
+		tokenID = string(parts[0])
+		secretPart = string(parts[1])
+	default:
+		return nil, fmt.Errorf("invalid token format")
+	}
+
+	if tokenID == "" {
 		return nil, fmt.Errorf("invalid token format: empty ID")
 	}
 
@@ -232,12 +250,14 @@ func getTokenPair(id, secret string) string {
 }
 
 // calculateSecretBuffer calculates the required buffer length for a secret based on the given key ID length.
-// It ensures that the total length of the key ID, buffer, and separator is divisible by a base64 encoding factor.
+// It ensures that the total length of the type char, two separators, key ID, and buffer is divisible by base64 encoding factor.
+// The format is <type>:<ID>:<secret>, so total length = 1 (type) + 1 (colon) + keyIDLength + 1 (colon) + buffer.
 // Returns the calculated buffer length.
 func calculateSecretBuffer(keyIDLength int) int {
 	buffer := defaultSecretLength
 
-	for (keyIDLength+buffer+1)%base64Modulo != 0 {
+	// Total length = 1 (type char) + 2 (colons) + keyIDLength + buffer
+	for (1+2+keyIDLength+buffer)%base64Modulo != 0 {
 		buffer++
 	}
 

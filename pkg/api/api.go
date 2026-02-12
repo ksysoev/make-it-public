@@ -28,7 +28,7 @@ type API struct {
 }
 
 type Service interface {
-	GenerateToken(ctx context.Context, keyID string, ttl int) (*token.Token, error)
+	GenerateToken(ctx context.Context, keyID string, ttl int, tokenType token.TokenType) (*token.Token, error)
 	DeleteToken(ctx context.Context, tokenID string) error
 	CheckHealth(ctx context.Context) error
 }
@@ -123,9 +123,10 @@ func (a *API) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 // generateTokenHandler is an endpoint to create API token.
 // It optionally accepts a key ID, which is automatically generated if not provided.
 // It also optionally accepts a TTL for API token, which is set to a default value if not provided.
-// As a part of response, it returns the key ID, generated token, and the TTL in seconds
+// It accepts a token type (web or tcp), which defaults to web if not provided.
+// As a part of response, it returns the key ID, generated token, TTL in seconds, and token type.
 // @Summary Generate Token
-// @Description Generates an API token with an optional key ID and TTL.
+// @Description Generates an API token with an optional key ID, TTL, and type.
 // @Tags Token
 // @Accept json
 // @Produce json
@@ -143,7 +144,26 @@ func (a *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err := a.svc.GenerateToken(r.Context(), req.KeyID, req.TTL)
+	// Default to web type if not specified
+	tokenTypeStr := req.Type
+	if tokenTypeStr == "" {
+		tokenTypeStr = "web"
+	}
+
+	// Map string to TokenType
+	var tokenType token.TokenType
+
+	switch tokenTypeStr {
+	case "web":
+		tokenType = token.TokenTypeWeb
+	case "tcp":
+		tokenType = token.TokenTypeTCP
+	default:
+		http.Error(w, "Invalid token type: must be 'web' or 'tcp'", http.StatusBadRequest)
+		return
+	}
+
+	t, err := a.svc.GenerateToken(r.Context(), req.KeyID, req.TTL, tokenType)
 
 	switch {
 	case errors.Is(err, token.ErrTokenInvalid):
@@ -154,6 +174,9 @@ func (a *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, token.ErrInvalidTokenTTL):
 		http.Error(w, token.ErrInvalidTokenTTL.Error(), http.StatusBadRequest)
+		return
+	case errors.Is(err, token.ErrInvalidTokenType):
+		http.Error(w, token.ErrInvalidTokenType.Error(), http.StatusBadRequest)
 		return
 	case errors.Is(err, core.ErrDuplicateTokenID):
 		http.Error(w, "Duplicate token ID", http.StatusConflict)
@@ -169,6 +192,7 @@ func (a *API) generateTokenHandler(w http.ResponseWriter, r *http.Request) {
 		Token: t.Encode(),
 		KeyID: t.ID,
 		TTL:   int(t.TTL.Seconds()),
+		Type:  string(t.Type),
 	}
 
 	w.WriteHeader(http.StatusCreated)

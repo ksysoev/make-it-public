@@ -16,7 +16,7 @@ func TestService_GenerateToken(t *testing.T) {
 	t.Run("successful token generation with empty keyID", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 
 		// Mock expectations
 		mockAuth.EXPECT().SaveToken(context.Background(),
@@ -25,7 +25,7 @@ func TestService_GenerateToken(t *testing.T) {
 			})).Return(nil)
 
 		// Execute
-		tkn, err := svc.GenerateToken(context.Background(), "", 0)
+		tkn, err := svc.GenerateToken(context.Background(), "", 0, token.TokenTypeWeb)
 
 		// Assert
 		require.NoError(t, err)
@@ -37,7 +37,7 @@ func TestService_GenerateToken(t *testing.T) {
 	t.Run("successful token generation with provided keyID and TTL", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 		keyID := "testkeyid"
 		ttl := 100
 
@@ -48,7 +48,7 @@ func TestService_GenerateToken(t *testing.T) {
 			})).Return(nil)
 
 		// Execute
-		tkn, err := svc.GenerateToken(context.Background(), keyID, ttl)
+		tkn, err := svc.GenerateToken(context.Background(), keyID, ttl, token.TokenTypeWeb)
 
 		// Assert
 		require.NoError(t, err)
@@ -60,11 +60,11 @@ func TestService_GenerateToken(t *testing.T) {
 	t.Run("error from token generation - invalid characters", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 		keyID := "INVALID_KEY!" // Contains invalid characters
 
 		// Execute
-		tkn, err := svc.GenerateToken(context.Background(), keyID, 0)
+		tkn, err := svc.GenerateToken(context.Background(), keyID, 0, token.TokenTypeWeb)
 
 		// Assert
 		require.Error(t, err)
@@ -76,11 +76,11 @@ func TestService_GenerateToken(t *testing.T) {
 	t.Run("error from token generation - token too long", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 		keyID := "thisistoolongforatokenid" // Exceeds maxIDLength
 
 		// Execute
-		tkn, err := svc.GenerateToken(context.Background(), keyID, 0)
+		tkn, err := svc.GenerateToken(context.Background(), keyID, 0, token.TokenTypeWeb)
 
 		// Assert
 		require.Error(t, err)
@@ -92,10 +92,10 @@ func TestService_GenerateToken(t *testing.T) {
 	t.Run("error from token generation - invalid TTL", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 
 		// Execute
-		tkn, err := svc.GenerateToken(context.Background(), "validkeyid", -1) // Negative TTL
+		tkn, err := svc.GenerateToken(context.Background(), "validkeyid", -1, token.TokenTypeWeb) // Negative TTL
 
 		// Assert
 		require.Error(t, err)
@@ -107,7 +107,7 @@ func TestService_GenerateToken(t *testing.T) {
 	t.Run("error from SaveToken", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 		expectedErr := errors.New("database error")
 
 		// Mock expectations
@@ -117,7 +117,7 @@ func TestService_GenerateToken(t *testing.T) {
 			})).Return(expectedErr)
 
 		// Execute
-		tkn, err := svc.GenerateToken(context.Background(), "", 0)
+		tkn, err := svc.GenerateToken(context.Background(), "", 0, token.TokenTypeWeb)
 
 		// Assert
 		require.Error(t, err)
@@ -128,7 +128,7 @@ func TestService_GenerateToken(t *testing.T) {
 	t.Run("duplicate token ID with non-empty keyID", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 		keyID := "testkeyid"
 
 		// Mock expectations
@@ -138,7 +138,7 @@ func TestService_GenerateToken(t *testing.T) {
 			})).Return(ErrDuplicateTokenID)
 
 		// Execute
-		tkn, err := svc.GenerateToken(context.Background(), keyID, 0)
+		tkn, err := svc.GenerateToken(context.Background(), keyID, 0, token.TokenTypeWeb)
 
 		// Assert
 		require.Error(t, err)
@@ -150,7 +150,7 @@ func TestService_GenerateToken(t *testing.T) {
 	t.Run("duplicate token ID with empty keyID should retry", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 
 		// Use a counter to simulate different behavior on different calls
 		callCount := 0
@@ -168,7 +168,7 @@ func TestService_GenerateToken(t *testing.T) {
 		})
 
 		// Execute
-		tkn, err := svc.GenerateToken(context.Background(), "", 0)
+		tkn, err := svc.GenerateToken(context.Background(), "", 0, token.TokenTypeWeb)
 
 		// Assert
 		require.NoError(t, err)
@@ -180,7 +180,7 @@ func TestService_GenerateToken(t *testing.T) {
 	t.Run("retry exhaustion", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 
 		// All attempts return duplicate token ID
 		for i := 0; i < attemptsToGenerateToken; i++ {
@@ -191,7 +191,7 @@ func TestService_GenerateToken(t *testing.T) {
 		}
 
 		// Execute
-		tkn, err := svc.GenerateToken(context.Background(), "", 0)
+		tkn, err := svc.GenerateToken(context.Background(), "", 0, token.TokenTypeWeb)
 
 		// Assert
 		require.Error(t, err)
@@ -204,7 +204,7 @@ func TestService_DeleteToken(t *testing.T) {
 	t.Run("successful token deletion", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 		tokenID := "test-token-id"
 
 		// Mock expectations
@@ -220,7 +220,7 @@ func TestService_DeleteToken(t *testing.T) {
 	t.Run("error from DeleteToken", func(t *testing.T) {
 		// Setup
 		mockAuth := NewMockAuthRepo(t)
-		svc := New(nil, mockAuth)
+		svc := New(nil, nil, mockAuth)
 		tokenID := "test-token-id"
 		expectedErr := ErrTokenNotFound
 

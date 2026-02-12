@@ -17,7 +17,7 @@ type ControlConn interface {
 }
 
 type AuthRepo interface {
-	Verify(ctx context.Context, keyID, secret string) (bool, error)
+	Verify(ctx context.Context, keyID, secret string) (bool, token.TokenType, error)
 	SaveToken(ctx context.Context, t *token.Token) error
 	DeleteToken(ctx context.Context, tokenID string) error
 	IsKeyExists(ctx context.Context, keyID string) (bool, error)
@@ -33,19 +33,22 @@ type ConnManager interface {
 }
 
 type Service struct {
-	connmng           ConnManager
+	webConnMng        ConnManager
+	tcpConnMng        ConnManager
 	auth              AuthRepo
 	endpointGenerator func(string) (string, error)
 }
 
-// New initializes and returns a new Service instance with the provided ConnManager and AuthRepo.
+// New initializes and returns a new Service instance with the provided ConnManagers and AuthRepo.
 // It assigns a default endpoint generator function that returns an error if invoked.
-// connmng manages connection-related operations.
+// webConnMng manages web/HTTP connection-related operations.
+// tcpConnMng manages TCP connection-related operations.
 // auth handles authentication-related operations.
-func New(connmng ConnManager, auth AuthRepo) *Service {
+func New(webConnMng, tcpConnMng ConnManager, auth AuthRepo) *Service {
 	return &Service{
-		connmng: connmng,
-		auth:    auth,
+		webConnMng: webConnMng,
+		tcpConnMng: tcpConnMng,
+		auth:       auth,
 		endpointGenerator: func(_ string) (string, error) {
 			return "", fmt.Errorf("endpoint generator is not set")
 		},

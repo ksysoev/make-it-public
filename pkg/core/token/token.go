@@ -21,23 +21,42 @@ const (
 	defaultTTLSeconds   = 3600 // 1 hour
 )
 
+// TokenType represents the type of token (web or TCP).
+type TokenType string
+
+const (
+	// TokenTypeWeb represents a token for HTTP/web tunnels.
+	TokenTypeWeb TokenType = "w"
+	// TokenTypeTCP represents a token for TCP tunnels.
+	TokenTypeTCP TokenType = "t"
+)
+
 type Token struct {
 	ID     string
 	Secret string // #nosec G117 -- This is a field name, not an exposed secret value
+	Type   TokenType
 	TTL    time.Duration
 }
 
 var (
-	ErrTokenTooLong    = fmt.Errorf("token length exceeds maximum limit of %d characters", maxIDLength)
-	ErrTokenInvalid    = fmt.Errorf("token contains invalid characters, only lowercase letters and digits are allowed")
-	ErrInvalidTokenTTL = fmt.Errorf("ttl must be positive number")
+	ErrTokenTooLong     = fmt.Errorf("token length exceeds maximum limit of %d characters", maxIDLength)
+	ErrTokenInvalid     = fmt.Errorf("token contains invalid characters, only lowercase letters and digits are allowed")
+	ErrInvalidTokenTTL  = fmt.Errorf("ttl must be positive number")
+	ErrInvalidTokenType = fmt.Errorf("token type must be 'w' (web) or 't' (tcp)")
 )
 
-// GenerateToken creates a new token with the specified keyID and time-to-live (TTL).
+// IsValidTokenType checks if the provided token type is valid.
+// It returns true if the type is either TokenTypeWeb or TokenTypeTCP.
+func IsValidTokenType(t TokenType) bool {
+	return t == TokenTypeWeb || t == TokenTypeTCP
+}
+
+// GenerateToken creates a new token with the specified keyID, time-to-live (TTL), and token type.
 // It validates the keyID's length and characters, generating a random keyID if none is provided.
-// Accepts keyID as the identifier for the token and ttl as the duration in seconds; if ttl is 0, a default value is used.
+// Accepts keyID as the identifier for the token, ttl as the duration in seconds, and tokenType as the type of token.
+// If ttl is 0, a default value is used. If tokenType is empty, TokenTypeWeb is used.
 // Returns the generated Token structure or an error if validation fails, or if ID/secret generation errors occur.
-func GenerateToken(keyID string, ttl int) (*Token, error) {
+func GenerateToken(keyID string, ttl int, tokenType TokenType) (*Token, error) {
 	if len(keyID) > maxIDLength {
 		return nil, ErrTokenTooLong
 	}
@@ -52,6 +71,16 @@ func GenerateToken(keyID string, ttl int) (*Token, error) {
 
 	if ttl <= 0 {
 		return nil, ErrInvalidTokenTTL
+	}
+
+	// Default to web token type if not specified
+	if tokenType == "" {
+		tokenType = TokenTypeWeb
+	}
+
+	// Validate token type
+	if !IsValidTokenType(tokenType) {
+		return nil, ErrInvalidTokenType
 	}
 
 	if keyID == "" {
@@ -74,20 +103,29 @@ func GenerateToken(keyID string, ttl int) (*Token, error) {
 		ID:     keyID,
 		Secret: secret,
 		TTL:    time.Duration(ttl) * time.Second,
+		Type:   tokenType,
 	}, nil
 }
 
 // Encode generates a base64-encoded string representation of the token.
-// It combines the token's ID and Secret, separated by a colon, before encoding.
+// It combines the token's Type prefix, ID, and Secret, separated by a colon, before encoding.
+// The format is: base64(<type><ID>:<Secret>) where <type> is 'w' or 't'.
 // Returns the encoded token string.
 func (t *Token) Encode() string {
-	return base64.StdEncoding.EncodeToString([]byte(getTokenPair(t.ID, t.Secret)))
+	tokenType := t.Type
+	if tokenType == "" {
+		tokenType = TokenTypeWeb
+	}
+
+	return base64.StdEncoding.EncodeToString([]byte(string(tokenType) + getTokenPair(t.ID, t.Secret)))
 }
 
 // Decode parses a base64-encoded string into a Token instance.
 // It validates the encoding and token format, ensuring data integrity.
-// Accepts encoded which is a base64-encoded string containing token ID and Secret separated by a colon.
-// Returns a Token containing the ID and Secret if decoding is successful.
+// The expected format is: base64(<type><ID>:<Secret>) where <type> is 'w' or 't'.
+// For backward compatibility, tokens without a type prefix default to TokenTypeWeb.
+// Accepts encoded which is a base64-encoded string containing token type prefix, ID and Secret.
+// Returns a Token containing the Type, ID and Secret if decoding is successful.
 // Returns an error if the base64 string is invalid or the token format is malformed.
 func Decode(encoded string) (*Token, error) {
 	data, err := base64.StdEncoding.DecodeString(encoded)
@@ -100,9 +138,33 @@ func Decode(encoded string) (*Token, error) {
 		return nil, fmt.Errorf("invalid token format")
 	}
 
+	idPart := string(parts[0])
+	secretPart := string(parts[1])
+
+	// Extract type prefix from the ID portion
+	var tokenType TokenType
+
+	var tokenID string
+
+	if idPart != "" {
+		firstChar := TokenType(idPart[0:1])
+		if IsValidTokenType(firstChar) {
+			// Type prefix found, extract ID without prefix
+			tokenType = firstChar
+			tokenID = idPart[1:]
+		} else {
+			// No valid type prefix, backward compatibility: default to web
+			tokenType = TokenTypeWeb
+			tokenID = idPart
+		}
+	} else {
+		return nil, fmt.Errorf("invalid token format: empty ID")
+	}
+
 	return &Token{
-		ID:     string(parts[0]),
-		Secret: string(parts[1]),
+		ID:     tokenID,
+		Secret: secretPart,
+		Type:   tokenType,
 	}, nil
 }
 

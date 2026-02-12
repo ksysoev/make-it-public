@@ -28,8 +28,12 @@ func RunServerCommand(ctx context.Context, args *args) error {
 	}
 
 	authRepo := auth.New(&cfg.Auth)
-	connManager := connmng.New()
-	connService := core.New(connManager, authRepo)
+
+	// Create two separate connection managers for web and TCP connections
+	webConnManager := connmng.New()
+	tcpConnManager := connmng.New()
+
+	connService := core.New(webConnManager, tcpConnManager, authRepo)
 	apiServ := api.New(cfg.API, connService)
 
 	revServ, err := revproxy.New(&cfg.RevProxy, connService)

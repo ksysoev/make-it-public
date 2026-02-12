@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -13,8 +14,9 @@ import (
 )
 
 const (
-	scryptPrefix = "sc:"
-	apiKeyPrefix = "API_KEY::"
+	scryptPrefix  = "sc:"
+	apiKeyPrefix  = "API_KEY::"
+	typeSeparator = ":"
 )
 
 type Config struct {
@@ -81,27 +83,40 @@ func (r *Repo) IsKeyExists(ctx context.Context, keyID string) (bool, error) {
 
 // Verify checks if the provided secret matches the stored value for the given keyID.
 // It retrieves the value from the database using the keyID and keyPrefix.
-// Returns true if the secret matches, false if not found or mismatched, and error if a database operation fails.
-func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
+// Returns true if the secret matches, the token type, and error if a database operation fails.
+// For backward compatibility, if no type is stored, it defaults to TokenTypeWeb.
+func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, token.TokenType, error) {
 	secretHash, err := hashSecret(secret, r.salt)
 	if err != nil {
-		return false, fmt.Errorf("failed to hash secret: %w", err)
+		return false, "", fmt.Errorf("failed to hash secret: %w", err)
 	}
 
 	res := r.db.Get(ctx, r.keyPrefix+apiKeyPrefix+keyID)
 
 	switch res.Err() {
 	case nil:
-		return res.Val() == secretHash, nil
+		storedValue := res.Val()
+		// Parse format: sc:<hash>:<type>
+		// For backward compatibility: sc:<hash> defaults to web type
+		parts := splitStoredValue(storedValue)
+		storedHash := parts[0]
+		storedTypeStr := parts[1]
+
+		if storedHash != secretHash {
+			return false, "", nil
+		}
+
+		return true, token.TokenType(storedTypeStr), nil
 	case redis.Nil:
-		return false, nil
+		return false, "", nil
 	default:
-		return false, fmt.Errorf("failed to get key: %w", res.Err())
+		return false, "", fmt.Errorf("failed to get key: %w", res.Err())
 	}
 }
 
-// SaveToken saves a token to the database with a hashed secret and specified TTL.
+// SaveToken saves a token to the database with a hashed secret, token type, and specified TTL.
 // It generates a hashed secret using the token's Secret and the Repo's salt.
+// The stored value format is: sc:<hash>:<type>
 // Returns an error if hashing fails, or if the database operation encounters an issue.
 // Returns core.ErrDuplicateTokenID if a token with the same ID already exists.
 func (r *Repo) SaveToken(ctx context.Context, t *token.Token) error {
@@ -110,7 +125,15 @@ func (r *Repo) SaveToken(ctx context.Context, t *token.Token) error {
 		return fmt.Errorf("failed to encrypt secret: %w", err)
 	}
 
-	res := r.db.SetNX(ctx, r.keyPrefix+apiKeyPrefix+t.ID, secretHash, t.TTL)
+	// Store format: sc:<hash>:<type>
+	tokenType := t.Type
+	if tokenType == "" {
+		tokenType = token.TokenTypeWeb
+	}
+
+	storedValue := secretHash + typeSeparator + string(tokenType)
+
+	res := r.db.SetNX(ctx, r.keyPrefix+apiKeyPrefix+t.ID, storedValue, t.TTL)
 
 	if res.Err() != nil {
 		return fmt.Errorf("failed to save token: %w", res.Err())
@@ -155,4 +178,23 @@ func hashSecret(secret string, salt []byte) (string, error) {
 	}
 
 	return scryptPrefix + base64.StdEncoding.EncodeToString(dk), nil
+}
+
+// splitStoredValue parses the stored value format: sc:<hash>:<type>
+// For backward compatibility with old tokens (sc:<hash>), it defaults to TokenTypeWeb.
+// Returns a tuple of [hash, type].
+func splitStoredValue(storedValue string) [2]string {
+	// Expected format: sc:<hash>:<type>
+	parts := bytes.SplitN([]byte(storedValue), []byte(typeSeparator), 3)
+
+	if len(parts) >= 3 {
+		// New format with type: sc:<hash>:<type>
+		hash := string(parts[0]) + typeSeparator + string(parts[1])
+		tokenType := string(parts[2])
+
+		return [2]string{hash, tokenType}
+	}
+
+	// Old format without type: sc:<hash> - default to web
+	return [2]string{storedValue, string(token.TokenTypeWeb)}
 }

@@ -269,7 +269,7 @@ func findAvailablePort(t *testing.T) int {
 func runServerWithConfig(ctx context.Context, cfg *appConfig) error {
 	authRepo := auth.New(&cfg.Auth)
 	connManager := connmng.New()
-	connService := core.New(connManager, authRepo)
+	connService := core.New(connManager, connManager, authRepo)
 	apiServ := api.New(cfg.API, connService)
 
 	revServ, err := revproxy.New(&cfg.RevProxy, connService)

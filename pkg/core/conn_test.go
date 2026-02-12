@@ -26,7 +26,7 @@ func TestHandleHTTPConnection_ConnectionRequestFailure(t *testing.T) {
 
 	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(nil, errors.New("connection failed"))
 
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 	clientConn := conn.NewMockWithWriteCloser(t)
 
 	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080})
@@ -49,7 +49,7 @@ func TestHandleHTTPConnection_WriteError(t *testing.T) {
 	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
 	mockReq.EXPECT().WaitConn(mock.Anything).Return(revConn, nil)
 
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 	clientConn := conn.NewMockWithWriteCloser(t)
 
 	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080})
@@ -77,7 +77,7 @@ func TestHandleHTTPConnection_ContextCancellation(t *testing.T) {
 	connManager.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
 	connManager.EXPECT().CancelRequest(reqID).Return()
 
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 	clientConn := conn.NewMockWithWriteCloser(t)
 
 	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080})
@@ -601,7 +601,7 @@ func buildBindMessage(id uuid.UUID) []byte {
 func TestHandleV2Stream_Success(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 
 	streamServer, streamClient := net.Pipe()
 	defer streamClient.Close()
@@ -629,13 +629,13 @@ func TestHandleV2Stream_Success(t *testing.T) {
 	}()
 
 	ctx := t.Context()
-	service.handleV2Stream(ctx, streamServer, "test-key")
+	service.handleV2Stream(ctx, streamServer, "test-key", connManager)
 }
 
 func TestHandleV2Stream_InvalidVersion(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 
 	streamServer, streamClient := net.Pipe()
 	defer streamClient.Close()
@@ -646,7 +646,7 @@ func TestHandleV2Stream_InvalidVersion(t *testing.T) {
 	}()
 
 	ctx := t.Context()
-	service.handleV2Stream(ctx, streamServer, "test-key")
+	service.handleV2Stream(ctx, streamServer, "test-key", connManager)
 
 	// Stream should be closed by handleV2Stream due to invalid version
 	_, err := streamServer.Read(make([]byte, 1))
@@ -656,7 +656,7 @@ func TestHandleV2Stream_InvalidVersion(t *testing.T) {
 func TestHandleV2Stream_InvalidCommand(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 
 	streamServer, streamClient := net.Pipe()
 	defer streamClient.Close()
@@ -667,7 +667,7 @@ func TestHandleV2Stream_InvalidCommand(t *testing.T) {
 	}()
 
 	ctx := t.Context()
-	service.handleV2Stream(ctx, streamServer, "test-key")
+	service.handleV2Stream(ctx, streamServer, "test-key", connManager)
 
 	// Stream should be closed
 	_, err := streamServer.Read(make([]byte, 1))
@@ -677,7 +677,7 @@ func TestHandleV2Stream_InvalidCommand(t *testing.T) {
 func TestHandleV2Stream_TruncatedUUID(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 
 	streamServer, streamClient := net.Pipe()
 
@@ -689,7 +689,7 @@ func TestHandleV2Stream_TruncatedUUID(t *testing.T) {
 	}()
 
 	ctx := t.Context()
-	service.handleV2Stream(ctx, streamServer, "test-key")
+	service.handleV2Stream(ctx, streamServer, "test-key", connManager)
 
 	// Stream should be closed because UUID read failed
 	_, err := streamServer.Read(make([]byte, 1))
@@ -699,7 +699,7 @@ func TestHandleV2Stream_TruncatedUUID(t *testing.T) {
 func TestHandleV2Stream_WriteResponseFails(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 
 	streamServer, streamClient := net.Pipe()
 
@@ -713,7 +713,7 @@ func TestHandleV2Stream_WriteResponseFails(t *testing.T) {
 	}()
 
 	ctx := t.Context()
-	service.handleV2Stream(ctx, streamServer, "test-key")
+	service.handleV2Stream(ctx, streamServer, "test-key", connManager)
 
 	// Stream should be closed regardless
 	_, err := streamServer.Read(make([]byte, 1))
@@ -723,7 +723,7 @@ func TestHandleV2Stream_WriteResponseFails(t *testing.T) {
 func TestHandleV2Stream_EmptyStream(t *testing.T) {
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 
 	streamServer, streamClient := net.Pipe()
 
@@ -733,7 +733,7 @@ func TestHandleV2Stream_EmptyStream(t *testing.T) {
 	}()
 
 	ctx := t.Context()
-	service.handleV2Stream(ctx, streamServer, "test-key")
+	service.handleV2Stream(ctx, streamServer, "test-key", connManager)
 
 	// Should return without panic and stream should be closed
 	_, err := streamServer.Read(make([]byte, 1))
@@ -745,7 +745,7 @@ func TestAcceptV2Streams_ContextCancellation(t *testing.T) {
 	// We use a mock ServerV2 to avoid race conditions in the revdial library.
 	connManager := NewMockConnManager(t)
 	authRepo := NewMockAuthRepo(t)
-	service := New(connManager, authRepo)
+	service := New(connManager, connManager, authRepo)
 
 	// Create a real ServerV2 that will block on AcceptStream
 	serverPipe, clientPipe := net.Pipe()
@@ -767,7 +767,7 @@ func TestAcceptV2Streams_ContextCancellation(t *testing.T) {
 	done := make(chan struct{})
 
 	go func() {
-		service.acceptV2Streams(acceptCtx, servConn, "testkey")
+		service.acceptV2Streams(acceptCtx, servConn, "testkey", connManager)
 		close(done)
 	}()
 

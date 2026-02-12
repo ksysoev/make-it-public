@@ -10,34 +10,50 @@ import (
 
 func TestGenerateToken(t *testing.T) {
 	t.Run("SaveToken with empty keyID", func(t *testing.T) {
-		token, err := GenerateToken("", 0)
+		token, err := GenerateToken("", 0, TokenTypeWeb)
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.NotEmpty(t, token.ID, "Token ID should not be empty")
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
-		assert.True(t, len(getTokenPair(token.ID, token.Secret))%3 == 0, "The string should be divisible by 3 for base64 encoding")
+		assert.Equal(t, TokenTypeWeb, token.Type, "Token type should be Web")
+		// Note: The encoded format now includes type prefix, so we skip the divisibility check
 		assert.Equal(t, 3600*time.Second, token.TTL, "Token TTL should not be the default value")
 	})
 
 	t.Run("SaveToken with provided keyID and TTL", func(t *testing.T) {
 		keyID := "testkeyid"
-		token, err := GenerateToken(keyID, 100)
+		token, err := GenerateToken(keyID, 100, TokenTypeTCP)
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.Equal(t, keyID, token.ID, "Token ID should match the provided keyID")
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
-		assert.True(t, len(getTokenPair(token.ID, token.Secret))%3 == 0, "The string should be divisible by 3 for base64 encoding")
+		assert.Equal(t, TokenTypeTCP, token.Type, "Token type should be TCP")
 		assert.Equal(t, 100*time.Second, token.TTL, "Token TTL should not be the default value")
+	})
+
+	t.Run("SaveToken defaults to web type when empty", func(t *testing.T) {
+		keyID := "testkey"
+		token, err := GenerateToken(keyID, 100, "")
+		assert.NoError(t, err, "Token generation should not return an error")
+		assert.Equal(t, TokenTypeWeb, token.Type, "Token type should default to Web")
+	})
+
+	t.Run("SaveToken rejects invalid token type", func(t *testing.T) {
+		keyID := "testkey"
+		token, err := GenerateToken(keyID, 100, "invalid")
+		assert.Error(t, err, "Token generation should return an error for invalid type")
+		assert.Nil(t, token, "Token should be nil on error")
+		assert.ErrorIs(t, err, ErrInvalidTokenType)
 	})
 
 	t.Run("unusually long keyID returns error", func(t *testing.T) {
 		keyID := "testKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyIDtestKeyID"
-		token, err := GenerateToken(keyID, 0)
+		token, err := GenerateToken(keyID, 0, TokenTypeWeb)
 		assert.Error(t, err, "Token generation should return an error for unusually long keyID")
 		assert.Nil(t, token, "Token should be nil on error")
 	})
 
 	t.Run("SaveToken with valid alphanumeric keyID", func(t *testing.T) {
 		keyID := "abc123"
-		token, err := GenerateToken(keyID, 0)
+		token, err := GenerateToken(keyID, 0, TokenTypeWeb)
 		assert.NoError(t, err, "Token generation should not return an error")
 		assert.Equal(t, keyID, token.ID, "Token ID should match the provided alphanumeric keyID")
 		assert.NotEmpty(t, token.Secret, "Token Secret should not be empty")
@@ -45,38 +61,80 @@ func TestGenerateToken(t *testing.T) {
 
 	t.Run("SaveToken with unsupported characters", func(t *testing.T) {
 		keyID := "INVALID_KEY!"
-		token, err := GenerateToken(keyID, 0)
+		token, err := GenerateToken(keyID, 0, TokenTypeWeb)
 		assert.Error(t, err, "Token generation should return an error for unsupported characters in keyID")
 		assert.Nil(t, token, "Token should be nil when keyID contains unsupported characters")
 	})
 
 	t.Run("SaveToken with negative TTL", func(t *testing.T) {
 		keyID := "testkeyid"
-		token, err := GenerateToken(keyID, -1)
+		token, err := GenerateToken(keyID, -1, TokenTypeWeb)
 		assert.Error(t, err, "Token generation should return an error for negative TTL")
 		assert.Nil(t, token, "Token should be nil when TTL is negative")
 	})
 }
 
 func TestEncode(t *testing.T) {
-	t.Run("Encode token", func(t *testing.T) {
+	t.Run("Encode web token", func(t *testing.T) {
+		token := &Token{
+			ID:     "testID",
+			Secret: "testSecret",
+			Type:   TokenTypeWeb,
+		}
+		encoded := token.Encode()
+		expected := base64.StdEncoding.EncodeToString([]byte("wtestID:testSecret"))
+		assert.Equal(t, expected, encoded, "Encoded token should match the expected value with type prefix")
+	})
+
+	t.Run("Encode TCP token", func(t *testing.T) {
+		token := &Token{
+			ID:     "testID",
+			Secret: "testSecret",
+			Type:   TokenTypeTCP,
+		}
+		encoded := token.Encode()
+		expected := base64.StdEncoding.EncodeToString([]byte("ttestID:testSecret"))
+		assert.Equal(t, expected, encoded, "Encoded token should match the expected value with type prefix")
+	})
+
+	t.Run("Encode token without type defaults to web", func(t *testing.T) {
 		token := &Token{
 			ID:     "testID",
 			Secret: "testSecret",
 		}
 		encoded := token.Encode()
-		expected := base64.StdEncoding.EncodeToString([]byte("testID:testSecret"))
-		assert.Equal(t, expected, encoded, "Encoded token should match the expected value")
+		expected := base64.StdEncoding.EncodeToString([]byte("wtestID:testSecret"))
+		assert.Equal(t, expected, encoded, "Encoded token should default to web type")
 	})
 }
 
 func TestDecode(t *testing.T) {
-	t.Run("Decode valid token", func(t *testing.T) {
-		encoded := base64.StdEncoding.EncodeToString([]byte("testID:testSecret"))
+	t.Run("Decode valid web token", func(t *testing.T) {
+		encoded := base64.StdEncoding.EncodeToString([]byte("wtestID:testSecret"))
 		token, err := Decode(encoded)
 		assert.NoError(t, err, "Decoding should not return an error")
 		assert.Equal(t, "testID", token.ID, "Decoded token ID should match")
 		assert.Equal(t, "testSecret", token.Secret, "Decoded token Secret should match")
+		assert.Equal(t, TokenTypeWeb, token.Type, "Decoded token type should be Web")
+	})
+
+	t.Run("Decode valid TCP token", func(t *testing.T) {
+		encoded := base64.StdEncoding.EncodeToString([]byte("ttestID:testSecret"))
+		token, err := Decode(encoded)
+		assert.NoError(t, err, "Decoding should not return an error")
+		assert.Equal(t, "testID", token.ID, "Decoded token ID should match")
+		assert.Equal(t, "testSecret", token.Secret, "Decoded token Secret should match")
+		assert.Equal(t, TokenTypeTCP, token.Type, "Decoded token type should be TCP")
+	})
+
+	t.Run("Decode old token without type prefix defaults to web", func(t *testing.T) {
+		// Old format without type prefix - use ID that doesn't start with 'w' or 't'
+		encoded := base64.StdEncoding.EncodeToString([]byte("abc123:testSecret"))
+		token, err := Decode(encoded)
+		assert.NoError(t, err, "Decoding should not return an error")
+		assert.Equal(t, "abc123", token.ID, "Decoded token ID should match")
+		assert.Equal(t, "testSecret", token.Secret, "Decoded token Secret should match")
+		assert.Equal(t, TokenTypeWeb, token.Type, "Decoded token type should default to Web for backward compatibility")
 	})
 
 	t.Run("Decode invalid token format", func(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ksysoev/make-it-public/pkg/core/conn"
 	"github.com/ksysoev/make-it-public/pkg/core/conn/meta"
+	"github.com/ksysoev/make-it-public/pkg/core/token"
 	"github.com/ksysoev/revdial/proto"
 	"golang.org/x/sync/errgroup"
 )
@@ -36,13 +37,17 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 
 	var connKeyID string
 
+	var connTokenType token.TokenType
+
 	// Use NewServerV2 to support both V1 and V2 protocols
 	// V2 provides yamux multiplexing for better performance
 	baseOpts := []proto.ServerOption{
 		proto.WithUserPassAuth(func(keyID, secret string) bool {
-			valid, err := s.auth.Verify(ctx, keyID, secret)
+			valid, tokenType, err := s.auth.Verify(ctx, keyID, secret)
 			if err == nil && valid {
 				connKeyID = keyID
+				connTokenType = tokenType
+
 				return true
 			} else if err != nil {
 				slog.ErrorContext(ctx, "failed to verify user", slog.Any("error", err))
@@ -71,7 +76,8 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 
 	slog.DebugContext(ctx, "connection processed",
 		slog.String("protocol", protocolVersion),
-		slog.String("keyID", connKeyID))
+		slog.String("keyID", connKeyID),
+		slog.String("tokenType", string(connTokenType)))
 
 	switch servConn.State() {
 	case proto.StateRegistered:
@@ -86,9 +92,15 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 			return fmt.Errorf("failed to send url to connect updated event: %w", err)
 		}
 
-		s.connmng.AddConnection(connKeyID, srvConn)
+		// Route to the correct connection manager based on token type
+		connMng := s.webConnMng
+		if connTokenType == token.TokenTypeTCP {
+			connMng = s.tcpConnMng
+		}
 
-		defer s.connmng.RemoveConnection(connKeyID, srvConn.ID())
+		connMng.AddConnection(connKeyID, srvConn)
+
+		defer connMng.RemoveConnection(connKeyID, srvConn.ID())
 
 		protocolVersion := "V1"
 		if servConn.IsV2() {
@@ -97,12 +109,13 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 
 		slog.InfoContext(ctx, "control conn established",
 			slog.String("keyID", connKeyID),
+			slog.String("tokenType", string(connTokenType)),
 			slog.String("protocol", protocolVersion))
 
 		// For V2 connections, start accepting yamux streams in the background.
 		// The client opens new streams (instead of new TCP connections) for each data connection.
 		if servConn.IsV2() {
-			go s.acceptV2Streams(srvConn.Context(), servConn, connKeyID)
+			go s.acceptV2Streams(srvConn.Context(), servConn, connKeyID, connMng)
 		}
 
 		for {
@@ -124,8 +137,14 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 			return fmt.Errorf("failed to create close notifier: %w", err)
 		}
 
-		s.connmng.ResolveRequest(servConn.ID(), notifier)
-		slog.InfoContext(ctx, "rev conn established", slog.String("keyID", connKeyID))
+		// Route to the correct connection manager based on token type
+		connMng := s.webConnMng
+		if connTokenType == token.TokenTypeTCP {
+			connMng = s.tcpConnMng
+		}
+
+		connMng.ResolveRequest(servConn.ID(), notifier)
+		slog.InfoContext(ctx, "rev conn established", slog.String("keyID", connKeyID), slog.String("tokenType", string(connTokenType)))
 
 		notifier.WaitClose(ctx)
 		slog.DebugContext(ctx, "bound connection closed", slog.String("keyID", connKeyID))
@@ -140,7 +159,8 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 	slog.DebugContext(ctx, "new HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 	defer slog.DebugContext(ctx, "closing HTTP connection", slog.Any("remote", cliConn.RemoteAddr()))
 
-	req, err := s.connmng.RequestConnection(ctx, keyID)
+	// HTTP connections always use the web connection manager
+	req, err := s.webConnMng.RequestConnection(ctx, keyID)
 
 	switch {
 	case errors.Is(err, ErrKeyIDNotFound):
@@ -160,7 +180,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 
 	revConn, err := req.WaitConn(ctx)
 	if err != nil {
-		s.connmng.CancelRequest(req.ID())
+		s.webConnMng.CancelRequest(req.ID())
 		return fmt.Errorf("connection request failed: %w", ErrFailedToConnect)
 	}
 
@@ -206,7 +226,7 @@ func (s *Service) HandleHTTPConnection(ctx context.Context, keyID string, cliCon
 
 // acceptV2Streams accepts yamux streams from a V2 connection and resolves pending connection requests.
 // Each stream carries a bind command with a UUID that maps to a pending request from HandleHTTPConnection.
-func (s *Service) acceptV2Streams(ctx context.Context, servConn *proto.ServerV2, keyID string) {
+func (s *Service) acceptV2Streams(ctx context.Context, servConn *proto.ServerV2, keyID string, connMng ConnManager) {
 	// Start a goroutine to close the session when context is canceled.
 	// This ensures AcceptStream() is unblocked, allowing for deterministic shutdown.
 	go func() {
@@ -231,13 +251,13 @@ func (s *Service) acceptV2Streams(ctx context.Context, servConn *proto.ServerV2,
 			return
 		}
 
-		go s.handleV2Stream(ctx, stream, keyID)
+		go s.handleV2Stream(ctx, stream, keyID, connMng)
 	}
 }
 
 // handleV2Stream reads a bind command from a yamux stream and resolves the corresponding connection request.
 // This mirrors the logic in revdial/dialer.go:handleV2Stream for the server-side stream handling.
-func (s *Service) handleV2Stream(ctx context.Context, stream net.Conn, keyID string) {
+func (s *Service) handleV2Stream(ctx context.Context, stream net.Conn, keyID string, connMng ConnManager) {
 	// Set a deadline for the initial bind handshake to prevent goroutine leaks
 	// from clients that open streams but never send data.
 	const handshakeTimeout = 10 * time.Second
@@ -347,7 +367,7 @@ func (s *Service) handleV2Stream(ctx context.Context, stream net.Conn, keyID str
 		return
 	}
 
-	s.connmng.ResolveRequest(id, notifier)
+	connMng.ResolveRequest(id, notifier)
 
 	slog.InfoContext(ctx, "V2 rev conn established", slog.String("keyID", keyID))
 

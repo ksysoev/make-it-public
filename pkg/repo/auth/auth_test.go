@@ -15,12 +15,13 @@ import (
 
 func TestRepo_Verify(t *testing.T) {
 	tests := []struct {
-		wantErr   error
-		mockSetup func(m redismock.ClientMock)
-		name      string
-		keyID     string
-		secret    string
-		want      bool
+		wantErr       error
+		mockSetup     func(m redismock.ClientMock)
+		name          string
+		keyID         string
+		secret        string
+		wantTokenType token.TokenType
+		want          bool
 	}{
 		{
 			name:   "valid key with matching secret",
@@ -31,8 +32,9 @@ func TestRepo_Verify(t *testing.T) {
 				assert.NoError(t, err)
 				m.ExpectGet("prefix::API_KEY::key123").SetVal(val)
 			},
-			want:    true,
-			wantErr: nil,
+			want:          true,
+			wantTokenType: token.TokenTypeWeb,
+			wantErr:       nil,
 		},
 		{
 			name:   "valid key with non-matching secret",
@@ -41,8 +43,9 @@ func TestRepo_Verify(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectGet("prefix::API_KEY::key123").SetVal("secret123")
 			},
-			want:    false,
-			wantErr: nil,
+			want:          false,
+			wantTokenType: "",
+			wantErr:       nil,
 		},
 		{
 			name:   "key does not exist",
@@ -51,8 +54,9 @@ func TestRepo_Verify(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectGet("prefix::API_KEY::key123").RedisNil()
 			},
-			want:    false,
-			wantErr: nil,
+			want:          false,
+			wantTokenType: "",
+			wantErr:       nil,
 		},
 		{
 			name:   "redis error",
@@ -61,8 +65,9 @@ func TestRepo_Verify(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectGet("prefix::API_KEY::key123").SetErr(assert.AnError)
 			},
-			want:    false,
-			wantErr: assert.AnError,
+			want:          false,
+			wantTokenType: "",
+			wantErr:       assert.AnError,
 		},
 	}
 
@@ -76,7 +81,7 @@ func TestRepo_Verify(t *testing.T) {
 				keyPrefix: "prefix::",
 			}
 
-			got, err := r.Verify(context.Background(), tt.keyID, tt.secret)
+			got, tokenType, err := r.Verify(context.Background(), tt.keyID, tt.secret)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, tt.wantErr)
@@ -85,6 +90,7 @@ func TestRepo_Verify(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantTokenType, tokenType)
 		})
 	}
 }
@@ -138,6 +144,7 @@ func TestRepo_SaveToken(t *testing.T) {
 				ID:     "test-id",
 				Secret: "test-secret",
 				TTL:    time.Minute,
+				Type:   token.TokenTypeWeb,
 			}
 
 			err := r.SaveToken(context.Background(), testToken)

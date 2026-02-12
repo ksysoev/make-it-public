@@ -68,7 +68,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 	})
 
 	t.Run("Success token generation", func(t *testing.T) {
-		auth.EXPECT().GenerateToken(mock.Anything, mock.Anything, 3600).Return(&token.Token{
+		auth.EXPECT().GenerateToken(mock.Anything, mock.Anything, 3600, mock.Anything).Return(&token.Token{
 			ID:     "random-key-id",
 			Secret: "test-token",
 			TTL:    time.Hour,
@@ -95,7 +95,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 	})
 
 	t.Run("Giving 0 TTL defaults to TTL of one hour", func(t *testing.T) {
-		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 0).Return(&token.Token{
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 0, mock.Anything).Return(&token.Token{
 			ID:     "test-key-id",
 			Secret: "test-token",
 			TTL:    time.Hour,
@@ -123,7 +123,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 	})
 
 	t.Run("Token Generation Error", func(t *testing.T) {
-		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600).Return(nil, errors.New("token generation error")).Once()
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600, mock.Anything).Return(nil, errors.New("token generation error")).Once()
 
 		requestBody := GenerateTokenRequest{
 			KeyID: "test-key-id",
@@ -138,7 +138,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 	})
 
 	t.Run("Duplicate Token ID Error", func(t *testing.T) {
-		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600).Return(nil, core.ErrDuplicateTokenID).Once()
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600, mock.Anything).Return(nil, core.ErrDuplicateTokenID).Once()
 
 		requestBody := GenerateTokenRequest{
 			KeyID: "test-key-id",
@@ -154,7 +154,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 	})
 
 	t.Run("JSON Encoding Error", func(_ *testing.T) {
-		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600).Return(&token.Token{
+		auth.EXPECT().GenerateToken(mock.Anything, "test-key-id", 3600, mock.Anything).Return(&token.Token{
 			ID:     "test-key-id",
 			Secret: "test-token",
 			TTL:    3600,

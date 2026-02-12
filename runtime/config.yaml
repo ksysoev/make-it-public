@@ -4,6 +4,7 @@ http:
     domain: "make-it-public.com"
     port: 8080
   listen: ":8080"
+  conn_limit: 32
 reverse_proxy:
   listen: ":8081"
 api:

@@ -34,6 +34,7 @@ services:
       - HTTP_PUBLIC_SCHEMA=https
       - HTTP_PUBLIC_DOMAIN=${DOMAIN_NAME:-make-it-public.dev}
       - HTTP_LISTEN=:8080
+      - HTTP_CONN_LIMIT=${HTTP_CONN_LIMIT:-32}
       - HTTP_PROXY_PROTO=true
       - REVERSE_PROXY_LISTEN=:8081
       - REVERSE_PROXY_CERT=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.crt

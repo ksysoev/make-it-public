@@ -121,8 +121,9 @@ func GenerateToken(keyID string, ttl int, tokenType TokenType) (*Token, error) {
 }
 
 // Encode generates a base64-encoded string representation of the token.
-// It combines the token's Type, ID, and Secret, separated by colons, before encoding.
-// The format is: base64(<type>:<ID>:<Secret>) where <type> is 'w' or 't'.
+// It combines the token's ID (with type suffix), and Secret, separated by a colon, before encoding.
+// The format is: base64(<ID>-<type>:<Secret>) where <type> is 'w' or 't'.
+// This format is backward compatible with old clients that expect only ID:Secret.
 // Returns the encoded token string.
 func (t *Token) Encode() string {
 	tokenType := t.Type
@@ -130,14 +131,18 @@ func (t *Token) Encode() string {
 		tokenType = TokenTypeWeb
 	}
 
-	return base64.StdEncoding.EncodeToString([]byte(string(tokenType) + ":" + getTokenPair(t.ID, t.Secret)))
+	keyWithType := t.ID + "-" + string(tokenType)
+
+	return base64.StdEncoding.EncodeToString([]byte(keyWithType + ":" + t.Secret))
 }
 
 // Decode parses a base64-encoded string into a Token instance.
 // It validates the encoding and token format, ensuring data integrity.
-// The expected format is: base64(<type>:<ID>:<Secret>) where <type> is 'w' or 't'.
-// For backward compatibility, old format base64(<ID>:<Secret>) is also supported and defaults to TokenTypeWeb.
-// Accepts encoded which is a base64-encoded string containing token type, ID and Secret.
+// Supports three formats for backward compatibility:
+// 1. New format: base64(<ID>-<type>:<Secret>) where <type> is 'w' or 't'
+// 2. Legacy format: base64(<type>:<ID>:<Secret>) (transitional support)
+// 3. Old format: base64(<ID>:<Secret>) defaults to TokenTypeWeb
+// Accepts encoded which is a base64-encoded string containing token ID and Secret.
 // Returns a Token containing the Type, ID and Secret if decoding is successful.
 // Returns an error if the base64 string is invalid or the token format is malformed.
 func Decode(encoded string) (*Token, error) {
@@ -156,7 +161,7 @@ func Decode(encoded string) (*Token, error) {
 
 	switch len(parts) {
 	case 3:
-		// New format: <type>:<ID>:<Secret>
+		// Legacy format: <type>:<ID>:<Secret> (for transitional support)
 		typeStr := string(parts[0])
 
 		tokenType = TokenType(typeStr)
@@ -167,10 +172,21 @@ func Decode(encoded string) (*Token, error) {
 		tokenID = string(parts[1])
 		secretPart = string(parts[2])
 	case 2:
-		// Old format: <ID>:<Secret> - backward compatibility
-		tokenType = TokenTypeWeb
+		// Could be new format (<ID>-<type>:<Secret>) or old format (<ID>:<Secret>)
 		tokenID = string(parts[0])
 		secretPart = string(parts[1])
+
+		// Try to extract type from ID suffix
+		tokenType = extractTypeFromID(tokenID)
+		if tokenType != TokenTypeWeb && tokenType != TokenTypeTCP {
+			// No valid suffix found, default to web
+			tokenType = TokenTypeWeb
+		} else {
+			// Strip the type suffix from the ID
+			if lastDash := bytes.LastIndexByte([]byte(tokenID), '-'); lastDash != -1 {
+				tokenID = tokenID[:lastDash]
+			}
+		}
 	default:
 		return nil, fmt.Errorf("invalid token format")
 	}
@@ -184,6 +200,23 @@ func Decode(encoded string) (*Token, error) {
 		Secret: secretPart,
 		Type:   tokenType,
 	}, nil
+}
+
+// extractTypeFromID extracts the token type from an ID with a type suffix.
+// It looks for a pattern like "mykey-w" or "mykey-t" and returns the type.
+// If no valid type suffix is found, it returns TokenTypeWeb as the default.
+func extractTypeFromID(id string) TokenType {
+	lastDash := bytes.LastIndexByte([]byte(id), '-')
+	if lastDash == -1 || lastDash == len(id)-1 {
+		return TokenTypeWeb
+	}
+
+	suffix := id[lastDash+1:]
+	if suffix == string(TokenTypeWeb) || suffix == string(TokenTypeTCP) {
+		return TokenType(suffix)
+	}
+
+	return TokenTypeWeb
 }
 
 // generateID creates a random alphanumeric string of defaultIDLength.
@@ -242,22 +275,15 @@ func randomIntSlice(maxLen, length int) ([]int, error) {
 	return out, nil
 }
 
-// getTokenPair concatenates the provided ID and secret with a colon separator.
-// It generates a string that combines both components, intended for encoding or further processing.
-// Returns the concatenated string in the format "ID:Secret".
-func getTokenPair(id, secret string) string {
-	return id + ":" + secret
-}
-
 // calculateSecretBuffer calculates the required buffer length for a secret based on the given key ID length.
-// It ensures that the total length of the type char, two separators, key ID, and buffer is divisible by base64 encoding factor.
-// The format is <type>:<ID>:<secret>, so total length = 1 (type) + 1 (colon) + keyIDLength + 1 (colon) + buffer.
+// It ensures that the total length of the ID with type suffix, colon separator, and secret is divisible by base64 encoding factor.
+// The format is <ID>-<type>:<secret>, so total length = keyIDLength + 1 (dash) + 1 (type) + 1 (colon) + buffer.
 // Returns the calculated buffer length.
 func calculateSecretBuffer(keyIDLength int) int {
 	buffer := defaultSecretLength
 
-	// Total length = 1 (type char) + 2 (colons) + keyIDLength + buffer
-	for (1+2+keyIDLength+buffer)%base64Modulo != 0 {
+	// Total length = keyIDLength + 1 (dash) + 1 (type char) + 1 (colon) + buffer
+	for (keyIDLength+3+buffer)%base64Modulo != 0 {
 		buffer++
 	}
 

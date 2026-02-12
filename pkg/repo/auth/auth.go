@@ -83,6 +83,7 @@ func (r *Repo) IsKeyExists(ctx context.Context, keyID string) (bool, error) {
 
 // Verify checks if the provided secret matches the stored value for the given keyID.
 // It retrieves the value from the database using the keyID and keyPrefix.
+// The keyID may contain a type suffix (e.g., "mykey-w" or "mykey-t") which is stripped before lookup.
 // Returns true if the secret matches, the token type, and error if a database operation fails.
 // For backward compatibility, if no type is stored, it defaults to TokenTypeWeb.
 func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, token.TokenType, error) {
@@ -91,7 +92,10 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, token.To
 		return false, "", fmt.Errorf("failed to hash secret: %w", err)
 	}
 
-	res := r.db.Get(ctx, r.keyPrefix+apiKeyPrefix+keyID)
+	// Extract type from keyID suffix (e.g., "mykey-w" -> "mykey", "w")
+	actualKeyID, keyIDType := extractTypeFromKeyID(keyID)
+
+	res := r.db.Get(ctx, r.keyPrefix+apiKeyPrefix+actualKeyID)
 
 	switch res.Err() {
 	case nil:
@@ -106,7 +110,15 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, token.To
 			return false, "", nil
 		}
 
-		return true, token.TokenType(storedTypeStr), nil
+		// Prefer the stored type over the keyID suffix type
+		// But if keyID has a type and stored value doesn't have one (old format), use keyID type
+		finalType := token.TokenType(storedTypeStr)
+		if storedTypeStr == string(token.TokenTypeWeb) && keyIDType != token.TokenTypeWeb {
+			// This might be a default from old format, check if keyID had explicit type
+			finalType = keyIDType
+		}
+
+		return true, finalType, nil
 	case redis.Nil:
 		return false, "", nil
 	default:
@@ -197,4 +209,33 @@ func splitStoredValue(storedValue string) [2]string {
 
 	// Old format without type: sc:<hash> - default to web
 	return [2]string{storedValue, string(token.TokenTypeWeb)}
+}
+
+// extractTypeFromKeyID extracts the token type from a keyID that may contain a type suffix.
+// It looks for a pattern like "mykey-w" or "mykey-t" and returns the actual keyID and type.
+// If no valid type suffix is found, it returns the original keyID and TokenTypeWeb as default.
+// Returns a tuple of [actualKeyID, tokenType].
+func extractTypeFromKeyID(keyID string) (string, token.TokenType) {
+	// Look for the last dash in the keyID
+	lastDash := -1
+
+	for i := len(keyID) - 1; i >= 0; i-- {
+		if keyID[i] == '-' {
+			lastDash = i
+			break
+		}
+	}
+
+	if lastDash == -1 || lastDash == len(keyID)-1 {
+		// No dash found or dash is at the end
+		return keyID, token.TokenTypeWeb
+	}
+
+	suffix := keyID[lastDash+1:]
+	if suffix == string(token.TokenTypeWeb) || suffix == string(token.TokenTypeTCP) {
+		return keyID[:lastDash], token.TokenType(suffix)
+	}
+
+	// No valid type suffix found
+	return keyID, token.TokenTypeWeb
 }

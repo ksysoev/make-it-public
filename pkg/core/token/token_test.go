@@ -127,24 +127,6 @@ func TestDecode(t *testing.T) {
 		assert.Equal(t, TokenTypeTCP, token.Type, "Decoded token type should be TCP")
 	})
 
-	t.Run("Decode valid web token (legacy 3-part format)", func(t *testing.T) {
-		encoded := base64.StdEncoding.EncodeToString([]byte("w:testID:testSecret"))
-		token, err := Decode(encoded)
-		assert.NoError(t, err, "Decoding should not return an error")
-		assert.Equal(t, "testID", token.ID, "Decoded token ID should match")
-		assert.Equal(t, "testSecret", token.Secret, "Decoded token Secret should match")
-		assert.Equal(t, TokenTypeWeb, token.Type, "Decoded token type should be Web")
-	})
-
-	t.Run("Decode valid TCP token (legacy 3-part format)", func(t *testing.T) {
-		encoded := base64.StdEncoding.EncodeToString([]byte("t:testID:testSecret"))
-		token, err := Decode(encoded)
-		assert.NoError(t, err, "Decoding should not return an error")
-		assert.Equal(t, "testID", token.ID, "Decoded token ID should match")
-		assert.Equal(t, "testSecret", token.Secret, "Decoded token Secret should match")
-		assert.Equal(t, TokenTypeTCP, token.Type, "Decoded token type should be TCP")
-	})
-
 	t.Run("Decode old token without type prefix defaults to web", func(t *testing.T) {
 		// Old format without type prefix - 2-part format
 		encoded := base64.StdEncoding.EncodeToString([]byte("abc123:testSecret"))
@@ -213,12 +195,15 @@ func TestDecode(t *testing.T) {
 		assert.Error(t, err, "Decoding should return an error for invalid base64 string")
 	})
 
-	t.Run("Decode invalid token type in new format", func(t *testing.T) {
-		// Legacy 3-part format with invalid type
-		encoded := base64.StdEncoding.EncodeToString([]byte("x:testID:testSecret"))
-		_, err := Decode(encoded)
-		assert.Error(t, err, "Decoding should return an error for invalid token type")
-		assert.Contains(t, err.Error(), "invalid token type", "Error message should indicate invalid type")
+	t.Run("Decode token with invalid type suffix defaults to web", func(t *testing.T) {
+		// Token with invalid type suffix - should default to web
+		encoded := base64.StdEncoding.EncodeToString([]byte("testID-x:testSecret"))
+		token, err := Decode(encoded)
+		assert.NoError(t, err, "Decoding should not return an error")
+		// Since 'x' is not a valid type, it treats "testID-x" as the full ID and defaults to web
+		assert.Equal(t, "testID-x", token.ID, "Decoded token ID should include invalid suffix")
+		assert.Equal(t, "testSecret", token.Secret, "Decoded token Secret should match")
+		assert.Equal(t, TokenTypeWeb, token.Type, "Decoded token type should default to Web")
 	})
 }
 

@@ -136,12 +136,36 @@ func (t *Token) Encode() string {
 	return base64.StdEncoding.EncodeToString([]byte(keyWithType + ":" + t.Secret))
 }
 
+// extractTypeFromIDWithValidation extracts the token type from an ID with a type suffix.
+// It looks for a pattern like "mykey-w" or "mykey-t" and returns the type and whether a valid suffix was found.
+// If no valid type suffix is found, it returns TokenTypeWeb (default) and false.
+func extractTypeFromIDWithValidation(id string) (TokenType, bool) {
+	lastDash := bytes.LastIndexByte([]byte(id), '-')
+	if lastDash == -1 || lastDash == len(id)-1 {
+		return TokenTypeWeb, false
+	}
+
+	suffix := id[lastDash+1:]
+	if suffix == string(TokenTypeWeb) || suffix == string(TokenTypeTCP) {
+		return TokenType(suffix), true
+	}
+
+	return TokenTypeWeb, false
+}
+
+// extractTypeFromID extracts the token type from an ID with a type suffix.
+// It looks for a pattern like "mykey-w" or "mykey-t" and returns the type.
+// If no valid type suffix is found, it returns TokenTypeWeb as the default.
+func extractTypeFromID(id string) TokenType {
+	tokenType, _ := extractTypeFromIDWithValidation(id)
+	return tokenType
+}
+
 // Decode parses a base64-encoded string into a Token instance.
 // It validates the encoding and token format, ensuring data integrity.
-// Supports three formats for backward compatibility:
+// Supports two formats:
 // 1. New format: base64(<ID>-<type>:<Secret>) where <type> is 'w' or 't'
-// 2. Legacy format: base64(<type>:<ID>:<Secret>) (transitional support)
-// 3. Old format: base64(<ID>:<Secret>) defaults to TokenTypeWeb
+// 2. Old format: base64(<ID>:<Secret>) defaults to TokenTypeWeb
 // Accepts encoded which is a base64-encoded string containing token ID and Secret.
 // Returns a Token containing the Type, ID and Secret if decoding is successful.
 // Returns an error if the base64 string is invalid or the token format is malformed.
@@ -151,44 +175,22 @@ func Decode(encoded string) (*Token, error) {
 		return nil, err
 	}
 
-	parts := bytes.SplitN(data, []byte(":"), 3)
-
-	var tokenType TokenType
-
-	var tokenID string
-
-	var secretPart string
-
-	switch len(parts) {
-	case 3:
-		// Legacy format: <type>:<ID>:<Secret> (for transitional support)
-		typeStr := string(parts[0])
-
-		tokenType = TokenType(typeStr)
-		if !IsValidTokenType(tokenType) {
-			return nil, fmt.Errorf("invalid token type: %s", typeStr)
-		}
-
-		tokenID = string(parts[1])
-		secretPart = string(parts[2])
-	case 2:
-		// Could be new format (<ID>-<type>:<Secret>) or old format (<ID>:<Secret>)
-		tokenID = string(parts[0])
-		secretPart = string(parts[1])
-
-		// Try to extract type from ID suffix
-		tokenType = extractTypeFromID(tokenID)
-		if tokenType != TokenTypeWeb && tokenType != TokenTypeTCP {
-			// No valid suffix found, default to web
-			tokenType = TokenTypeWeb
-		} else {
-			// Strip the type suffix from the ID
-			if lastDash := bytes.LastIndexByte([]byte(tokenID), '-'); lastDash != -1 {
-				tokenID = tokenID[:lastDash]
-			}
-		}
-	default:
+	parts := bytes.SplitN(data, []byte(":"), 2)
+	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid token format")
+	}
+
+	// Could be new format (<ID>-<type>:<Secret>) or old format (<ID>:<Secret>)
+	tokenID := string(parts[0])
+	secretPart := string(parts[1])
+
+	// Try to extract type from ID suffix
+	tokenType, hasValidSuffix := extractTypeFromIDWithValidation(tokenID)
+	if hasValidSuffix {
+		// Strip the type suffix from the ID
+		if lastDash := bytes.LastIndexByte([]byte(tokenID), '-'); lastDash != -1 {
+			tokenID = tokenID[:lastDash]
+		}
 	}
 
 	if tokenID == "" {
@@ -200,23 +202,6 @@ func Decode(encoded string) (*Token, error) {
 		Secret: secretPart,
 		Type:   tokenType,
 	}, nil
-}
-
-// extractTypeFromID extracts the token type from an ID with a type suffix.
-// It looks for a pattern like "mykey-w" or "mykey-t" and returns the type.
-// If no valid type suffix is found, it returns TokenTypeWeb as the default.
-func extractTypeFromID(id string) TokenType {
-	lastDash := bytes.LastIndexByte([]byte(id), '-')
-	if lastDash == -1 || lastDash == len(id)-1 {
-		return TokenTypeWeb
-	}
-
-	suffix := id[lastDash+1:]
-	if suffix == string(TokenTypeWeb) || suffix == string(TokenTypeTCP) {
-		return TokenType(suffix)
-	}
-
-	return TokenTypeWeb
 }
 
 // generateID creates a random alphanumeric string of defaultIDLength.

@@ -120,20 +120,25 @@ func GenerateToken(keyID string, ttl int, tokenType TokenType) (*Token, error) {
 	}, nil
 }
 
+// IDWithType returns the token ID with the type suffix appended.
+// The format is: <ID>-<type> where <type> is 'w' (web) or 't' (tcp).
+// If the token type is empty, it defaults to TokenTypeWeb.
+func (t *Token) IDWithType() string {
+	tokenType := t.Type
+	if tokenType == "" {
+		tokenType = TokenTypeWeb
+	}
+
+	return t.ID + "-" + string(tokenType)
+}
+
 // Encode generates a base64-encoded string representation of the token.
 // It combines the token's ID (with type suffix), and Secret, separated by a colon, before encoding.
 // The format is: base64(<ID>-<type>:<Secret>) where <type> is 'w' or 't'.
 // This format is backward compatible with old clients that expect only ID:Secret.
 // Returns the encoded token string.
 func (t *Token) Encode() string {
-	tokenType := t.Type
-	if tokenType == "" {
-		tokenType = TokenTypeWeb
-	}
-
-	keyWithType := t.ID + "-" + string(tokenType)
-
-	return base64.StdEncoding.EncodeToString([]byte(keyWithType + ":" + t.Secret))
+	return base64.StdEncoding.EncodeToString([]byte(t.IDWithType() + ":" + t.Secret))
 }
 
 // extractTypeFromIDWithValidation extracts the token type from an ID with a type suffix.

@@ -105,7 +105,7 @@ func GenerateToken(keyID string, ttl int, tokenType TokenType) (*Token, error) {
 		keyID = id
 	}
 
-	bufferLen := calculateSecretBuffer(len(keyID))
+	bufferLen := calculateSecretBuffer(len(keyID) + 2) // +2 for the dash and type character in the encoded format
 
 	secret, err := generateSecret(bufferLen)
 	if err != nil {

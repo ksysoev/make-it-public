@@ -24,8 +24,8 @@ func TestRepo_Verify(t *testing.T) {
 		want          bool
 	}{
 		{
-			name:   "valid key with matching secret",
-			keyID:  "key123",
+			name:   "valid key with matching secret (web token)",
+			keyID:  "key123-w",
 			secret: "secret123",
 			mockSetup: func(m redismock.ClientMock) {
 				val, err := hashSecret("secret123", []byte(""))
@@ -37,8 +37,21 @@ func TestRepo_Verify(t *testing.T) {
 			wantErr:       nil,
 		},
 		{
+			name:   "valid key with matching secret (tcp token)",
+			keyID:  "key456-t",
+			secret: "secret456",
+			mockSetup: func(m redismock.ClientMock) {
+				val, err := hashSecret("secret456", []byte(""))
+				assert.NoError(t, err)
+				m.ExpectGet("prefix::API_KEY::key456").SetVal(val)
+			},
+			want:          true,
+			wantTokenType: token.TokenTypeTCP,
+			wantErr:       nil,
+		},
+		{
 			name:   "valid key with non-matching secret",
-			keyID:  "key123",
+			keyID:  "key123-w",
 			secret: "invalidSecret",
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectGet("prefix::API_KEY::key123").SetVal("secret123")
@@ -49,7 +62,7 @@ func TestRepo_Verify(t *testing.T) {
 		},
 		{
 			name:   "key does not exist",
-			keyID:  "key123",
+			keyID:  "key123-w",
 			secret: "secret123",
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectGet("prefix::API_KEY::key123").RedisNil()
@@ -60,7 +73,7 @@ func TestRepo_Verify(t *testing.T) {
 		},
 		{
 			name:   "redis error",
-			keyID:  "key123",
+			keyID:  "key123-w",
 			secret: "secret123",
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectGet("prefix::API_KEY::key123").SetErr(assert.AnError)
@@ -68,6 +81,28 @@ func TestRepo_Verify(t *testing.T) {
 			want:          false,
 			wantTokenType: "",
 			wantErr:       assert.AnError,
+		},
+		{
+			name:   "invalid key ID without type suffix",
+			keyID:  "key123",
+			secret: "secret123",
+			mockSetup: func(m redismock.ClientMock) {
+				// No mock needed, should fail before reaching Redis
+			},
+			want:          false,
+			wantTokenType: "",
+			wantErr:       token.ErrInvalidTypeSuffix,
+		},
+		{
+			name:   "invalid key ID with wrong type suffix",
+			keyID:  "key123-x",
+			secret: "secret123",
+			mockSetup: func(m redismock.ClientMock) {
+				// No mock needed, should fail before reaching Redis
+			},
+			want:          false,
+			wantTokenType: "",
+			wantErr:       token.ErrInvalidTypeSuffix,
 		},
 	}
 

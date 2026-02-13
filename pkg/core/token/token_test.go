@@ -243,3 +243,73 @@ func TestTokenTypeString(t *testing.T) {
 		assert.Equal(t, "x", invalid.String(), "Invalid TokenType.String() should return raw value")
 	})
 }
+
+func TestToken_IDWithType(t *testing.T) {
+	t.Run("Web token returns ID with -w suffix", func(t *testing.T) {
+		token := &Token{
+			ID:   "mykey",
+			Type: TokenTypeWeb,
+		}
+		assert.Equal(t, "mykey-w", token.IDWithType())
+	})
+
+	t.Run("TCP token returns ID with -t suffix", func(t *testing.T) {
+		token := &Token{
+			ID:   "mykey",
+			Type: TokenTypeTCP,
+		}
+		assert.Equal(t, "mykey-t", token.IDWithType())
+	})
+
+	t.Run("Token without type defaults to web", func(t *testing.T) {
+		token := &Token{
+			ID:   "mykey",
+			Type: "",
+		}
+		assert.Equal(t, "mykey-w", token.IDWithType())
+	})
+}
+
+func TestExtractIDAndType(t *testing.T) {
+	t.Run("Extract web token type", func(t *testing.T) {
+		id, tokenType, err := ExtractIDAndType("mykey-w")
+		assert.NoError(t, err)
+		assert.Equal(t, "mykey", id)
+		assert.Equal(t, TokenTypeWeb, tokenType)
+	})
+
+	t.Run("Extract TCP token type", func(t *testing.T) {
+		id, tokenType, err := ExtractIDAndType("mykey-t")
+		assert.NoError(t, err)
+		assert.Equal(t, "mykey", id)
+		assert.Equal(t, TokenTypeTCP, tokenType)
+	})
+
+	t.Run("ID without suffix returns error", func(t *testing.T) {
+		id, tokenType, err := ExtractIDAndType("mykey")
+		assert.ErrorIs(t, err, ErrInvalidTypeSuffix)
+		assert.Equal(t, "", id)
+		assert.Equal(t, TokenType(""), tokenType)
+	})
+
+	t.Run("ID with invalid suffix returns error", func(t *testing.T) {
+		id, tokenType, err := ExtractIDAndType("mykey-x")
+		assert.ErrorIs(t, err, ErrInvalidTypeSuffix)
+		assert.Equal(t, "", id)
+		assert.Equal(t, TokenType(""), tokenType)
+	})
+
+	t.Run("ID ending with dash returns error", func(t *testing.T) {
+		id, tokenType, err := ExtractIDAndType("mykey-")
+		assert.ErrorIs(t, err, ErrInvalidTypeSuffix)
+		assert.Equal(t, "", id)
+		assert.Equal(t, TokenType(""), tokenType)
+	})
+
+	t.Run("ID with multiple dashes extracts from last dash", func(t *testing.T) {
+		id, tokenType, err := ExtractIDAndType("my-key-name-w")
+		assert.NoError(t, err)
+		assert.Equal(t, "my-key-name", id)
+		assert.Equal(t, TokenTypeWeb, tokenType)
+	})
+}

@@ -52,10 +52,11 @@ type Token struct {
 }
 
 var (
-	ErrTokenTooLong     = fmt.Errorf("token length exceeds maximum limit of %d characters", maxIDLength)
-	ErrTokenInvalid     = fmt.Errorf("token contains invalid characters, only lowercase letters and digits are allowed")
-	ErrInvalidTokenTTL  = fmt.Errorf("ttl must be positive number")
-	ErrInvalidTokenType = fmt.Errorf("token type must be 'w' (web) or 't' (tcp)")
+	ErrTokenTooLong      = fmt.Errorf("token length exceeds maximum limit of %d characters", maxIDLength)
+	ErrTokenInvalid      = fmt.Errorf("token contains invalid characters, only lowercase letters and digits are allowed")
+	ErrInvalidTokenTTL   = fmt.Errorf("ttl must be positive number")
+	ErrInvalidTokenType  = fmt.Errorf("token type must be 'w' (web) or 't' (tcp)")
+	ErrInvalidTypeSuffix = fmt.Errorf("invalid or missing type suffix in token ID")
 )
 
 // IsValidTokenType checks if the provided token type is valid.
@@ -139,6 +140,26 @@ func (t *Token) IDWithType() string {
 // Returns the encoded token string.
 func (t *Token) Encode() string {
 	return base64.StdEncoding.EncodeToString([]byte(t.IDWithType() + ":" + t.Secret))
+}
+
+// ExtractIDAndType extracts the base ID and token type from an ID with a type suffix.
+// It looks for a pattern like "mykey-w" or "mykey-t" and returns the base ID and type.
+// Returns an error if the ID doesn't have a valid type suffix.
+// Valid suffixes are 'w' (web) and 't' (tcp).
+func ExtractIDAndType(idWithSuffix string) (string, TokenType, error) {
+	lastDash := bytes.LastIndexByte([]byte(idWithSuffix), '-')
+	if lastDash == -1 || lastDash == len(idWithSuffix)-1 {
+		return "", "", ErrInvalidTypeSuffix
+	}
+
+	suffix := idWithSuffix[lastDash+1:]
+	if suffix != string(TokenTypeWeb) && suffix != string(TokenTypeTCP) {
+		return "", "", ErrInvalidTypeSuffix
+	}
+
+	baseID := idWithSuffix[:lastDash]
+
+	return baseID, TokenType(suffix), nil
 }
 
 // extractTypeFromIDWithValidation extracts the token type from an ID with a type suffix.

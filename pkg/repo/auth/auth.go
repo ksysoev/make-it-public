@@ -80,20 +80,23 @@ func (r *Repo) IsKeyExists(ctx context.Context, keyID string) (bool, error) {
 }
 
 // Verify checks if the provided secret matches the stored value for the given keyID.
-// It retrieves the value from the database using the keyID and keyPrefix.
-// The keyID may contain a type suffix (e.g., "mykey-w" or "mykey-t") which is stripped before lookup.
-// Returns true if the secret matches, the token type extracted from keyID, and error if a database operation fails.
-// If no type suffix is found in the keyID, it defaults to TokenTypeWeb.
-func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, token.TokenType, error) {
+// It retrieves the value from the database using the keyID (with type suffix stripped).
+// The keyID must contain a valid type suffix (e.g., "mykey-w" or "mykey-t").
+// Returns true if the secret matches, the token type extracted from keyID, and error if validation fails.
+// Returns an error if the keyID doesn't have a valid type suffix.
+func (r *Repo) Verify(ctx context.Context, keyIDWithSuffix, secret string) (bool, token.TokenType, error) {
 	secretHash, err := hashSecret(secret, r.salt)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to hash secret: %w", err)
 	}
 
-	// Extract type from keyID suffix (e.g., "mykey-w" -> "mykey", "w")
-	actualKeyID, tokenType := extractTypeFromKeyID(keyID)
+	// Extract base ID and type from keyID with suffix (e.g., "mykey-w" -> "mykey", "w")
+	baseKeyID, tokenType, err := token.ExtractIDAndType(keyIDWithSuffix)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to extract token type from key ID: %w", err)
+	}
 
-	res := r.db.Get(ctx, r.keyPrefix+apiKeyPrefix+actualKeyID)
+	res := r.db.Get(ctx, r.keyPrefix+apiKeyPrefix+baseKeyID)
 
 	switch res.Err() {
 	case nil:
@@ -112,7 +115,7 @@ func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, token.To
 // SaveToken saves a token to the database with a hashed secret and specified TTL.
 // It generates a hashed secret using the token's Secret and the Repo's salt.
 // The stored value format is: sc:<hash>
-// The token type is encoded in the token ID itself (e.g., "mykey-w" or "mykey-t").
+// The token is stored using its base ID (without type suffix).
 // Returns an error if hashing fails, or if the database operation encounters an issue.
 // Returns core.ErrDuplicateTokenID if a token with the same ID already exists.
 func (r *Repo) SaveToken(ctx context.Context, t *token.Token) error {
@@ -166,33 +169,4 @@ func hashSecret(secret string, salt []byte) (string, error) {
 	}
 
 	return scryptPrefix + base64.StdEncoding.EncodeToString(dk), nil
-}
-
-// extractTypeFromKeyID extracts the token type from a keyID that may contain a type suffix.
-// It looks for a pattern like "mykey-w" or "mykey-t" and returns the actual keyID and type.
-// If no valid type suffix is found, it returns the original keyID and TokenTypeWeb as default.
-// Returns a tuple of [actualKeyID, tokenType].
-func extractTypeFromKeyID(keyID string) (string, token.TokenType) {
-	// Look for the last dash in the keyID
-	lastDash := -1
-
-	for i := len(keyID) - 1; i >= 0; i-- {
-		if keyID[i] == '-' {
-			lastDash = i
-			break
-		}
-	}
-
-	if lastDash == -1 || lastDash == len(keyID)-1 {
-		// No dash found or dash is at the end
-		return keyID, token.TokenTypeWeb
-	}
-
-	suffix := keyID[lastDash+1:]
-	if suffix == string(token.TokenTypeWeb) || suffix == string(token.TokenTypeTCP) {
-		return keyID[:lastDash], token.TokenType(suffix)
-	}
-
-	// No valid type suffix found
-	return keyID, token.TokenTypeWeb
 }

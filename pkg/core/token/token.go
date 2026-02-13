@@ -153,14 +153,6 @@ func extractTypeFromIDWithValidation(id string) (TokenType, bool) {
 	return TokenTypeWeb, false
 }
 
-// extractTypeFromID extracts the token type from an ID with a type suffix.
-// It looks for a pattern like "mykey-w" or "mykey-t" and returns the type.
-// If no valid type suffix is found, it returns TokenTypeWeb as the default.
-func extractTypeFromID(id string) TokenType {
-	tokenType, _ := extractTypeFromIDWithValidation(id)
-	return tokenType
-}
-
 // Decode parses a base64-encoded string into a Token instance.
 // It validates the encoding and token format, ensuring data integrity.
 // Supports two formats:

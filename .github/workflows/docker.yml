@@ -65,7 +65,7 @@ jobs:
             MIT_SERVER=${{ secrets.MIT_SERVER }}
             VERSION=${{ env.VERSION }}
       - if: github.ref_type == 'tag'
-        name: Deploy to DigitalOcean Droplet
+        name: Deploy to CloudLab Droplet (Docker Swarm)
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{secrets.HOST}}
@@ -73,13 +73,28 @@ jobs:
           key: ${{secrets.SSH_KEY}}
           port: ${{secrets.PORT}}
           script: |
-            cd make-it-public
-            git pull
+            # Navigate to make-it-public repository
+            cd ~/make-it-public
+            
+            # Update repository
+            git fetch --all
+            git checkout ${{ env.VERSION }}
+            git pull origin ${{ env.VERSION }} || true
+            
+            # Export environment variables
             export MIT_VERSION=${{ env.VERSION }}
-            docker compose pull
             export CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
             export EMAIL=${{ secrets.EMAIL }}
             export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
             export AUTH_SALT=${{ secrets.AUTH_SALT }}
-            export NETWORK_NAME=${{ env.MIT_NETWORK }}
-            docker stack deploy -c docker-compose.yml makeitpublic
+            
+            # Ensure cloudlab-public network exists
+            docker network inspect cloudlab-public >/dev/null 2>&1 || \
+              docker network create --driver overlay --attachable cloudlab-public
+            
+            # Deploy stack to Docker Swarm
+            docker stack deploy -c docker-stack.yml makeitpublic
+            
+            # Show deployment status
+            echo "Deployment completed. Stack status:"
+            docker stack services makeitpublic

@@ -135,7 +135,9 @@ services:
 
 ### Running as a Docker Container
 
-The easiest way to run the MIT server is using Docker Compose:
+#### Option 1: Docker Compose (Standalone)
+
+For standalone deployment, use Docker Compose:
 
 ```bash
 # Clone the repository
@@ -154,6 +156,38 @@ docker-compose up -d
 
 This will start the MIT server along with Redis for authentication and Caddy as a reverse proxy.
 
+#### Option 2: Docker Swarm (Production)
+
+For production deployments with Docker Swarm:
+
+```bash
+# Clone the repository
+git clone https://github.com/ksysoev/make-it-public.git
+cd make-it-public
+
+# Set up environment variables
+export DOMAIN_NAME=your-domain.com
+export AUTH_SALT=your-random-salt
+export CLOUDFLARE_API_TOKEN=your-cloudflare-token
+export EMAIL=your-email@example.com
+export MIT_VERSION=latest  # or specific version tag
+
+# Ensure cloudlab-public network exists
+docker network create --driver overlay --attachable cloudlab-public
+
+# Deploy using the helper script
+./deploy-swarm.sh
+
+# Or deploy manually
+docker stack deploy -c docker-stack.yml makeitpublic
+```
+
+**Docker Swarm Deployment Notes:**
+- The stack uses the `cloudlab-public` overlay network for service communication
+- Caddy uses `mode: host` for port binding to support Let's Encrypt HTTP/TLS-ALPN challenges
+- All services are constrained to manager nodes for simplicity
+- Persistent volumes are used for Redis data and Caddy certificates
+
 #### Running the Server Manually
 
 You can also run the server manually:
@@ -171,6 +205,12 @@ mit server token generate --key-id your-key-id --ttl 24
 ```
 
 This will generate a token that is valid for 24 hours.
+
+#### Deployment Files
+
+- **`docker-compose.yml`**: For standalone Docker Compose deployments
+- **`docker-stack.yml`**: For Docker Swarm deployments (production)
+- **`deploy-swarm.sh`**: Helper script for deploying to Docker Swarm
 
 ---
 

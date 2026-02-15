@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  redis:
+    image: docker.io/bitnami/redis:7.4.2
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - redis_data:/bitnami/redis/data
+    networks:
+      - cloudlab-public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      placement:
+        constraints:
+          - node.role == manager
+
+  mitserver:
+    image: "ghcr.io/ksysoev/make-it-public:${MIT_VERSION:-latest}"
+    environment:
+      - AUTH_REDIS_ADDR=redis:6379
+      - AUTH_SALT=${AUTH_SALT:-someRandomSalt}
+      - "AUTH_KEY_PREFIX=MIT::"
+      - HTTP_PUBLIC_SCHEMA=https
+      - HTTP_PUBLIC_DOMAIN=${DOMAIN_NAME:-make-it-public.dev}
+      - HTTP_LISTEN=:8080
+      - HTTP_CONN_LIMIT=${HTTP_CONN_LIMIT:-32}
+      - HTTP_PROXY_PROTO=true
+      - REVERSE_PROXY_LISTEN=:8081
+      - REVERSE_PROXY_CERT=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.crt
+      - REVERSE_PROXY_KEY=/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN_NAME}/${DOMAIN_NAME}.key
+      - API_LISTEN=:8082
+      - LOG_LEVEL=info
+      - LOG_TEXT=false
+    command: ["server", "run", "all"]
+    volumes:
+      - caddy_data:/data:ro
+    networks:
+      - cloudlab-public
+    ports:
+      - target: 8080
+        published: 8080
+        protocol: tcp
+      - target: 8081
+        published: 8081
+        protocol: tcp
+      - target: 8082
+        published: 8082
+        protocol: tcp
+    healthcheck:
+      test: ["/mit", "server", "check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      placement:
+        constraints:
+          - node.role == manager
+    depends_on:
+      - redis
+
+  caddy:
+    image: ghcr.io/caddybuilds/caddy-cloudflare:2.10-alpine
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: udp
+        mode: host
+    environment:
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - EMAIL=${EMAIL}
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    volumes:
+      - type: bind
+        source: ./runtime/Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+      - type: bind
+        source: ./static
+        target: /srv
+        read_only: true
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - cloudlab-public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+    depends_on:
+      - mitserver
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:
+
+networks:
+  cloudlab-public:
+    external: true

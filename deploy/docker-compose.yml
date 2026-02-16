@@ -41,6 +41,12 @@ services:
     networks:
       - backend
     ports:
+      # Expose reverse proxy port on host for MIT clients to connect
+      # MIT clients connect to this port to establish tunnels
+      - target: 8081
+        published: 8081
+        protocol: tcp
+        mode: host
       # Expose API port on host for other services to access
       # Other services can connect to this via host IP:8082
       - target: 8082
@@ -122,6 +128,7 @@ volumes:
 networks:
   # Service-specific backend network for internal communication
   # External services can communicate via exposed host ports
+  # Network will be created on first deployment and reused on subsequent deploys
   backend:
     driver: overlay
     name: ${NETWORK_NAME:-mit-network}

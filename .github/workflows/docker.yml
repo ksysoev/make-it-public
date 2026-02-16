@@ -14,11 +14,11 @@ permissions:
   packages: write
 
 jobs:
-  build-and-push:
+  build-app:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_type == 'tag' && 'production' || '' }}
     concurrency:
-      group: ${{ github.ref_type == 'tag' && 'production' || github.run_id }}
+      group: ${{ github.ref_type == 'tag' && 'production-app' || format('app-{0}', github.run_id) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -43,17 +43,21 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
         with:
           images: ghcr.io/${{ github.repository }}
+
       - name: Set VERSION based on trigger type
         id: extract_version
         run: |
           if [[ $GITHUB_REF_TYPE == "tag" ]]; then
             # For tag triggers, use the tag name
             echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+            echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
           else
             # For branch/commit triggers, use the commit hash
             echo "VERSION=${GITHUB_SHA}" >> $GITHUB_ENV
+            echo "version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           fi
-      - name: Build and push Docker image
+
+      - name: Build and push application Docker image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: .
@@ -64,22 +68,65 @@ jobs:
           build-args: |
             MIT_SERVER=${{ secrets.MIT_SERVER }}
             VERSION=${{ env.VERSION }}
-      - if: github.ref_type == 'tag'
-        name: Deploy to DigitalOcean Droplet
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+
+  build-caddy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_type == 'tag' && 'production' || '' }}
+    concurrency:
+      group: ${{ github.ref_type == 'tag' && 'production-caddy' || format('caddy-{0}', github.run_id) }}
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
-          host: ${{secrets.HOST}}
-          username: ${{secrets.USERNAME}}
-          key: ${{secrets.SSH_KEY}}
-          port: ${{secrets.PORT}}
-          script: |
-            cd make-it-public
-            git pull
-            export MIT_VERSION=${{ env.VERSION }}
-            docker compose pull
-            export CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
-            export EMAIL=${{ secrets.EMAIL }}
-            export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
-            export AUTH_SALT=${{ secrets.AUTH_SALT }}
-            export NETWORK_NAME=${{ env.MIT_NETWORK }}
-            docker stack deploy -c docker-compose.yml makeitpublic
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Caddy
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        with:
+          images: ghcr.io/${{ github.repository }}-caddy
+
+      - name: Build and push Caddy Docker image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          file: ./deploy/caddy/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+
+  deploy:
+    needs: [build-app, build-caddy]
+    if: github.ref_type == 'tag'
+    uses: ksysoev/cloudlab/.github/workflows/deploy-service.yml@main
+    with:
+      service_name: makeitpublic
+      docker_compose_file: deploy/docker-compose.yml
+      ssh_host: ${{ secrets.HOST }}
+      ssh_user: ${{ secrets.USERNAME }}
+      ssh_port: ${{ secrets.PORT }}
+      health_check_timeout: 60
+      enable_rollback: true
+      environment_vars: |
+        {
+          "MIT_VERSION": "${{ needs.build-app.outputs.version }}",
+          "AUTH_SALT": "${{ secrets.AUTH_SALT }}",
+          "DOMAIN_NAME": "${{ secrets.DOMAIN_NAME }}",
+          "EMAIL": "${{ secrets.EMAIL }}",
+          "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
+          "NETWORK_NAME": "mit-network"
+        }
+    secrets:
+      ssh_key: ${{ secrets.SSH_KEY }}

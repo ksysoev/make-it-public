@@ -24,7 +24,8 @@
    - [Environment Variables](#environment-variables)
    - [Configuration File](#configuration-file)
 6. [How It Works](#how-it-works)
-7. [Project Structure](#project-structure)
+7. [Deployment](#deployment)
+8. [Project Structure](#project-structure)
 
 ---
 
@@ -319,6 +320,129 @@ docker run -d -p 6379:6379 redis:alpine
 
 # Run E2E tests
 make test-e2e
+```
+
+---
+
+## Deployment
+
+### Automated Deployment to Cloudlab
+
+Make It Public uses an automated deployment workflow that deploys to a Docker Swarm cluster managed by [Cloudlab](https://github.com/ksysoev/cloudlab).
+
+#### Deployment Architecture
+
+The deployment consists of three services:
+
+1. **Redis** - Authentication and session storage
+2. **MIT Server** - Main application handling connections and reverse proxy
+3. **Caddy** - HTTPS termination with Let's Encrypt via Cloudflare DNS challenge
+
+All configuration files (Caddyfile, static assets) are embedded in Docker images for security and simplicity.
+
+#### Deployment Process
+
+1. **On Git Tag Push** (e.g., `v1.0.0`):
+   - Builds multi-arch application image (`linux/amd64`, `linux/arm64`)
+   - Builds Caddy deployment image with embedded configuration (`linux/amd64`)
+   - Pushes both images to GitHub Container Registry
+   - Deploys to Cloudlab droplet using Docker Swarm
+
+2. **On Main Branch Push**:
+   - Builds and pushes images (no deployment)
+
+#### Docker Images
+
+- **Application**: `ghcr.io/ksysoev/make-it-public:${VERSION}`
+- **Caddy**: `ghcr.io/ksysoev/make-it-public-caddy:${VERSION}`
+
+#### Deployment Files
+
+- `deploy/docker-compose.yml` - Production Docker Swarm configuration
+- `deploy/caddy/Dockerfile` - Caddy image with embedded Caddyfile and static files
+
+#### Required Secrets
+
+Configure these in your GitHub repository settings:
+
+| Secret | Description |
+|--------|-------------|
+| `HOST` | Cloudlab droplet IP or hostname |
+| `USERNAME` | SSH username (default: `deployer`) |
+| `SSH_KEY` | SSH private key for authentication |
+| `PORT` | SSH port (default: `1923`) |
+| `AUTH_SALT` | Salt for authentication token generation |
+| `DOMAIN_NAME` | Domain name for the service |
+| `EMAIL` | Email for Let's Encrypt |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for DNS challenge |
+| `MIT_SERVER` | Default server address (build arg) |
+
+#### Manual Deployment
+
+To deploy manually to a Docker Swarm cluster:
+
+```bash
+# SSH into your droplet
+ssh -p 1923 deployer@your-droplet-ip
+
+# Navigate to deployment directory
+cd /opt/cloudlab/stacks/makeitpublic
+
+# Set environment variables
+export MIT_VERSION=v1.0.0
+export AUTH_SALT=your-secret-salt
+export DOMAIN_NAME=make-it-public.dev
+export EMAIL=your-email@example.com
+export CLOUDFLARE_API_TOKEN=your-token
+export NETWORK_NAME=mit-network
+
+# Deploy stack
+docker stack deploy -c docker-compose.yml makeitpublic
+
+# Check status
+docker stack ps makeitpublic
+docker stack services makeitpublic
+```
+
+#### Rollback
+
+The deployment workflow includes automatic rollback on failure. For manual rollback:
+
+```bash
+# Deploy a previous version
+export MIT_VERSION=v0.9.0
+docker stack deploy -c docker-compose.yml makeitpublic
+```
+
+#### Health Checks
+
+The deployment includes:
+- **Application health check**: `/mit server check` endpoint
+- **Automatic restart**: Services restart on failure
+- **Rolling updates**: Zero-downtime deployments with `start-first` strategy
+- **Deployment verification**: 60-second health check timeout
+
+#### Inter-Service Communication
+
+- **API Port**: Exposed on host network at port `8082` for telegram bot access
+- **Internal communication**: Services communicate via the `mit-network` overlay network
+- **Public HTTPS**: Caddy handles SSL termination on ports `80`, `443` (TCP), and `443` (UDP for HTTP/3)
+
+#### Monitoring
+
+Check logs and metrics:
+
+```bash
+# View service logs
+docker service logs makeitpublic_mitserver
+docker service logs makeitpublic_caddy
+docker service logs makeitpublic_redis
+
+# Check service status
+docker stack ps makeitpublic
+
+# View detailed service info
+docker service inspect makeitpublic_mitserver
 ```
 
 ---

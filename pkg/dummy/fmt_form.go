@@ -41,6 +41,7 @@ func (f *FormURLEncodedFormatter) FormatInteractive(w io.Writer, data []byte, _ 
 	for _, key := range keys {
 		vals := values[key]
 		for _, val := range vals {
+			// #nosec G705 -- This is CLI output formatting, not web output; XSS is not applicable
 			_, err := fmt.Fprintf(w, "%s: %s\n",
 				f.keyColor.Sprint(key),
 				f.valueColor.Sprint(val))

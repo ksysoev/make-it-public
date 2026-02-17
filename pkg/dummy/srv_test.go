@@ -135,7 +135,7 @@ func TestRun(t *testing.T) {
 	require.NoError(t, err)
 
 	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704 -- This is a test using localhost, not an SSRF risk
 	require.NoError(t, err)
 
 	defer func() { _ = resp.Body.Close() }()

@@ -184,6 +184,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(s.resp.Status)
 
+	// #nosec G705 -- This is a dummy HTTP server for testing, not a production web application
 	if _, err := w.Write([]byte(s.resp.Body)); err != nil {
 		slog.Error("Error writing response", "error", err)
 	}
@@ -194,6 +195,7 @@ func (s *Server) logInteractive(r *http.Request, bodyBytes []byte) {
 	tx := color.New(color.FgGreen)
 	tx.SetWriter(os.Stdout)
 
+	// #nosec G705 -- This is CLI output formatting, not web output; XSS is not applicable
 	_, _ = fmt.Fprintf(os.Stdout, "%s %s %s\n", r.Method, r.URL.String(), r.Proto)
 	printHeaders(r.Header, os.Stdout)
 
@@ -247,6 +249,7 @@ func (s *Server) logStructured(r *http.Request, bodyBytes []byte) {
 		// If no formatter found, just log size/content-type (don't add body)
 	}
 
+	// #nosec G706 -- This is structured logging for a CLI tool, not user-facing logs; log injection is not a risk
 	slog.Info("incoming HTTP request", attrs...)
 }
 
@@ -284,6 +287,7 @@ func printHeaders(headers http.Header, out io.Writer) {
 	for _, header := range headerNames {
 		values := headers[header]
 		for _, value := range values {
+			// #nosec G705 -- This is CLI output formatting, not web output; XSS is not applicable
 			_, _ = fmt.Fprintf(out, "%s: %s\n",
 				headerNameColor.Sprint(header),
 				headerValueColor.Sprint(value))

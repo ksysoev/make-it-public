@@ -4,11 +4,10 @@
 
 services:
   redis:
-    image: docker.io/bitnami/redis:7.4.2
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes
     volumes:
-      - redis_data:/bitnami/redis/data
+      - redis_data:/data
     networks:
       - backend
     deploy:

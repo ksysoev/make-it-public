@@ -130,6 +130,7 @@ func (s *WSEchoServer) logHandshakeInteractive(r *http.Request) {
 	tx := color.New(color.FgCyan)
 	tx.SetWriter(os.Stdout)
 
+	// #nosec G705 -- This is CLI output formatting, not web output; XSS is not applicable
 	_, _ = fmt.Fprintf(os.Stdout, "── WebSocket connection from %s ──\n", r.RemoteAddr)
 	_, _ = fmt.Fprintf(os.Stdout, "%s %s %s\n", r.Method, r.URL.String(), r.Proto)
 	printHeaders(r.Header, os.Stdout)
@@ -146,6 +147,7 @@ func (s *WSEchoServer) logHandshakeStructured(r *http.Request) {
 		headers[name] = strings.Join(values, ", ")
 	}
 
+	// #nosec G706 -- This is structured logging for a CLI tool, not user-facing logs; log injection is not a risk
 	slog.Info("websocket handshake request",
 		slog.String("method", r.Method),
 		slog.String("url", r.URL.String()),

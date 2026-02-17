@@ -195,6 +195,7 @@ func (s *Server) logInteractive(r *http.Request, bodyBytes []byte) {
 	tx := color.New(color.FgGreen)
 	tx.SetWriter(os.Stdout)
 
+	// #nosec G705 -- This is CLI output formatting, not web output; XSS is not applicable
 	_, _ = fmt.Fprintf(os.Stdout, "%s %s %s\n", r.Method, r.URL.String(), r.Proto)
 	printHeaders(r.Header, os.Stdout)
 
@@ -286,6 +287,7 @@ func printHeaders(headers http.Header, out io.Writer) {
 	for _, header := range headerNames {
 		values := headers[header]
 		for _, value := range values {
+			// #nosec G705 -- This is CLI output formatting, not web output; XSS is not applicable
 			_, _ = fmt.Fprintf(out, "%s: %s\n",
 				headerNameColor.Sprint(header),
 				headerValueColor.Sprint(value))

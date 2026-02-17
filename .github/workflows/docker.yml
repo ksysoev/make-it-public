@@ -114,9 +114,6 @@ jobs:
     with:
       service_name: makeitpublic
       docker_compose_file: deploy/docker-compose.yml
-      ssh_host: ${{ secrets.HOST }}
-      ssh_user: ${{ secrets.USERNAME }}
-      ssh_port: ${{ secrets.PORT }}
       health_check_timeout: 60
       enable_rollback: true
       environment_name: production
@@ -131,3 +128,6 @@ jobs:
         }
     secrets:
       ssh_key: ${{ secrets.SSH_KEY }}
+      ssh_host: ${{ secrets.HOST }}
+      ssh_user: ${{ secrets.USERNAME }}
+      ssh_port: ${{ secrets.PORT }}

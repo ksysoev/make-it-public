@@ -110,7 +110,7 @@ jobs:
   deploy:
     needs: [build-app, build-caddy]
     if: github.ref_type == 'tag'
-    uses: ksysoev/cloudlab/.github/workflows/deploy-service.yml@feature/add-environment-name-input
+    uses: ksysoev/cloudlab/.github/workflows/deploy-service.yml@main
     with:
       service_name: makeitpublic
       docker_compose_file: deploy/docker-compose.yml

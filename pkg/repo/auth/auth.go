@@ -19,7 +19,7 @@ const (
 
 type Config struct {
 	RedisAddr string `mapstructure:"redis_addr"`
-	Password  string `mapstructure:"redis_password"`
+	Password  string `mapstructure:"redis_password"` // #nosec G117 -- This is a config field name, not an exposed password
 	KeyPrefix string `mapstructure:"key_prefix"`
 	Salt      string `mapstructure:"salt"`
 }

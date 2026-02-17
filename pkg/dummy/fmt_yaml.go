@@ -48,6 +48,7 @@ func (f *YAMLFormatter) FormatInteractive(w io.Writer, data []byte, _ map[string
 		return fmt.Errorf("failed to format YAML: %w", err)
 	}
 
+	// #nosec G705 -- This is CLI output formatting, not web output; XSS is not applicable
 	_, err = fmt.Fprintf(w, "%s\n", output)
 
 	return err

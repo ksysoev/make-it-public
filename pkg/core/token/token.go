@@ -23,7 +23,7 @@ const (
 
 type Token struct {
 	ID     string
-	Secret string
+	Secret string // #nosec G117 -- This is a field name, not an exposed secret value
 	TTL    time.Duration
 }
 

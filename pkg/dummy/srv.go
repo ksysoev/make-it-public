@@ -184,6 +184,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(s.resp.Status)
 
+	// #nosec G705 -- This is a dummy HTTP server for testing, not a production web application
 	if _, err := w.Write([]byte(s.resp.Body)); err != nil {
 		slog.Error("Error writing response", "error", err)
 	}
@@ -247,6 +248,7 @@ func (s *Server) logStructured(r *http.Request, bodyBytes []byte) {
 		// If no formatter found, just log size/content-type (don't add body)
 	}
 
+	// #nosec G706 -- This is structured logging for a CLI tool, not user-facing logs; log injection is not a risk
 	slog.Info("incoming HTTP request", attrs...)
 }
 

@@ -108,6 +108,7 @@ func (s *WSEchoServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(os.Stdout, color.GreenString("✓ WebSocket connection established"))
 		fmt.Fprintln(os.Stdout)
 	} else {
+		// #nosec G706 -- This is structured logging for a CLI tool, not user-facing logs; log injection is not a risk
 		slog.Info("websocket connection established", "remote_addr", r.RemoteAddr)
 	}
 
@@ -119,6 +120,7 @@ func (s *WSEchoServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(os.Stdout, color.RedString("✕ WebSocket connection closed"))
 		fmt.Fprintln(os.Stdout)
 	} else {
+		// #nosec G706 -- This is structured logging for a CLI tool, not user-facing logs; log injection is not a risk
 		slog.Info("websocket connection closed", "remote_addr", r.RemoteAddr)
 	}
 }

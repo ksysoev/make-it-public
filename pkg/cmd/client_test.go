@@ -9,6 +9,8 @@ import (
 )
 
 func TestRunClientCommand(t *testing.T) {
+	testToken := "dGVzdDp0ZXN0" // #nosec G101 -- This is a test token, not a real credential
+
 	tests := []struct {
 		name    string
 		wantErr string
@@ -17,7 +19,7 @@ func TestRunClientCommand(t *testing.T) {
 		{
 			name: "Invalid log level",
 			args: args{
-				Token:    "dGVzdDp0ZXN0",
+				Token:    testToken,
 				Server:   "test-server",
 				Expose:   "test-dest",
 				NoTLS:    false,
@@ -40,7 +42,7 @@ func TestRunClientCommand(t *testing.T) {
 		{
 			name: "valid token",
 			args: args{
-				Token:    "dGVzdDp0ZXN0",
+				Token:    testToken,
 				Server:   "test-server",
 				Expose:   "test-dest",
 				NoTLS:    false,
@@ -52,7 +54,7 @@ func TestRunClientCommand(t *testing.T) {
 		{
 			name: "local dummy server with invalid headers",
 			args: args{
-				Token:       "dGVzdDp0ZXN0",
+				Token:       testToken,
 				Server:      "test-server:8080",
 				LocalServer: true,
 				NoTLS:       false,
@@ -67,7 +69,7 @@ func TestRunClientCommand(t *testing.T) {
 		{
 			name: "local dummy server with valid headers",
 			args: args{
-				Token:       "dGVzdDp0ZXN0",
+				Token:       testToken,
 				Server:      "test-server:8080",
 				LocalServer: true,
 				NoTLS:       false,
@@ -82,7 +84,7 @@ func TestRunClientCommand(t *testing.T) {
 		{
 			name: "websocket echo server",
 			args: args{
-				Token:    "dGVzdDp0ZXN0",
+				Token:    testToken,
 				Server:   "test-server:8080",
 				EchoWS:   true,
 				NoTLS:    false,
@@ -94,7 +96,7 @@ func TestRunClientCommand(t *testing.T) {
 		{
 			name: "both dummy and echo-ws flags",
 			args: args{
-				Token:       "dGVzdDp0ZXN0",
+				Token:       testToken,
 				Server:      "test-server:8080",
 				LocalServer: true,
 				EchoWS:      true,

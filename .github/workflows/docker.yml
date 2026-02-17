@@ -120,10 +120,6 @@ jobs:
       environment_vars: |
         {
           "MIT_VERSION": "${{ needs.build-app.outputs.version }}",
-          "AUTH_SALT": "${{ secrets.AUTH_SALT }}",
-          "DOMAIN_NAME": "${{ secrets.DOMAIN_NAME }}",
-          "EMAIL": "${{ secrets.EMAIL }}",
-          "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
           "NETWORK_NAME": "mit-network"
         }
     secrets:
@@ -131,3 +127,10 @@ jobs:
       ssh_host: ${{ secrets.HOST }}
       ssh_user: ${{ secrets.USERNAME }}
       ssh_port: ${{ secrets.PORT }}
+      deployment_secrets: |
+        {
+          "AUTH_SALT": "${{ secrets.AUTH_SALT }}",
+          "DOMAIN_NAME": "${{ secrets.DOMAIN_NAME }}",
+          "EMAIL": "${{ secrets.EMAIL }}",
+          "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}"
+        }

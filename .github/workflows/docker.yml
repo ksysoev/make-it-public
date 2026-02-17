@@ -110,8 +110,7 @@ jobs:
   deploy:
     needs: [build-app, build-caddy]
     if: github.ref_type == 'tag'
-    environment: production
-    uses: ksysoev/cloudlab/.github/workflows/deploy-service.yml@main
+    uses: ksysoev/cloudlab/.github/workflows/deploy-service.yml@feature/add-environment-name-input
     with:
       service_name: makeitpublic
       docker_compose_file: deploy/docker-compose.yml
@@ -120,6 +119,7 @@ jobs:
       ssh_port: ${{ secrets.PORT }}
       health_check_timeout: 60
       enable_rollback: true
+      environment_name: production
       environment_vars: |
         {
           "MIT_VERSION": "${{ needs.build-app.outputs.version }}",
@@ -129,5 +129,4 @@ jobs:
           "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
           "NETWORK_NAME": "mit-network"
         }
-    secrets:
-      ssh_key: ${{ secrets.SSH_KEY }}
+    secrets: inherit

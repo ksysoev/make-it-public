@@ -132,6 +132,7 @@ func (s *WSEchoServer) logHandshakeInteractive(r *http.Request) {
 
 	// #nosec G705 -- This is CLI output formatting, not web output; XSS is not applicable
 	_, _ = fmt.Fprintf(os.Stdout, "── WebSocket connection from %s ──\n", r.RemoteAddr)
+	// #nosec G705 -- This is CLI output formatting, not web output; XSS is not applicable
 	_, _ = fmt.Fprintf(os.Stdout, "%s %s %s\n", r.Method, r.URL.String(), r.Proto)
 	printHeaders(r.Header, os.Stdout)
 

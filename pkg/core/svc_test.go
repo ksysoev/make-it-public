@@ -9,7 +9,7 @@ import (
 )
 
 func TestService_SetEndpointGenerator(t *testing.T) {
-	svc := New(nil, nil)
+	svc := New(nil, nil, nil)
 	expectedEndpoint := "generated-endpoint"
 	generator := func(_ string) (string, error) {
 		return expectedEndpoint, nil
@@ -27,7 +27,7 @@ func TestService_CheckHealth(t *testing.T) {
 	repo := NewMockAuthRepo(t)
 	repo.EXPECT().CheckHealth(mock.Anything).Return(assert.AnError)
 
-	svc := New(nil, repo)
+	svc := New(nil, nil, repo)
 
 	err := svc.CheckHealth(t.Context())
 

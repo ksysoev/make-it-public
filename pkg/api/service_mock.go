@@ -117,9 +117,9 @@ func (_c *MockService_DeleteToken_Call) RunAndReturn(run func(context.Context, s
 	return _c
 }
 
-// GenerateToken provides a mock function with given fields: ctx, keyID, ttl
-func (_m *MockService) GenerateToken(ctx context.Context, keyID string, ttl int) (*token.Token, error) {
-	ret := _m.Called(ctx, keyID, ttl)
+// GenerateToken provides a mock function with given fields: ctx, keyID, ttl, tokenType
+func (_m *MockService) GenerateToken(ctx context.Context, keyID string, ttl int, tokenType token.TokenType) (*token.Token, error) {
+	ret := _m.Called(ctx, keyID, ttl, tokenType)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GenerateToken")
@@ -127,19 +127,19 @@ func (_m *MockService) GenerateToken(ctx context.Context, keyID string, ttl int)
 
 	var r0 *token.Token
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int) (*token.Token, error)); ok {
-		return rf(ctx, keyID, ttl)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, token.TokenType) (*token.Token, error)); ok {
+		return rf(ctx, keyID, ttl, tokenType)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, int) *token.Token); ok {
-		r0 = rf(ctx, keyID, ttl)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, token.TokenType) *token.Token); ok {
+		r0 = rf(ctx, keyID, ttl, tokenType)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*token.Token)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
-		r1 = rf(ctx, keyID, ttl)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int, token.TokenType) error); ok {
+		r1 = rf(ctx, keyID, ttl, tokenType)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -156,13 +156,14 @@ type MockService_GenerateToken_Call struct {
 //   - ctx context.Context
 //   - keyID string
 //   - ttl int
-func (_e *MockService_Expecter) GenerateToken(ctx interface{}, keyID interface{}, ttl interface{}) *MockService_GenerateToken_Call {
-	return &MockService_GenerateToken_Call{Call: _e.mock.On("GenerateToken", ctx, keyID, ttl)}
+//   - tokenType token.TokenType
+func (_e *MockService_Expecter) GenerateToken(ctx interface{}, keyID interface{}, ttl interface{}, tokenType interface{}) *MockService_GenerateToken_Call {
+	return &MockService_GenerateToken_Call{Call: _e.mock.On("GenerateToken", ctx, keyID, ttl, tokenType)}
 }
 
-func (_c *MockService_GenerateToken_Call) Run(run func(ctx context.Context, keyID string, ttl int)) *MockService_GenerateToken_Call {
+func (_c *MockService_GenerateToken_Call) Run(run func(ctx context.Context, keyID string, ttl int, tokenType token.TokenType)) *MockService_GenerateToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(int))
+		run(args[0].(context.Context), args[1].(string), args[2].(int), args[3].(token.TokenType))
 	})
 	return _c
 }
@@ -172,7 +173,7 @@ func (_c *MockService_GenerateToken_Call) Return(_a0 *token.Token, _a1 error) *M
 	return _c
 }
 
-func (_c *MockService_GenerateToken_Call) RunAndReturn(run func(context.Context, string, int) (*token.Token, error)) *MockService_GenerateToken_Call {
+func (_c *MockService_GenerateToken_Call) RunAndReturn(run func(context.Context, string, int, token.TokenType) (*token.Token, error)) *MockService_GenerateToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

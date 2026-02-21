@@ -17,13 +17,14 @@ var (
 	ErrTokenNotFound    = fmt.Errorf("token not found")
 )
 
-// GenerateToken generates a new token with the given keyID and time-to-live (TTL).
+// GenerateToken generates a new token with the given keyID, time-to-live (TTL), and token type.
 // It attempts to save the token to the authentication repository, retrying on duplicate token ID errors.
-// Accepts ctx which is the context for the request, keyID as the identifier for the token, and ttl as the duration in seconds.
+// Accepts ctx which is the context for the request, keyID as the identifier for the token, ttl as the duration in seconds,
+// and tokenType as the type of token (web or tcp).
 // Returns the generated token and an error if generation or saving fails, or if all retry attempts are exhausted.
-func (s *Service) GenerateToken(ctx context.Context, keyID string, ttl int) (*token.Token, error) {
+func (s *Service) GenerateToken(ctx context.Context, keyID string, ttl int, tokenType token.TokenType) (*token.Token, error) {
 	for i := 0; i < attemptsToGenerateToken; i++ {
-		t, err := token.GenerateToken(keyID, ttl)
+		t, err := token.GenerateToken(keyID, ttl, tokenType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate token: %w", err)
 		}

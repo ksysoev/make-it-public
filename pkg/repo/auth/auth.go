@@ -80,28 +80,42 @@ func (r *Repo) IsKeyExists(ctx context.Context, keyID string) (bool, error) {
 }
 
 // Verify checks if the provided secret matches the stored value for the given keyID.
-// It retrieves the value from the database using the keyID and keyPrefix.
-// Returns true if the secret matches, false if not found or mismatched, and error if a database operation fails.
-func (r *Repo) Verify(ctx context.Context, keyID, secret string) (bool, error) {
+// It retrieves the value from the database using the keyID (with type suffix stripped).
+// The keyID must contain a valid type suffix (e.g., "mykey-w" or "mykey-t").
+// Returns true if the secret matches, the token type extracted from keyID, and error if validation fails.
+// Returns an error if the keyID doesn't have a valid type suffix.
+func (r *Repo) Verify(ctx context.Context, keyIDWithSuffix, secret string) (bool, token.TokenType, error) {
 	secretHash, err := hashSecret(secret, r.salt)
 	if err != nil {
-		return false, fmt.Errorf("failed to hash secret: %w", err)
+		return false, "", fmt.Errorf("failed to hash secret: %w", err)
 	}
 
-	res := r.db.Get(ctx, r.keyPrefix+apiKeyPrefix+keyID)
+	// Extract base ID and type from keyID with suffix (e.g., "mykey-w" -> "mykey", "w")
+	baseKeyID, tokenType, err := token.ExtractIDAndType(keyIDWithSuffix)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to extract token type from key ID: %w", err)
+	}
+
+	res := r.db.Get(ctx, r.keyPrefix+apiKeyPrefix+baseKeyID)
 
 	switch res.Err() {
 	case nil:
-		return res.Val() == secretHash, nil
+		if res.Val() != secretHash {
+			return false, "", nil
+		}
+
+		return true, tokenType, nil
 	case redis.Nil:
-		return false, nil
+		return false, "", nil
 	default:
-		return false, fmt.Errorf("failed to get key: %w", res.Err())
+		return false, "", fmt.Errorf("failed to get key: %w", res.Err())
 	}
 }
 
 // SaveToken saves a token to the database with a hashed secret and specified TTL.
 // It generates a hashed secret using the token's Secret and the Repo's salt.
+// The stored value format is: sc:<hash>
+// The token is stored using its base ID (without type suffix).
 // Returns an error if hashing fails, or if the database operation encounters an issue.
 // Returns core.ErrDuplicateTokenID if a token with the same ID already exists.
 func (r *Repo) SaveToken(ctx context.Context, t *token.Token) error {

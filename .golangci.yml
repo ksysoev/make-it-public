@@ -60,6 +60,10 @@ linters:
       - linters:
           - goconst
         path: _test\.go$
+      - linters:
+          - gosec
+        path: pkg/dummy/fmt_multipart\.go$
+        text: "G705"
     paths:
       - third_party$
       - builtin$

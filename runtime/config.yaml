@@ -17,3 +17,11 @@ auth:
   key_prefix: "MIT::AUTH::"
   salt: "someRandomSalt"
 
+tcp:
+  listen_host: "0.0.0.0"
+  public:
+    host: "make-it-public.com"
+  port_range:
+    min: 10000
+    max: 20000
+

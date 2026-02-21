@@ -740,6 +740,244 @@ func TestHandleV2Stream_EmptyStream(t *testing.T) {
 	assert.Error(t, err, "stream should be closed after empty stream")
 }
 
+// --- HandleTCPConnection tests ---
+
+func TestHandleTCPConnection_ConnectionRequestFailure(t *testing.T) {
+	webConnMng := NewMockConnManager(t)
+	tcpConnMng := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+
+	tcpConnMng.EXPECT().RequestConnection(mock.Anything, "test-user").Return(nil, errors.New("connection failed"))
+
+	service := New(webConnMng, tcpConnMng, authRepo)
+	clientConn := conn.NewMockWithWriteCloser(t)
+	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := service.HandleTCPConnection(ctx, "test-user", clientConn, "127.0.0.1")
+	require.ErrorIs(t, err, ErrFailedToConnect)
+}
+
+func TestHandleTCPConnection_KeyNotFound_NoActiveConn(t *testing.T) {
+	webConnMng := NewMockConnManager(t)
+	tcpConnMng := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+
+	tcpConnMng.EXPECT().RequestConnection(mock.Anything, "test-user").Return(nil, ErrKeyIDNotFound)
+	authRepo.EXPECT().IsKeyExists(mock.Anything, "test-user").Return(true, nil)
+
+	service := New(webConnMng, tcpConnMng, authRepo)
+	clientConn := conn.NewMockWithWriteCloser(t)
+	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := service.HandleTCPConnection(ctx, "test-user", clientConn, "127.0.0.1")
+	require.ErrorIs(t, err, ErrFailedToConnect)
+}
+
+func TestHandleTCPConnection_KeyNotFound_KeyDoesNotExist(t *testing.T) {
+	webConnMng := NewMockConnManager(t)
+	tcpConnMng := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+
+	tcpConnMng.EXPECT().RequestConnection(mock.Anything, "test-user").Return(nil, ErrKeyIDNotFound)
+	authRepo.EXPECT().IsKeyExists(mock.Anything, "test-user").Return(false, nil)
+
+	service := New(webConnMng, tcpConnMng, authRepo)
+	clientConn := conn.NewMockWithWriteCloser(t)
+	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := service.HandleTCPConnection(ctx, "test-user", clientConn, "127.0.0.1")
+	require.ErrorIs(t, err, ErrKeyIDNotFound)
+}
+
+func TestHandleTCPConnection_KeyNotFound_AuthError(t *testing.T) {
+	webConnMng := NewMockConnManager(t)
+	tcpConnMng := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+
+	tcpConnMng.EXPECT().RequestConnection(mock.Anything, "test-user").Return(nil, ErrKeyIDNotFound)
+	authRepo.EXPECT().IsKeyExists(mock.Anything, "test-user").Return(false, errors.New("db error"))
+
+	service := New(webConnMng, tcpConnMng, authRepo)
+	clientConn := conn.NewMockWithWriteCloser(t)
+	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := service.HandleTCPConnection(ctx, "test-user", clientConn, "127.0.0.1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to check key existence")
+}
+
+func TestHandleTCPConnection_WaitConnCancellation(t *testing.T) {
+	webConnMng := NewMockConnManager(t)
+	tcpConnMng := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+
+	reqID := uuid.New()
+	mockReq := conn.NewMockRequest(t)
+	mockReq.EXPECT().ID().Return(reqID)
+	mockReq.EXPECT().WaitConn(mock.Anything).Return(nil, context.Canceled)
+
+	tcpConnMng.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
+	tcpConnMng.EXPECT().CancelRequest(reqID).Return()
+
+	service := New(webConnMng, tcpConnMng, authRepo)
+	clientConn := conn.NewMockWithWriteCloser(t)
+	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := service.HandleTCPConnection(ctx, "test-user", clientConn, "127.0.0.1")
+	require.ErrorIs(t, err, ErrFailedToConnect)
+}
+
+func TestHandleTCPConnection_MetaWriteFailure(t *testing.T) {
+	webConnMng := NewMockConnManager(t)
+	tcpConnMng := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+
+	revConn := conn.NewMockWithWriteCloser(t)
+	// meta.WriteData writes a gob-encoded struct; the first Write call goes to the revConn.
+	revConn.EXPECT().Write(mock.Anything).Return(0, errors.New("write failed"))
+
+	mockReq := conn.NewMockRequest(t)
+	mockReq.EXPECT().WaitConn(mock.Anything).Return(revConn, nil)
+
+	tcpConnMng.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
+
+	service := New(webConnMng, tcpConnMng, authRepo)
+	clientConn := conn.NewMockWithWriteCloser(t)
+	clientConn.EXPECT().RemoteAddr().Return(&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := service.HandleTCPConnection(ctx, "test-user", clientConn, "127.0.0.1")
+	require.ErrorIs(t, err, ErrFailedToConnect)
+}
+
+func TestHandleTCPConnection_SuccessfulBidirectionalPipe(t *testing.T) {
+	webConnMng := NewMockConnManager(t)
+	tcpConnMng := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+
+	// Use real net.Pipe() connections so we can test actual I/O.
+	// yamuxStreamWrapper (in the same package) adds CloseWrite() to net.Conn.
+	revServer, revClient := net.Pipe()
+	defer revClient.Close()
+
+	cliServer, cliClient := net.Pipe()
+	defer cliClient.Close()
+
+	revWrapped := &yamuxStreamWrapper{Conn: revServer}
+
+	mockReq := conn.NewMockRequest(t)
+	mockReq.EXPECT().WaitConn(mock.Anything).Return(revWrapped, nil)
+	mockReq.EXPECT().ParentContext().Return(context.Background())
+
+	tcpConnMng.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
+
+	service := New(webConnMng, tcpConnMng, authRepo)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
+
+	go func() {
+		done <- service.HandleTCPConnection(ctx, "test-user", cliServer, "127.0.0.1")
+	}()
+
+	// Drain everything from revClient in a goroutine so net.Pipe writes don't block.
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			if _, err := revClient.Read(buf); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Close both sides to unblock the pipe goroutines.
+	time.Sleep(50 * time.Millisecond)
+	revClient.Close()
+	cliClient.Close()
+
+	select {
+	case err := <-done:
+		// Any error is acceptable here — we just want it to return.
+		_ = err
+	case <-time.After(2 * time.Second):
+		t.Fatal("HandleTCPConnection did not return after connections closed")
+	}
+}
+
+func TestHandleTCPConnection_ContextCancellation(t *testing.T) {
+	webConnMng := NewMockConnManager(t)
+	tcpConnMng := NewMockConnManager(t)
+	authRepo := NewMockAuthRepo(t)
+
+	revServer, revClient := net.Pipe()
+	defer revClient.Close()
+
+	cliServer, cliClient := net.Pipe()
+	defer cliClient.Close()
+
+	revWrapped := &yamuxStreamWrapper{Conn: revServer}
+
+	mockReq := conn.NewMockRequest(t)
+	mockReq.EXPECT().WaitConn(mock.Anything).Return(revWrapped, nil)
+	mockReq.EXPECT().ParentContext().Return(context.Background())
+
+	tcpConnMng.EXPECT().RequestConnection(mock.Anything, "test-user").Return(mockReq, nil)
+
+	service := New(webConnMng, tcpConnMng, authRepo)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan error, 1)
+
+	go func() {
+		done <- service.HandleTCPConnection(ctx, "test-user", cliServer, "127.0.0.1")
+	}()
+
+	// Drain revClient so the meta write doesn't block.
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			if _, err := revClient.Read(buf); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Give the pipe goroutines a moment to start, then cancel the context.
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	// Closing the connections unblocks the ContextConnNopCloser read loop.
+	revClient.Close()
+	cliClient.Close()
+
+	select {
+	case err := <-done:
+		_ = err
+	case <-time.After(2 * time.Second):
+		t.Fatal("HandleTCPConnection did not return after context cancellation")
+	}
+}
+
 func TestAcceptV2Streams_ContextCancellation(t *testing.T) {
 	// Test that acceptV2Streams respects context cancellation.
 	// We use a mock ServerV2 to avoid race conditions in the revdial library.

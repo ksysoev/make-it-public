@@ -11,6 +11,7 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/ksysoev/make-it-public/pkg/repo/connmng"
 	"github.com/ksysoev/make-it-public/pkg/revproxy"
+	"github.com/ksysoev/make-it-public/pkg/tcpedge"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -46,13 +47,24 @@ func RunServerCommand(ctx context.Context, args *args) error {
 		return fmt.Errorf("failed to create http server: %w", err)
 	}
 
-	slog.InfoContext(ctx, "server started", "http", cfg.HTTP.Listen, "rev", cfg.RevProxy.Listen, "api", cfg.API.Listen)
+	tcpServ, err := tcpedge.New(cfg.TCP, connService)
+	if err != nil {
+		return fmt.Errorf("failed to create TCP edge server: %w", err)
+	}
+
+	slog.InfoContext(ctx, "server started",
+		"http", cfg.HTTP.Listen,
+		"rev", cfg.RevProxy.Listen,
+		"api", cfg.API.Listen,
+		"tcp_port_range", fmt.Sprintf("%d-%d", cfg.TCP.PortRange.Min, cfg.TCP.PortRange.Max),
+	)
 
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error { return revServ.Run(ctx) })
 	eg.Go(func() error { return httpServ.Run(ctx) })
 	eg.Go(func() error { return apiServ.Run(ctx) })
+	eg.Go(func() error { return tcpServ.Run(ctx) })
 
 	return eg.Wait()
 }

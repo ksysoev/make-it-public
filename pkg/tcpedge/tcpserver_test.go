@@ -40,7 +40,7 @@ func validConfig(t *testing.T) Config {
 	return Config{
 		ListenHost: "127.0.0.1",
 		Public:     PublicConfig{Host: "example.com"},
-		PortRange:  PortRange{Min: base, Max: base + 100},
+		PortRange:  PortRange{Min: base, Max: base + 10},
 	}
 }
 

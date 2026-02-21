@@ -98,7 +98,7 @@ func TestPortPool_ConcurrentAllocations(t *testing.T) {
 			defer wg.Done()
 
 			port, err := p.Allocate()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			mu.Lock()
 			_, dup := seen[port]

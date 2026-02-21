@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/ksysoev/make-it-public/pkg/core"
 )
@@ -173,7 +174,14 @@ func (s *TCPServer) acceptLoop(ctx context.Context, al *activeListener, keyID st
 				slog.String("keyID", keyID),
 				slog.Any("error", err))
 
-			return
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+				// retry on transient error (e.g. EMFILE)
+			}
+
+			continue
 		}
 
 		al.handlerWG.Add(1)

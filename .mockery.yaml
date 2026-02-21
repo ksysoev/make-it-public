@@ -16,6 +16,7 @@ packages:
       AuthRepo:
       ConnManager:
       ControlConn:
+      TCPEndpointAllocator:
   github.com/ksysoev/make-it-public/pkg/core/conn:
     interfaces:
       Request:
@@ -25,5 +26,8 @@ packages:
     interfaces:
       Service:
   github.com/ksysoev/make-it-public/pkg/revproxy:
+    interfaces:
+      ConnService:
+  github.com/ksysoev/make-it-public/pkg/tcpedge:
     interfaces:
       ConnService:

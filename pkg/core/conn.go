@@ -83,19 +83,36 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	case proto.StateRegistered:
 		srvConn := conn.NewServerConn(ctx, servConn)
 
-		url, err := s.endpointGenerator(connKeyID)
-		if err != nil {
-			return fmt.Errorf("failed to generate endpoint: %w", err)
-		}
-
-		if err := srvConn.SendURLToConnectUpdatedEvent(url); err != nil {
-			return fmt.Errorf("failed to send url to connect updated event: %w", err)
-		}
-
-		// Route to the correct connection manager based on token type
+		// Route to the correct connection manager based on token type.
 		connMng := s.webConnMng
 		if connTokenType == token.TokenTypeTCP {
 			connMng = s.tcpConnMng
+		}
+
+		// Generate the public endpoint for the client to advertise.
+		// TCP tokens get a dynamically allocated port; web tokens get a subdomain URL.
+		var endpoint string
+
+		if connTokenType == token.TokenTypeTCP {
+			ep, err := s.tcpEndpointAllocator.Allocate(srvConn.Context(), connKeyID)
+			if err != nil {
+				return fmt.Errorf("failed to allocate TCP endpoint: %w", err)
+			}
+
+			defer s.tcpEndpointAllocator.Release(connKeyID)
+
+			endpoint = ep
+		} else {
+			ep, err := s.endpointGenerator(connKeyID)
+			if err != nil {
+				return fmt.Errorf("failed to generate endpoint: %w", err)
+			}
+
+			endpoint = ep
+		}
+
+		if err := srvConn.SendURLToConnectUpdatedEvent(endpoint); err != nil {
+			return fmt.Errorf("failed to send url to connect updated event: %w", err)
 		}
 
 		connMng.AddConnection(connKeyID, srvConn)
@@ -462,6 +479,65 @@ func closeOnContextDone(reqCtx, parentCtx context.Context, c conn.WithWriteClose
 	}()
 
 	return wg
+}
+
+// HandleTCPConnection handles an incoming raw TCP connection from an end-user.
+// It requests a reverse tunnel connection from the MIT client identified by keyID,
+// writes connection metadata, and then bidirectionally pipes data between the
+// end-user connection and the reverse tunnel.
+func (s *Service) HandleTCPConnection(ctx context.Context, keyID string, cliConn net.Conn, clientIP string) error {
+	slog.DebugContext(ctx, "new TCP connection", slog.Any("remote", cliConn.RemoteAddr()))
+	defer slog.DebugContext(ctx, "closing TCP connection", slog.Any("remote", cliConn.RemoteAddr()))
+
+	req, err := s.tcpConnMng.RequestConnection(ctx, keyID)
+
+	switch {
+	case errors.Is(err, ErrKeyIDNotFound):
+		ok, authErr := s.auth.IsKeyExists(ctx, keyID)
+		if authErr != nil {
+			return fmt.Errorf("failed to check key existence: %w", authErr)
+		}
+
+		if !ok {
+			return fmt.Errorf("keyID %s not found: %w", keyID, ErrKeyIDNotFound)
+		}
+
+		return fmt.Errorf("no connections available for keyID %s: %w", keyID, ErrFailedToConnect)
+	case err != nil:
+		return fmt.Errorf("failed to request TCP connection: %w", ErrFailedToConnect)
+	}
+
+	revConn, err := req.WaitConn(ctx)
+	if err != nil {
+		s.tcpConnMng.CancelRequest(req.ID())
+		return fmt.Errorf("TCP connection request failed: %w", ErrFailedToConnect)
+	}
+
+	slog.DebugContext(ctx, "TCP reverse connection received", slog.Any("remote", cliConn.RemoteAddr()))
+
+	if err := meta.WriteData(revConn, &meta.ClientConnMeta{IP: clientIP}); err != nil {
+		slog.DebugContext(ctx, "failed to write TCP client connection meta", slog.Any("error", err))
+
+		_ = revConn.Close()
+
+		return fmt.Errorf("failed to write TCP client connection meta: %w", ErrFailedToConnect)
+	}
+
+	eg, egCtx := errgroup.WithContext(ctx)
+	connNopCloser := conn.NewContextConnNopCloser(egCtx, cliConn)
+	respBytesWritten := int64(0)
+
+	eg.Go(pipeToDest(egCtx, connNopCloser, revConn))
+	eg.Go(pipeToSource(egCtx, revConn, connNopCloser, &respBytesWritten))
+
+	guard := closeOnContextDone(egCtx, req.ParentContext(), revConn)
+	defer guard.Wait()
+
+	if err := eg.Wait(); err != nil && !errors.Is(err, ErrConnClosed) {
+		slog.DebugContext(ctx, "TCP data pipe closed", slog.Any("error", err))
+	}
+
+	return nil
 }
 
 // timeoutContext creates a new context with a specified timeout duration.

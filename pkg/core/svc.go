@@ -32,11 +32,21 @@ type ConnManager interface {
 	CancelRequest(id uuid.UUID)
 }
 
+// TCPEndpointAllocator dynamically allocates and releases TCP listeners for
+// individual MIT clients that authenticate with a TCP token.
+// Allocate starts a TCP listener and returns the public endpoint (host:port).
+// Release stops the listener and frees the port back to the pool.
+type TCPEndpointAllocator interface {
+	Allocate(ctx context.Context, keyID string) (string, error)
+	Release(keyID string)
+}
+
 type Service struct {
-	webConnMng        ConnManager
-	tcpConnMng        ConnManager
-	auth              AuthRepo
-	endpointGenerator func(string) (string, error)
+	endpointGenerator    func(string) (string, error)
+	tcpEndpointAllocator TCPEndpointAllocator
+	webConnMng           ConnManager
+	tcpConnMng           ConnManager
+	auth                 AuthRepo
 }
 
 // New initializes and returns a new Service instance with the provided ConnManagers and AuthRepo.
@@ -52,6 +62,7 @@ func New(webConnMng, tcpConnMng ConnManager, auth AuthRepo) *Service {
 		endpointGenerator: func(_ string) (string, error) {
 			return "", fmt.Errorf("endpoint generator is not set")
 		},
+		tcpEndpointAllocator: noopTCPEndpointAllocator{},
 	}
 }
 
@@ -63,6 +74,23 @@ func (s *Service) SetEndpointGenerator(generator func(string) (string, error)) {
 	s.endpointGenerator = generator
 }
 
+// SetTCPEndpointAllocator sets the allocator used to create per-keyID TCP listeners.
+// It is called by the TCP edge server during initialisation.
+func (s *Service) SetTCPEndpointAllocator(allocator TCPEndpointAllocator) {
+	s.tcpEndpointAllocator = allocator
+}
+
 func (s *Service) CheckHealth(ctx context.Context) error {
 	return s.auth.CheckHealth(ctx)
 }
+
+// noopTCPEndpointAllocator is the default allocator used when no TCP edge
+// server has been wired in.  It returns an error on every Allocate call so that
+// TCP tokens are rejected cleanly rather than silently misbehaving.
+type noopTCPEndpointAllocator struct{}
+
+func (noopTCPEndpointAllocator) Allocate(_ context.Context, keyID string) (string, error) {
+	return "", fmt.Errorf("TCP endpoint allocator is not configured (keyID=%s)", keyID)
+}
+
+func (noopTCPEndpointAllocator) Release(_ string) {}

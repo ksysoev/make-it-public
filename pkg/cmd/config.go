@@ -9,13 +9,15 @@ import (
 	"github.com/ksysoev/make-it-public/pkg/edge"
 	"github.com/ksysoev/make-it-public/pkg/repo/auth"
 	"github.com/ksysoev/make-it-public/pkg/revproxy"
+	"github.com/ksysoev/make-it-public/pkg/tcpedge"
 	"github.com/spf13/viper"
 )
 
 type appConfig struct {
 	Auth     auth.Config     `mapstructure:"auth"`
-	API      api.Config      `mapstructure:"api"`
 	RevProxy revproxy.Config `mapstructure:"reverse_proxy"`
+	API      api.Config      `mapstructure:"api"`
+	TCP      tcpedge.Config  `mapstructure:"tcp"`
 	HTTP     edge.Config     `mapstructure:"http"`
 }
 

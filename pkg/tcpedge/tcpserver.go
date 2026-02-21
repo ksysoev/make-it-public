@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -94,7 +95,7 @@ func (s *TCPServer) Allocate(ctx context.Context, keyID string) (string, error) 
 		return "", fmt.Errorf("allocate port for keyID=%s: %w", keyID, err)
 	}
 
-	addr := fmt.Sprintf("%s:%d", s.config.ListenHost, port)
+	addr := net.JoinHostPort(s.config.ListenHost, strconv.Itoa(port))
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -120,7 +121,7 @@ func (s *TCPServer) Allocate(ctx context.Context, keyID string) (string, error) 
 		s.acceptLoop(listenerCtx, al, keyID)
 	}()
 
-	endpoint := fmt.Sprintf("%s:%d", s.config.Public.Host, port)
+	endpoint := net.JoinHostPort(s.config.Public.Host, strconv.Itoa(port))
 
 	slog.InfoContext(ctx, "TCP listener allocated",
 		slog.String("keyID", keyID),

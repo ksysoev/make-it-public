@@ -518,6 +518,8 @@ func (s *Service) HandleTCPConnection(ctx context.Context, keyID string, cliConn
 	if err := meta.WriteData(revConn, &meta.ClientConnMeta{IP: clientIP}); err != nil {
 		slog.DebugContext(ctx, "failed to write TCP client connection meta", slog.Any("error", err))
 
+		_ = revConn.Close()
+
 		return fmt.Errorf("failed to write TCP client connection meta: %w", ErrFailedToConnect)
 	}
 

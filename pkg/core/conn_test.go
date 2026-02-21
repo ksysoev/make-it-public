@@ -850,6 +850,8 @@ func TestHandleTCPConnection_MetaWriteFailure(t *testing.T) {
 	revConn := conn.NewMockWithWriteCloser(t)
 	// meta.WriteData writes a gob-encoded struct; the first Write call goes to the revConn.
 	revConn.EXPECT().Write(mock.Anything).Return(0, errors.New("write failed"))
+	// On meta write failure, HandleTCPConnection must close revConn to avoid leaking it.
+	revConn.EXPECT().Close().Return(nil)
 
 	mockReq := conn.NewMockRequest(t)
 	mockReq.EXPECT().WaitConn(mock.Anything).Return(revConn, nil)

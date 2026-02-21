@@ -12,14 +12,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// findFreePort asks the OS for an available TCP port and returns it.
+// The port is briefly bound then released; there is a small TOCTOU window,
+// but it is far safer than hard-coding a port that may be in use on CI.
+func findFreePort(t *testing.T) int {
+	t.Helper()
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	addr, ok := l.Addr().(*net.TCPAddr)
+	require.True(t, ok, "expected TCP address")
+
+	port := addr.Port
+
+	require.NoError(t, l.Close())
+
+	return port
+}
+
 // validConfig returns a Config that passes Validate().
 func validConfig(t *testing.T) Config {
 	t.Helper()
 
+	base := findFreePort(t)
+
 	return Config{
 		ListenHost: "127.0.0.1",
 		Public:     PublicConfig{Host: "example.com"},
-		PortRange:  PortRange{Min: 12000, Max: 13000},
+		PortRange:  PortRange{Min: base, Max: base + 100},
 	}
 }
 
@@ -179,11 +200,13 @@ func TestTCPServer_AcceptsAndRoutesConnection(t *testing.T) {
 }
 
 func TestTCPServer_PortExhausted(t *testing.T) {
-	// Use a range of exactly 2 ports.
+	// Use a range of exactly 1 port so exhaustion happens on the second Allocate.
+	// min == max is a valid single-port range.
+	port := findFreePort(t)
 	cfg := Config{
 		ListenHost: "127.0.0.1",
 		Public:     PublicConfig{Host: "example.com"},
-		PortRange:  PortRange{Min: 14000, Max: 14001},
+		PortRange:  PortRange{Min: port, Max: port},
 	}
 
 	svc := NewMockConnService(t)
@@ -198,9 +221,6 @@ func TestTCPServer_PortExhausted(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = srv.Allocate(context.Background(), "key2")
-	require.NoError(t, err)
-
-	_, err = srv.Allocate(context.Background(), "key3")
 	assert.Error(t, err, "should fail when port pool is exhausted")
 	assert.ErrorIs(t, err, ErrPortPoolExhausted)
 }

@@ -22,11 +22,19 @@ type ConnService interface {
 }
 
 // activeListener tracks a running per-keyID TCP listener and its goroutines.
+//
+// acceptWG tracks the single acceptLoop goroutine; handlerWG tracks the
+// per-connection handler goroutines.  They are kept separate so that
+// Release() can join acceptLoop first (via acceptWG.Wait()), which
+// guarantees that no further handlerWG.Add(1) calls will occur before
+// handlerWG.Wait() begins — avoiding the "sync: WaitGroup misuse"
+// panic that would result from Add racing with Wait.
 type activeListener struct {
-	cancel   context.CancelFunc
-	listener net.Listener
-	wg       sync.WaitGroup
-	port     int
+	cancel    context.CancelFunc
+	listener  net.Listener
+	acceptWG  sync.WaitGroup // tracks the single acceptLoop goroutine
+	handlerWG sync.WaitGroup // tracks per-connection handler goroutines
+	port      int
 }
 
 // TCPServer dynamically allocates TCP listeners for each connected MIT client
@@ -103,10 +111,10 @@ func (s *TCPServer) Allocate(ctx context.Context, keyID string) (string, error) 
 
 	s.listeners[keyID] = al
 
-	al.wg.Add(1)
+	al.acceptWG.Add(1)
 
 	go func() {
-		defer al.wg.Done()
+		defer al.acceptWG.Done()
 
 		s.acceptLoop(listenerCtx, al, keyID)
 	}()
@@ -142,7 +150,10 @@ func (s *TCPServer) Release(keyID string) {
 
 	_ = al.listener.Close()
 
-	al.wg.Wait()
+	// Join acceptLoop first: once it exits, no further handlerWG.Add(1) calls
+	// can occur, so handlerWG.Wait() below cannot race with Add.
+	al.acceptWG.Wait()
+	al.handlerWG.Wait()
 
 	s.portPool.Release(al.port)
 
@@ -165,10 +176,10 @@ func (s *TCPServer) acceptLoop(ctx context.Context, al *activeListener, keyID st
 			return
 		}
 
-		al.wg.Add(1)
+		al.handlerWG.Add(1)
 
 		go func() {
-			defer al.wg.Done()
+			defer al.handlerWG.Done()
 
 			s.handleConn(ctx, keyID, conn)
 		}()

@@ -23,5 +23,5 @@ tcp:
     host: "make-it-public.com"
   port_range:
     min: 10000
-    max: 20000
+    max: 10999
 

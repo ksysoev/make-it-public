@@ -2,7 +2,6 @@ package tcpedge
 
 import (
 	"errors"
-	"fmt"
 	"math/rand/v2"
 	"sync"
 )
@@ -58,7 +57,8 @@ func (p *portPool) Allocate() (int, error) {
 		}
 	}
 
-	return 0, fmt.Errorf("pool size=%d used=%d: %w", size, len(p.used), ErrPortPoolExhausted)
+	// Unreachable: the size check above guarantees a free port exists.
+	panic("portPool: internal invariant violated — no free port found despite available count > 0")
 }
 
 // Release returns a port to the pool so it can be reused.

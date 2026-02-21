@@ -46,9 +46,5 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("port_range.min (%d) must be <= port_range.max (%d)", c.PortRange.Min, c.PortRange.Max)
 	}
 
-	if c.PortRange.Min == c.PortRange.Max {
-		return fmt.Errorf("port_range must contain at least 2 ports, got min==max==%d", c.PortRange.Min)
-	}
-
 	return nil
 }

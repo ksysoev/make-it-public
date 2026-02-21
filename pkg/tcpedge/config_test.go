@@ -68,11 +68,12 @@ func TestConfig_Validate_MinGreaterThanMax(t *testing.T) {
 }
 
 func TestConfig_Validate_MinEqualsMax(t *testing.T) {
+	// A single-port range is valid — it supports exactly one concurrent TCP tunnel.
 	cfg := Config{
 		ListenHost: "0.0.0.0",
 		Public:     PublicConfig{Host: "example.com"},
 		PortRange:  PortRange{Min: 10000, Max: 10000},
 	}
 
-	assert.Error(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }

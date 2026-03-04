@@ -13,9 +13,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ksysoev/omnidex/action@main
+      - name: Publish README to Omnidex
+        uses: ksysoev/omnidex/action@main
         with:
           omnidex_url: ${{ vars.OMNIDEX_URL }}
           api_key: ${{ secrets.OMNIDEX_API_KEY }}
           docs_path: .
           file_pattern: README.md
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.24.4"
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+      - name: Generate OpenAPI spec
+        run: swag init -g ./pkg/api/api.go -o ./pkg/api/docs -ot json
+      - name: Publish OpenAPI spec to Omnidex
+        uses: ksysoev/omnidex/action@main
+        with:
+          omnidex_url: ${{ vars.OMNIDEX_URL }}
+          api_key: ${{ secrets.OMNIDEX_API_KEY }}
+          docs_path: pkg/api/docs
+          file_pattern: swagger.json
+          sync: "false"

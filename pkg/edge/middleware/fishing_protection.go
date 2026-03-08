@@ -138,9 +138,12 @@ func NewFishingProtection() func(next http.Handler) http.Handler {
 			}
 
 			// Handle consent submission
-			if r.Method == http.MethodPost && r.FormValue("consent") == "true" {
-				handleConsentFormSubmission(w, r)
-				return
+			if r.Method == http.MethodPost {
+				r.Body = http.MaxBytesReader(w, r.Body, 1024)
+				if r.FormValue("consent") == "true" {
+					handleConsentFormSubmission(w, r)
+					return
+				}
 			}
 
 			renderConsentForm(w, r, tmpl)
@@ -212,6 +215,8 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 // It ensures CSRF token validity by comparing form data and cookie values, deletes the CSRF token cookie if valid,
 // and redirects users to the original requested URL. Errors occur on invalid CSRF tokens or request parsing.
 func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return

@@ -64,6 +64,18 @@ linters:
           - gosec
         path: pkg/dummy/fmt_multipart\.go$
         text: "G705"
+      - linters:
+          - gosec
+        path: pkg/dummy/ws\.go$
+        text: "G706"
+      - linters:
+          - gosec
+        path: pkg/tcpedge/tcpserver\.go$
+        text: "G118"
+      - linters:
+          - gosec
+        path: pkg/core/conn\.go$
+        text: "G118"
     paths:
       - third_party$
       - builtin$

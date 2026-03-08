@@ -5,6 +5,7 @@ http:
     port: 8080
   listen: ":8080"
   conn_limit: 32
+  fishing_protection: true
 reverse_proxy:
   listen: ":8081"
 api:

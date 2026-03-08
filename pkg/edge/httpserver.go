@@ -30,10 +30,11 @@ type HTTPServer struct {
 const defaultConnLimitPerKeyID = 4
 
 type Config struct {
-	Listen     string               `mapstructure:"listen"`
-	Public     PublicEndpointConfig `mapstructure:"public"`
-	ConnLimit  int                  `mapstructure:"conn_limit"`
-	ProxyProto bool                 `mapstructure:"proxy_proto"`
+	Listen            string               `mapstructure:"listen"`
+	Public            PublicEndpointConfig `mapstructure:"public"`
+	ConnLimit         int                  `mapstructure:"conn_limit"`
+	ProxyProto        bool                 `mapstructure:"proxy_proto"`
+	FishingProtection bool                 `mapstructure:"fishing_protection"`
 }
 
 type PublicEndpointConfig struct {
@@ -68,8 +69,11 @@ func New(cfg Config, connService ConnService) (*HTTPServer, error) {
 func (s *HTTPServer) Run(ctx context.Context) error {
 	mw := make([]func(next http.Handler) http.Handler, 0, 6)
 
+	if s.config.FishingProtection {
+		mw = append(mw, middleware.NewFishingProtection())
+	}
+
 	mw = append(mw,
-		middleware.NewFishingProtection(),
 		middleware.ParseKeyID(s.config.Public.Domain),
 		middleware.Metrics(),
 		middleware.LimitConnections(cmp.Or(s.config.ConnLimit, defaultConnLimitPerKeyID)),

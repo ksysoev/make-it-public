@@ -23,7 +23,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.24.4"
+          go-version: "1.26.1"
       - name: Install swag
         run: go install github.com/swaggo/swag/cmd/swag@latest
       - name: Generate OpenAPI spec

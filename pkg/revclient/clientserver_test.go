@@ -57,6 +57,24 @@ func (f *fakeListener) Close() error {
 
 func (f *fakeListener) Addr() net.Addr { return f.addr }
 
+// errorListener is a net.Listener whose Accept immediately returns a fixed error.
+// It is used to simulate an unexpected (non-ErrListenerClosed) error from listenAndServe.
+type errorListener struct {
+	err  error
+	addr net.Addr
+}
+
+func newErrorListener(err error) *errorListener {
+	return &errorListener{
+		err:  err,
+		addr: &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0},
+	}
+}
+
+func (e *errorListener) Accept() (net.Conn, error) { return nil, e.err }
+func (e *errorListener) Close() error              { return nil }
+func (e *errorListener) Addr() net.Addr            { return e.addr }
+
 // buildOptsOptionCount enumerates the expected number of ListenerOption values
 // returned by buildOpts for each configuration.
 //
@@ -175,9 +193,10 @@ func TestRun_ContextCancelledBeforeConnect(t *testing.T) {
 	assert.False(t, called.Load(), "listen should not have been called with a cancelled context")
 }
 
-// TestRun_ReconnectAfterDisconnect verifies that after a successful first connection
-// that then drops (ErrListenerClosed), Run reconnects and invokes onReconnected.
-func TestRun_ReconnectAfterDisconnect(t *testing.T) {
+// TestRun_ReconnectAttemptAfterDisconnect verifies that after a successful first
+// connection that then drops (ErrListenerClosed), Run attempts to reconnect
+// (as observed by listen being called twice).
+func TestRun_ReconnectAttemptAfterDisconnect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -264,10 +283,10 @@ func TestRun_OnConnectedCallback(t *testing.T) {
 	assert.False(t, reconnectedCalled.Load())
 }
 
-// TestRun_BackoffResetOnSuccessfulConnect verifies that after a successful connection
-// the reconnect backoff resets to the initial value. We do this by timing two
-// reconnect cycles: first a failed reconnect (which applies backoff), then a
-// successful connection that resets it.
+// TestRun_SubsequentConnectFailureRetries verifies that after an initial successful
+// connection, a subsequent connection failure causes Run to keep retrying until the
+// context is canceled. In this scenario we expect three listen calls: initial connect,
+// failed reconnect, then a reconnect attempt that is canceled via the context.
 func TestRun_SubsequentConnectFailureRetries(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -303,4 +322,37 @@ func TestRun_SubsequentConnectFailureRetries(t *testing.T) {
 	require.NoError(t, err)
 	// listen was called 3 times: initial connect, failed reconnect, then ctx-cancelled reconnect.
 	assert.EqualValues(t, 3, callCount.Load())
+}
+
+// TestRun_UnexpectedListenerErrorReconnects verifies that when listenAndServe returns
+// an error that is not revdial.ErrListenerClosed (an unexpected error), Run treats it
+// like a normal disconnect and still attempts to reconnect rather than exiting.
+func TestRun_UnexpectedListenerErrorReconnects(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	unexpectedErr := errors.New("unexpected io error")
+	callCount := atomic.Int32{}
+
+	cs := NewClientServer(Config{ServerAddr: "localhost:1", NoTLS: true}, newTestToken(t))
+	cs.initialBackoff = time.Millisecond // speed up test
+
+	cs.listen = func(_ context.Context, _ string, _ ...revdial.ListenerOption) (net.Listener, error) {
+		n := callCount.Add(1)
+
+		switch n {
+		case 1:
+			// First call: return a listener that immediately yields an unexpected error.
+			return newErrorListener(unexpectedErr), nil
+		default:
+			// Second call (reconnect): cancel context so Run exits cleanly.
+			cancel()
+			return nil, context.Canceled
+		}
+	}
+
+	err := cs.Run(ctx)
+
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, callCount.Load(), "Run should reconnect after an unexpected listener error")
 }

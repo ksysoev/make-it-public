@@ -16,6 +16,18 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const (
+	reconnectBackoffInitial = 1 * time.Second
+	reconnectBackoffMax     = 30 * time.Second
+	reconnectBackoffFactor  = 2
+
+	// defaultKeepAliveInterval is the TCP keepalive period set on the control connection.
+	// A 30s interval ensures silent TCP drops (e.g. firewall idle timeouts) are detected
+	// well within typical NAT/firewall session expiry windows (often 5–30 minutes).
+	defaultKeepAliveInterval = 30 * time.Second
+)
+
+// Config holds the configuration for the ClientServer.
 type Config struct {
 	ServerAddr string
 	DestAddr   string
@@ -24,22 +36,35 @@ type Config struct {
 	EnableV2   bool
 }
 
+// ClientServer manages the reverse tunnel connection to the server and
+// forwards incoming connections to the configured local destination.
 type ClientServer struct {
-	onConnected func(url string)
-	onRequest   func(clientIP string)
-	token       *token.Token
-	cfg         Config
-	wg          sync.WaitGroup
+	onConnected   func(url string)
+	onReconnected func(url string)
+	onRequest     func(clientIP string)
+	token         *token.Token
+	cfg           Config
+	wg            sync.WaitGroup
 }
 
 // Option is a functional option for configuring ClientServer.
 type Option func(*ClientServer)
 
 // WithOnConnected sets a callback function that is called when the client
-// successfully connects to the server. The callback receives the public URL.
+// successfully connects to the server for the first time. The callback receives
+// the public URL.
 func WithOnConnected(fn func(url string)) Option {
 	return func(c *ClientServer) {
 		c.onConnected = fn
+	}
+}
+
+// WithOnReconnected sets a callback function that is called when the client
+// successfully reconnects to the server after a prior disconnection. The callback
+// receives the public URL. If not set, onConnected is used as a fallback.
+func WithOnReconnected(fn func(url string)) Option {
+	return func(c *ClientServer) {
+		c.onReconnected = fn
 	}
 }
 
@@ -52,6 +77,7 @@ func WithOnRequest(fn func(clientIP string)) Option {
 	}
 }
 
+// Conn extends net.Conn with CloseWrite to allow half-close of the write side.
 type Conn interface {
 	net.Conn
 	CloseWrite() error
@@ -80,6 +106,7 @@ func wrapConn(conn net.Conn) Conn {
 	return &connWrapper{Conn: conn}
 }
 
+// NewClientServer creates a new ClientServer with the given configuration, token, and options.
 func NewClientServer(cfg Config, tkn *token.Token, opts ...Option) *ClientServer {
 	cs := &ClientServer{
 		cfg:   cfg,
@@ -93,18 +120,15 @@ func NewClientServer(cfg Config, tkn *token.Token, opts ...Option) *ClientServer
 	return cs
 }
 
-func (s *ClientServer) Run(ctx context.Context) error {
-	opts := []revdial.ListenerOption{}
-
-	slog.DebugContext(ctx, "initializing revdial client",
-		slog.String("server", s.cfg.ServerAddr),
-		slog.Bool("v2_enabled", s.cfg.EnableV2),
-		slog.Bool("no_tls", s.cfg.NoTLS),
-		slog.Bool("insecure", s.cfg.Insecure))
+// buildOpts constructs the revdial listener options from the current configuration.
+// isReconnect indicates whether the URL event handler should fire onReconnected
+// instead of onConnected.
+func (s *ClientServer) buildOpts(ctx context.Context, isReconnect bool) ([]revdial.ListenerOption, error) {
+	var opts []revdial.ListenerOption
 
 	authOpt, err := revdial.WithUserPass(s.token.IDWithType(), s.token.Secret)
 	if err != nil {
-		return fmt.Errorf("failed to create auth option: %w", err)
+		return nil, fmt.Errorf("failed to create auth option: %w", err)
 	}
 
 	opts = append(opts, authOpt)
@@ -116,16 +140,25 @@ func (s *ClientServer) Run(ctx context.Context) error {
 			return
 		}
 
-		// Call the onConnected callback if set (for interactive display)
-		if s.onConnected != nil {
-			s.onConnected(url)
+		if isReconnect {
+			switch {
+			case s.onReconnected != nil:
+				s.onReconnected(url)
+			case s.onConnected != nil:
+				s.onConnected(url)
+			default:
+				slog.InfoContext(ctx, "mit client reconnected", "url", url)
+			}
 		} else {
-			// Fall back to slog for non-interactive mode
-			slog.InfoContext(ctx, "mit client is connected", "url", url)
+			if s.onConnected != nil {
+				s.onConnected(url)
+			} else {
+				slog.InfoContext(ctx, "mit client is connected", "url", url)
+			}
 		}
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create event handler: %w", err)
+		return nil, fmt.Errorf("failed to create event handler: %w", err)
 	}
 
 	opts = append(opts, onConnect)
@@ -133,7 +166,7 @@ func (s *ClientServer) Run(ctx context.Context) error {
 	if !s.cfg.NoTLS {
 		host, _, err := net.SplitHostPort(s.cfg.ServerAddr)
 		if err != nil {
-			return fmt.Errorf("failed to split host and port: %w", err)
+			return nil, fmt.Errorf("failed to split host and port: %w", err)
 		}
 
 		tlsConf := revdial.WithListenerTLSConfig(&tls.Config{
@@ -145,42 +178,121 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		opts = append(opts, tlsConf)
 	}
 
-	// Enable V2 protocol if configured for improved performance with multiplexing
 	if s.cfg.EnableV2 {
-		slog.DebugContext(ctx, "enabling V2 protocol with yamux multiplexing")
-
 		opts = append(opts, revdial.WithEnableV2())
-	} else {
-		slog.DebugContext(ctx, "V2 disabled, using V1 protocol (use without --disable-v2 to enable V2)")
 	}
 
-	slog.DebugContext(ctx, "connecting to server", slog.String("server", s.cfg.ServerAddr))
+	opts = append(opts, revdial.WithListenerKeepAlive(defaultKeepAliveInterval))
 
-	listener, err := revdial.Listen(ctx, s.cfg.ServerAddr, opts...)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to connect to server",
-			slog.Any("error", err),
-			slog.String("server", s.cfg.ServerAddr),
-			slog.Bool("v2_enabled", s.cfg.EnableV2),
-			slog.String("hint", "If connection fails, try using --disable-v2 flag for V1 fallback"))
+	return opts, nil
+}
 
-		return err
-	}
-
-	go func() {
-		<-ctx.Done()
-
-		_ = listener.Close()
-	}()
+// Run connects to the server and forwards incoming connections to the local destination.
+// If the connection is lost after a successful connection, Run automatically reconnects
+// with exponential backoff (1s up to 30s). The first connection failure is returned
+// immediately without retrying. Run returns nil when ctx is cancelled.
+func (s *ClientServer) Run(ctx context.Context) error {
+	slog.DebugContext(ctx, "initializing revdial client",
+		slog.String("server", s.cfg.ServerAddr),
+		slog.Bool("v2_enabled", s.cfg.EnableV2),
+		slog.Bool("no_tls", s.cfg.NoTLS),
+		slog.Bool("insecure", s.cfg.Insecure))
 
 	defer s.wg.Wait()
 
-	err = s.listenAndServe(ctx, listener)
-	if err != nil && err != revdial.ErrListenerClosed {
-		return err
-	}
+	backoff := reconnectBackoffInitial
+	attempt := 0
 
-	return nil
+	for {
+		if ctx.Err() != nil {
+			return nil
+		}
+
+		opts, err := s.buildOpts(ctx, attempt > 0)
+		if err != nil {
+			return err
+		}
+
+		slog.DebugContext(ctx, "connecting to server",
+			slog.String("server", s.cfg.ServerAddr),
+			slog.Int("attempt", attempt+1))
+
+		listener, err := revdial.Listen(ctx, s.cfg.ServerAddr, opts...)
+		if err != nil {
+			if attempt == 0 {
+				// First connection failed — report immediately, no retry.
+				slog.ErrorContext(ctx, "failed to connect to server",
+					slog.Any("error", err),
+					slog.String("server", s.cfg.ServerAddr),
+					slog.Bool("v2_enabled", s.cfg.EnableV2),
+					slog.String("hint", "If connection fails, try using --disable-v2 flag for V1 fallback"))
+
+				return err
+			}
+
+			// Subsequent reconnect attempt failed — back off and retry.
+			slog.WarnContext(ctx, "reconnect attempt failed, retrying",
+				slog.Any("error", err),
+				slog.String("server", s.cfg.ServerAddr),
+				slog.Duration("backoff", backoff))
+
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(backoff):
+			}
+
+			backoff = min(backoff*reconnectBackoffFactor, reconnectBackoffMax)
+			attempt++
+
+			continue
+		}
+
+		// Successful connection — register a goroutine to close the listener on context cancellation.
+		stopListener := make(chan struct{})
+
+		go func() {
+			select {
+			case <-ctx.Done():
+				_ = listener.Close()
+			case <-stopListener:
+			}
+		}()
+
+		serveErr := s.listenAndServe(ctx, listener)
+
+		// Signal the closer goroutine that the listener is already done.
+		close(stopListener)
+
+		if ctx.Err() != nil {
+			// Context was cancelled — clean exit.
+			return nil
+		}
+
+		if serveErr != nil && serveErr != revdial.ErrListenerClosed {
+			// Unexpected error that is not a normal disconnect.
+			slog.ErrorContext(ctx, "unexpected error from listener, will reconnect",
+				slog.Any("error", serveErr),
+				slog.String("server", s.cfg.ServerAddr))
+		} else {
+			slog.InfoContext(ctx, "disconnected from server, reconnecting",
+				slog.String("server", s.cfg.ServerAddr),
+				slog.Duration("backoff", backoff))
+		}
+
+		// Successful connection existed — reset backoff on clean disconnect so the
+		// first reconnect is always fast (1s), rather than inheriting a prior penalty.
+		backoff = reconnectBackoffInitial
+		attempt++
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(backoff):
+		}
+
+		backoff = min(backoff*reconnectBackoffFactor, reconnectBackoffMax)
+	}
 }
 
 func (s *ClientServer) listenAndServe(ctx context.Context, listener net.Listener) error {

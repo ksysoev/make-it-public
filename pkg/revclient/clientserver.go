@@ -36,15 +36,21 @@ type Config struct {
 	EnableV2   bool
 }
 
+// listenFunc is the signature for creating a reverse-dial listener.
+// It is a package-level type so tests can substitute a fake implementation.
+type listenFunc func(ctx context.Context, addr string, opts ...revdial.ListenerOption) (net.Listener, error)
+
 // ClientServer manages the reverse tunnel connection to the server and
 // forwards incoming connections to the configured local destination.
 type ClientServer struct {
-	onConnected   func(url string)
-	onReconnected func(url string)
-	onRequest     func(clientIP string)
-	token         *token.Token
-	cfg           Config
-	wg            sync.WaitGroup
+	listen         listenFunc
+	onConnected    func(url string)
+	onReconnected  func(url string)
+	onRequest      func(clientIP string)
+	token          *token.Token
+	cfg            Config
+	initialBackoff time.Duration
+	wg             sync.WaitGroup
 }
 
 // Option is a functional option for configuring ClientServer.
@@ -109,8 +115,12 @@ func wrapConn(conn net.Conn) Conn {
 // NewClientServer creates a new ClientServer with the given configuration, token, and options.
 func NewClientServer(cfg Config, tkn *token.Token, opts ...Option) *ClientServer {
 	cs := &ClientServer{
-		cfg:   cfg,
-		token: tkn,
+		cfg:            cfg,
+		token:          tkn,
+		initialBackoff: reconnectBackoffInitial,
+		listen: func(ctx context.Context, addr string, opts ...revdial.ListenerOption) (net.Listener, error) {
+			return revdial.Listen(ctx, addr, opts...)
+		},
 	}
 
 	for _, opt := range opts {
@@ -200,7 +210,7 @@ func (s *ClientServer) Run(ctx context.Context) error {
 
 	defer s.wg.Wait()
 
-	backoff := reconnectBackoffInitial
+	backoff := s.initialBackoff
 	attempt := 0
 
 	for {
@@ -217,7 +227,7 @@ func (s *ClientServer) Run(ctx context.Context) error {
 			slog.String("server", s.cfg.ServerAddr),
 			slog.Int("attempt", attempt+1))
 
-		listener, err := revdial.Listen(ctx, s.cfg.ServerAddr, opts...)
+		listener, err := s.listen(ctx, s.cfg.ServerAddr, opts...)
 		if err != nil {
 			if attempt == 0 {
 				// First connection failed — report immediately, no retry.
@@ -248,15 +258,18 @@ func (s *ClientServer) Run(ctx context.Context) error {
 			continue
 		}
 
-		// Successful connection — register a goroutine to close the listener on context cancellation.
+		// Successful connection — register a goroutine to close the listener on context
+		// cancellation. The goroutine always calls listener.Close() after either branch
+		// fires so the listener is never leaked when listenAndServe returns for any reason.
 		stopListener := make(chan struct{})
 
 		go func() {
 			select {
 			case <-ctx.Done():
-				_ = listener.Close()
 			case <-stopListener:
 			}
+
+			_ = listener.Close()
 		}()
 
 		serveErr := s.listenAndServe(ctx, listener)
@@ -269,21 +282,23 @@ func (s *ClientServer) Run(ctx context.Context) error {
 			return nil
 		}
 
+		// Successful connection existed — reset backoff on clean disconnect so the
+		// first reconnect is always fast, rather than inheriting a prior penalty.
+		// Reset before logging so the logged value matches the actual wait.
+		backoff = s.initialBackoff
+		attempt++
+
 		if serveErr != nil && serveErr != revdial.ErrListenerClosed {
 			// Unexpected error that is not a normal disconnect.
 			slog.ErrorContext(ctx, "unexpected error from listener, will reconnect",
 				slog.Any("error", serveErr),
-				slog.String("server", s.cfg.ServerAddr))
+				slog.String("server", s.cfg.ServerAddr),
+				slog.Duration("backoff", backoff))
 		} else {
 			slog.InfoContext(ctx, "disconnected from server, reconnecting",
 				slog.String("server", s.cfg.ServerAddr),
 				slog.Duration("backoff", backoff))
 		}
-
-		// Successful connection existed — reset backoff on clean disconnect so the
-		// first reconnect is always fast (1s), rather than inheriting a prior penalty.
-		backoff = reconnectBackoffInitial
-		attempt++
 
 		select {
 		case <-ctx.Done():

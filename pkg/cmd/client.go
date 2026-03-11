@@ -120,8 +120,13 @@ func RunClientCommand(ctx context.Context, args *args) error {
 			disp.ShowConnected(url, exposeAddr, string(tkn.Type))
 		}),
 		revclient.WithOnReconnected(func(url string) {
-			// Show the reconnected banner. No spinner is active at this point
-			// because the reconnect attempt is unattended.
+			// Stop the spinner if it is still active (e.g. the initial connection was
+			// established but the urlToConnectUpdated event had not yet arrived before
+			// the link dropped), then show the reconnected banner.
+			if spinner != nil {
+				spinner.Success("Reconnected!")
+			}
+
 			disp.ShowConnected(url, exposeAddr, string(tkn.Type))
 		}),
 		revclient.WithOnRequest(func(clientIP string) {

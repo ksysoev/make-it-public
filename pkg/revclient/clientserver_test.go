@@ -156,6 +156,26 @@ func TestBuildOpts_InvalidServerAddr(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to split host and port")
 }
 
+// TestRun_ContextCancelledDuringFirstConnect verifies that if the context is
+// cancelled while the very first listen call is in progress, Run returns nil
+// (clean shutdown) rather than surfacing the context error to the caller.
+func TestRun_ContextCancelledDuringFirstConnect(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cs := NewClientServer(Config{ServerAddr: "localhost:1", NoTLS: true}, newTestToken(t))
+	cs.listen = func(lCtx context.Context, _ string, _ ...revdial.ListenerOption) (net.Listener, error) {
+		// Simulate the context being cancelled mid-dial (e.g. user presses Ctrl+C
+		// while the TCP handshake is in flight).
+		cancel()
+		return nil, context.Canceled
+	}
+
+	err := cs.Run(ctx)
+
+	require.NoError(t, err, "Run must return nil when context is cancelled during the first listen call")
+}
+
 // TestRun_FirstConnectFails verifies that a connection error on the very first
 // attempt is returned immediately without any retry.
 func TestRun_FirstConnectFails(t *testing.T) {
@@ -200,16 +220,12 @@ func TestRun_ReconnectAttemptAfterDisconnect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	reconnectedCh := make(chan string, 1)
-
 	firstListener := newFakeListener()
-
 	callCount := atomic.Int32{}
 
 	cs := NewClientServer(
 		Config{ServerAddr: "localhost:1", NoTLS: true},
 		newTestToken(t),
-		WithOnReconnected(func(url string) { reconnectedCh <- url }),
 	)
 	cs.initialBackoff = time.Millisecond // speed up test
 
@@ -234,9 +250,11 @@ func TestRun_ReconnectAttemptAfterDisconnect(t *testing.T) {
 	assert.EqualValues(t, 2, callCount.Load(), "listen should have been called twice (connect + reconnect attempt)")
 }
 
-// TestRun_OnConnectedCallback verifies that onConnected is called (not onReconnected)
-// for the initial connection.
-func TestRun_OnConnectedCallback(t *testing.T) {
+// TestRun_NoCallbacksWithoutServerEvent verifies that neither onConnected nor
+// onReconnected is fired in the absence of a real "urlToConnectUpdated" event
+// from the server, and that Run performs a reconnect attempt after the first
+// listener closes (as observed by listen being called twice).
+func TestRun_NoCallbacksWithoutServerEvent(t *testing.T) {
 	// We can't directly trigger the urlToConnectUpdated event from outside, but we can
 	// verify that the isReconnect flag fed to buildOpts is false on the first call and
 	// true on subsequent calls by observing which callback is wired to the event handler.
@@ -276,7 +294,8 @@ func TestRun_OnConnectedCallback(t *testing.T) {
 
 	// We cannot assert connectedCalled/reconnectedCalled here because the event is only
 	// fired by the revdial server sending a "urlToConnectUpdated" message over the wire.
-	// What we CAN assert is that Run called listen twice (first connect + reconnect).
+	// What we CAN assert is that Run called listen twice (first connect + reconnect)
+	// and that neither callback was fired without a real server event (no false positives).
 	assert.EqualValues(t, 2, callCount.Load())
 	// And that neither callback was fired without a real server event (no false positives).
 	assert.False(t, connectedCalled.Load())

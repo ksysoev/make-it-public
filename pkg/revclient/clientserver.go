@@ -230,6 +230,12 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		listener, err := s.listen(ctx, s.cfg.ServerAddr, opts...)
 		if err != nil {
 			if attempt == 0 {
+				// If context was cancelled while the first listen was in progress,
+				// treat it as a clean shutdown rather than an error.
+				if ctx.Err() != nil {
+					return nil
+				}
+
 				// First connection failed — report immediately, no retry.
 				slog.ErrorContext(ctx, "failed to connect to server",
 					slog.Any("error", err),

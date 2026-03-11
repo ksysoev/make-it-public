@@ -112,9 +112,19 @@ func RunClientCommand(ctx context.Context, args *args) error {
 	// Create client with callbacks for display
 	revcli := revclient.NewClientServer(cfg, tkn,
 		revclient.WithOnConnected(func(url string) {
-			// Stop spinner and show success banner
+			// Stop the initial connecting spinner and show the success banner.
 			if spinner != nil {
 				spinner.Success("Connected!")
+			}
+
+			disp.ShowConnected(url, exposeAddr, string(tkn.Type))
+		}),
+		revclient.WithOnReconnected(func(url string) {
+			// Stop the spinner if it is still active (e.g. the initial connection was
+			// established but the urlToConnectUpdated event had not yet arrived before
+			// the link dropped), then show the reconnected banner.
+			if spinner != nil {
+				spinner.Success("Reconnected!")
 			}
 
 			disp.ShowConnected(url, exposeAddr, string(tkn.Type))

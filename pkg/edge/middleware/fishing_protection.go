@@ -189,6 +189,7 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 		Name:     csrfTokenName,
 		Value:    csrfToken,
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, &csrfCookie)

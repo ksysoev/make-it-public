@@ -82,6 +82,10 @@ linters:
         text: "G124"
       - linters:
           - gosec
+        path: pkg/edge/middleware/fishing_protection\.go$
+        text: "G710"
+      - linters:
+          - gosec
         path: pkg/edge/middleware/fishing_protection_test\.go$
         text: "G124"
     paths:

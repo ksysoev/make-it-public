@@ -259,6 +259,8 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set consent cookie
+	// SameSite=None is required for cross-site requests (CDN/CNAME proxy support).
+	// Secure=true is set to satisfy the SameSite=None requirement.
 	cookie := http.Cookie{
 		Name:     consentCookieName,
 		Value:    consentValue,
@@ -272,5 +274,5 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	// Redirect to the originally requested URL.
 	// originalURL is validated above to be a relative URL (no hostname),
 	// so open redirect is not possible here.
-	http.Redirect(w, r, originalURL, http.StatusSeeOther) //nolint:gosec // G710: URL validated to be relative above
+	http.Redirect(w, r, originalURL, http.StatusSeeOther)
 }

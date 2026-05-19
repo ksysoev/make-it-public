@@ -108,9 +108,12 @@ func TestFishingProtection_ValidConsentSubmission(t *testing.T) {
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
 	// Add CSRF cookie
-	req.AddCookie(&http.Cookie{
-		Name:  csrfTokenName,
-		Value: csrfToken,
+	req.AddCookie(&http.Cookie{ //nolint:gosec // G124: test cookie, security attributes not required in tests
+		Name:     csrfTokenName,
+		Value:    csrfToken,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	resp := httptest.NewRecorder()
@@ -164,9 +167,12 @@ func TestFishingProtection_InvalidCSRF(t *testing.T) {
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
 	// Add valid CSRF cookie with different value
-	req.AddCookie(&http.Cookie{
-		Name:  csrfTokenName,
-		Value: "different-token",
+	req.AddCookie(&http.Cookie{ //nolint:gosec // G124: test cookie, security attributes not required in tests
+		Name:     csrfTokenName,
+		Value:    "different-token",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	resp := httptest.NewRecorder()
@@ -265,9 +271,12 @@ func TestRenderConsentForm_CSRFTokenNotRegenerated(t *testing.T) {
 	req.Host = "example.com"
 
 	// Add the CSRF token cookie
-	req.AddCookie(&http.Cookie{
-		Name:  csrfTokenName,
-		Value: initialToken,
+	req.AddCookie(&http.Cookie{ //nolint:gosec // G124: test cookie, security attributes not required in tests
+		Name:     csrfTokenName,
+		Value:    initialToken,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	resp := httptest.NewRecorder()

@@ -10,6 +10,8 @@ import (
 // clientIPKeyType is a custom type used as a key for storing client IP in the request context
 type clientIPKeyType struct{}
 
+const headerXRealIP = "X-Real-IP"
+
 // ClientIP is a middleware that identifies the client IP address from an HTTP request
 // and stores it in the request context. It checks various headers including forwarded headers,
 // Cloudflare, and CloudFront headers. If no headers are present, it falls back to the remote IP.
@@ -65,7 +67,7 @@ func extractClientIP(r *http.Request) string {
 
 	// Check other common headers
 	headers := []string{
-		"X-Real-IP",
+		headerXRealIP,
 		"X-Forwarded",
 		"X-Cluster-Client-IP",
 		"True-Client-IP",

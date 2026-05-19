@@ -267,6 +267,8 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &cookie)
 
-	// Redirect to the originally requested URL
-	http.Redirect(w, r, originalURL, http.StatusSeeOther)
+	// Redirect to the originally requested URL.
+	// originalURL is validated above to be a relative URL (no hostname),
+	// so open redirect is not possible here.
+	http.Redirect(w, r, originalURL, http.StatusSeeOther) //nolint:gosec // G710: URL validated to be relative above
 }

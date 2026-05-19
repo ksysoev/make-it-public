@@ -189,6 +189,7 @@ func renderConsentForm(w http.ResponseWriter, r *http.Request, tmpl *template.Te
 		Name:     csrfTokenName,
 		Value:    csrfToken,
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, &csrfCookie)
@@ -238,6 +239,7 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -257,6 +259,8 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set consent cookie
+	// SameSite=None is required for cross-site requests (CDN/CNAME proxy support).
+	// Secure=true is set to satisfy the SameSite=None requirement.
 	cookie := http.Cookie{
 		Name:     consentCookieName,
 		Value:    consentValue,
@@ -267,6 +271,8 @@ func handleConsentFormSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &cookie)
 
-	// Redirect to the originally requested URL
+	// Redirect to the originally requested URL.
+	// originalURL is validated above to be a relative URL (no hostname),
+	// so open redirect is not possible here.
 	http.Redirect(w, r, originalURL, http.StatusSeeOther)
 }

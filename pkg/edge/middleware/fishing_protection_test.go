@@ -37,8 +37,11 @@ func TestFishingProtection_WithConsentCookie(t *testing.T) {
 
 	// Add consent cookie
 	req.AddCookie(&http.Cookie{
-		Name:  consentCookieName,
-		Value: consentValue,
+		Name:     consentCookieName,
+		Value:    consentValue,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	resp := httptest.NewRecorder()
@@ -109,8 +112,11 @@ func TestFishingProtection_ValidConsentSubmission(t *testing.T) {
 
 	// Add CSRF cookie
 	req.AddCookie(&http.Cookie{
-		Name:  csrfTokenName,
-		Value: csrfToken,
+		Name:     csrfTokenName,
+		Value:    csrfToken,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	resp := httptest.NewRecorder()
@@ -165,8 +171,11 @@ func TestFishingProtection_InvalidCSRF(t *testing.T) {
 
 	// Add valid CSRF cookie with different value
 	req.AddCookie(&http.Cookie{
-		Name:  csrfTokenName,
-		Value: "different-token",
+		Name:     csrfTokenName,
+		Value:    "different-token",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	resp := httptest.NewRecorder()
@@ -266,8 +275,11 @@ func TestRenderConsentForm_CSRFTokenNotRegenerated(t *testing.T) {
 
 	// Add the CSRF token cookie
 	req.AddCookie(&http.Cookie{
-		Name:  csrfTokenName,
-		Value: initialToken,
+		Name:     csrfTokenName,
+		Value:    initialToken,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	resp := httptest.NewRecorder()

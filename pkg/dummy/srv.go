@@ -15,7 +15,10 @@ import (
 	"github.com/fatih/color"
 )
 
-const contentTypeJSON = "application/json"
+const (
+	contentTypeJSON  = "application/json"
+	contentTypePlain = "text/plain"
+)
 
 type Config struct {
 	Body        string   `mapstructure:"body"`
@@ -62,7 +65,7 @@ func New(cfg Config) (*Server, error) {
 		resp.ContentType = contentTypeJSON
 	case cfg.Body != "":
 		resp.Body = cfg.Body
-		resp.ContentType = "text/plain"
+		resp.ContentType = contentTypePlain
 	}
 
 	// Parse custom headers

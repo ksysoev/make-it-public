@@ -39,7 +39,7 @@ func TestClientIP(t *testing.T) {
 			name:       "X-Real-IP header",
 			remoteAddr: "10.0.0.1:1234",
 			headers: map[string]string{
-				"X-Real-IP": "203.0.113.3",
+				headerXRealIP: "203.0.113.3",
 			},
 			expectedIP: "203.0.113.3",
 		},
@@ -57,7 +57,7 @@ func TestClientIP(t *testing.T) {
 			headers: map[string]string{
 				"CF-Connecting-IP":           "203.0.113.1",
 				"X-Forwarded-For":            "203.0.113.2",
-				"X-Real-IP":                  "203.0.113.3",
+				headerXRealIP:                "203.0.113.3",
 				"X-CloudFront-Forwarded-For": "203.0.113.4",
 			},
 			expectedIP: "203.0.113.1", // CF-Connecting-IP should have highest priority

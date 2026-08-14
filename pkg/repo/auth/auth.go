@@ -18,6 +18,7 @@ const (
 )
 
 type Config struct {
+	RedisURL  string `mapstructure:"redis_url"`
 	RedisAddr string `mapstructure:"redis_addr"`
 	Password  string `mapstructure:"redis_password"` // #nosec G117 -- This is a config field name, not an exposed password
 	KeyPrefix string `mapstructure:"key_prefix"`
@@ -41,12 +42,24 @@ type Repo struct {
 
 // New creates and initializes a new Repo instance with the provided configuration.
 // It sets up a Redis client using the given Redis address, password, and key prefix from the Config struct.
+// If RedisURL is set it takes precedence over RedisAddr/Password.
 // Returns a pointer to the initialized Repo. Assumes valid Config is provided and may panic on misconfiguration.
 func New(cfg *Config) *Repo {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisAddr,
-		Password: cfg.Password,
-	})
+	var opts *redis.Options
+
+	if cfg.RedisURL != "" {
+		var err error
+		if opts, err = redis.ParseURL(cfg.RedisURL); err != nil {
+			panic(fmt.Sprintf("invalid redis_url: %v", err))
+		}
+	} else {
+		opts = &redis.Options{
+			Addr:     cfg.RedisAddr,
+			Password: cfg.Password,
+		}
+	}
+
+	rdb := redis.NewClient(opts)
 
 	return &Repo{
 		db:        rdb,

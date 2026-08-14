@@ -134,5 +134,6 @@ jobs:
           "AUTH_SALT": "${{ secrets.AUTH_SALT }}",
           "DOMAIN_NAME": "${{ secrets.DOMAIN_NAME }}",
           "EMAIL": "${{ secrets.EMAIL }}",
-          "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}"
+          "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
+          "REDIS_URL": "${{ secrets.REDIS_URL }}"
         }

@@ -3,24 +3,10 @@
 # Configuration files are embedded in Docker images (no volume mounts from host)
 
 services:
-  redis:
-    image: redis:7.4-alpine
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - backend
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-
   mitserver:
     image: "ghcr.io/ksysoev/make-it-public:${MIT_VERSION:-latest}"
     environment:
-      - AUTH_REDIS_ADDR=redis:6379
+      - AUTH_REDIS_URL=${REDIS_URL}
       - AUTH_SALT=${AUTH_SALT}
       - "AUTH_KEY_PREFIX=MIT::"
       - HTTP_PUBLIC_SCHEMA=https
@@ -54,8 +40,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    depends_on:
-      - redis
     deploy:
       replicas: 1
       restart_policy:
@@ -118,7 +102,6 @@ services:
 volumes:
   caddy_data:
   caddy_config:
-  redis_data:
 
 networks:
   # Service-specific backend network for internal communication

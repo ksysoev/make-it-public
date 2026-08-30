@@ -49,6 +49,10 @@ linters:
     nolintlint:
       require-explanation: true
       require-specific: true
+    staticcheck:
+      checks:
+        - "all"
+        - "-SA4023"
   exclusions:
     generated: lax
     presets:

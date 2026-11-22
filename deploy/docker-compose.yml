@@ -42,10 +42,14 @@ services:
       start_period: 10s
     deploy:
       replicas: 1
+      # Always restart, with unlimited attempts: a capped retry count leaves
+      # the service permanently down after a host-level event (e.g. a
+      # container runtime restart) where several restarts fail in quick succession.
       restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
+        condition: any
+        delay: 10s
+        max_attempts: 0
+        window: 60s
       update_config:
         parallelism: 1
         delay: 10s
@@ -86,10 +90,14 @@ services:
       - mitserver
     deploy:
       replicas: 1
+      # Always restart, with unlimited attempts: a capped retry count leaves
+      # the service permanently down after a host-level event (e.g. a
+      # container runtime restart) where several restarts fail in quick succession.
       restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
+        condition: any
+        delay: 10s
+        max_attempts: 0
+        window: 60s
       update_config:
         parallelism: 1
         delay: 10s
